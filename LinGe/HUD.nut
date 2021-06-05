@@ -119,7 +119,6 @@ if (!singlePlayer)
 			killData[attackerEntity.GetEntityIndex()].ci++;
 		else if (params.victimname != "")
 		{	// 杀死队友或使用!zs自杀时 victimname 会为空
-//			printl("kill:" + params.victimname + "|end");
 			killData[attackerEntity.GetEntityIndex()].si++;
 		}
 	}
