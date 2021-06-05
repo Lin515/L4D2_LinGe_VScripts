@@ -302,8 +302,6 @@ getconsttable().ACTION_STOP <- 2;
 {
 	if (event in index)
 		trigger[index[event]][event](params);
-	else
-		throw "未注册事件";
 }.bindenv(::LinGe.Events);
 
 ::EventHook <- ::LinGe.Events.EventHook.weakref();
