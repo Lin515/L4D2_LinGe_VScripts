@@ -13,7 +13,6 @@ printl("[LinGe] HUD 正在载入");
 };
 ::LinGe.Config.Add("HUD", ::LinGe.HUD.Config);
 
-local isLGTime = false; // 是否存在控制台变量 linge_time
 local killData = [];	// 击杀数据数组
 local singlePlayer = Director.IsSinglePlayerGame();
 
@@ -47,18 +46,9 @@ local singlePlayer = Director.IsSinglePlayerGame();
 	}
 };
 
-// void Update() 服务器会每1s执行一次该函数
-local UpdateFunc = null;
-if ("Update" in this)
+::LinGe.HUD.Timer_UpdateTime <- function (params)
 {
-	if ("function" == typeof Update)
-		UpdateFunc = this.Update;
-}
-function Update()
-{
-	if (null != UpdateFunc)
-		UpdateFunc();
-	if (isLGTime && ::LinGe.HUD.Config.isShowTime)
+	if (::LinGe.HUD.Config.isShowTime)
 		::LinGe.HUD.HUD_table.Fields.time.dataval = Convars.GetStr("linge_time");
 }
 
@@ -70,7 +60,6 @@ function Update()
 	// 如果linge_time变量不存在则显示回合时间
 	if (null == Convars.GetStr("linge_time"))
 	{
-		isLGTime = false;
 //		if (!("special" in HUD_table.Fields.time))
 			HUD_table.Fields.time.special <- HUD_SPECIAL_ROUNDTIME;
 	}
@@ -78,7 +67,7 @@ function Update()
 	{
 //		if (!("dataval" in HUD_table.Fields.time))
 			HUD_table.Fields.time.dataval <- "";
-		isLGTime = true;
+		::VSLib.Timers.AddTimerByName("Timer_UpdateTime", 1.0, true, Timer_UpdateTime);
 	}
 
 	UpdateHUD();
