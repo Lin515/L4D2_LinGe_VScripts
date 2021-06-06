@@ -1,4 +1,4 @@
-if ( "coop"==g_BaseMode && "versus"!=Director.GetGameMode() ) {
+if ( "coop" == g_BaseMode ) {
 
 printl("[LinGe] 简易多特控制 正在载入");
 ::LinGe.MoreSI <- {};
@@ -21,17 +21,7 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 	local ctrlNum = (Config.sibase >= 0);
 	local ctrlTime = (Config.sitime >= 0);
 	local ctrlNoci = Config.noci;
-	// 检查数组sionly值的有效性 移除无效值
-	if ("array" != typeof Config.sionly)
-		Config.sionly = [];
-	else
-	{
-		foreach (idx, val in Config.sionly)
-		{
-			if (null == sitypelist.find(val))
-				Config.sionly.remove(idx);
-		}
-	}
+	Checksionly();
 	local ctrlType = ( Config.sionly.len() > 0 );
 
 
@@ -122,6 +112,34 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 	{
 		::SessionOptions.rawdelete("cm_CommonLimit");
 		::VSLib.Timers.RemoveTimerByName("AutoKillCI");
+	}
+}
+
+// 检查数组sionly值的有效性 移除无效值
+::LinGe.MoreSI.Checksionly <- function()
+{
+	local str = "";
+	local firstChar = "";
+	if ("array" != typeof Config.sionly)
+		Config.sionly = [];
+	else
+	{
+		foreach (idx, val in Config.sionly)
+		{
+			// 如果找不到则将其进行字母转换，再进行查找
+			if (null == sitypelist.find(val))
+			{
+				// 首字母转为大写，其它转成小写
+				firstChar = val.slice(0, 1).toupper();
+				str = val.slice(1).tolower();
+				str = firstChar + str;
+
+				if (null == sitypelist.find(str))
+					Config.sionly.remove(idx);
+				else
+					Config.sionly[idx] = str;
+			}
+		}
 	}
 }
 
@@ -311,6 +329,8 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 		Config.sionly = arr;
 		if (Config.enabled)
 			ExecConfig();
+		else
+			Checksionly();
 		::LinGe.Config.Save("MoreSI");
 	}
 
@@ -320,9 +340,13 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 		foreach (val in Config.sionly)
 			list += val + " ";
 		ClientPrint(null, 3, "\x04多特控制：限制只生成特感 \x03" + list);
+		ClientPrint(null, 3, "\x04关闭方法：!sionly\x03 任意字符");
 	}
 	else
+	{
 		ClientPrint(null, 3, "\x04多特控制：限制特感生成 \x03关闭");
+		ClientPrint(null, 3, "\x04开启方法：!sionly\x03 Boomer Spitter Smoker Hunter Charger Jockey");
+	}
 }
 ::CmdAdd("sionly", ::LinGe.MoreSI.Cmd_sionly, ::LinGe.MoreSI);
 
