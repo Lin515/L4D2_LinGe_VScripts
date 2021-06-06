@@ -315,17 +315,23 @@ getconsttable().ACTION_STOP <- 2;
 ::LinGe.Admin <- {};
 ::LinGe.Admin.Config <- {
 	enabled = true,
+	takeOverAdminSystem = true, // 是否接管adminsystem的权限判断
+	adminsFile = "linge/admins_simple.ini",
 	list = [ { id="STEAM_1:0:64877973", name="Homura Chan" } ]
 };
 ::LinGe.Admin.ConfigManager <- ::LinGe.ConfigManager("LinGe/Admin");
 ::LinGe.Admin.ConfigManager.Add("Admin", ::LinGe.Admin.Config);
 ::LinGe.Admin.cmdTable <- {}; // 指令表
-// 如果你在 ems/LinGe 目录下创建了 sourcemod 管理员配置文件admins_simple.ini的链接
+// 如果你在 ems/linge 目录下创建了 sourcemod 管理员配置文件admins_simple.ini的链接
 // 那么本系列脚本就会以该文件为准来判断是否为管理员
 // 注意：只要steamid能在该文件中搜索到，那么就会判断为是管理员，即便这段ID在配置文件中被注释了（因为懒）
-::LinGe.Admin.SourcemodAdmins <- FileToString("LinGe/admins_simple.ini");
-if (::LinGe.Admin.SourcemodAdmins != null)
-	printl("[LinGe] 使用 sourcemod 管理员配置");
+// 你也可以把这个文件改成别的文件 例如使用admin system的管理员列表：adminsFile = "admin system/admins.txt"
+// 链接创建方法 请在left4dead2目录下运行以下命令：
+// Windows	mklink /H "ems/linge/admins_simple.ini" "addons/sourcemod/configs/admins_simple.ini"
+// Linux 	ln "addons/sourcemod/configs/admins_simple.ini" "ems/linge/admins_simple.ini"
+::LinGe.Admin.adminsFile <- FileToString(::LinGe.Admin.Config.adminsFile);
+if (::LinGe.Admin.adminsFile != null)
+	printl("[LinGe] 将在 " + ::LinGe.Admin.Config.adminsFile + " 中搜索管理员ID");
 
 // 添加指令 参数：指令，回调函数，函数执行表，是否是管理员指令
 // 若已有相同指令存在会覆盖旧指令
@@ -346,7 +352,7 @@ if (::LinGe.Admin.SourcemodAdmins != null)
 // 事件：回合开始 如果启用了AdminSystem则覆盖其管理员判断指令
 ::LinGe.Admin.OnGameEvent_round_start <- function (params)
 {
-	if ("AdminSystem" in getroottable())
+	if ("AdminSystem" in getroottable() && Config.takeOverAdminSystem)
 	{
 		::AdminSystem.IsAdmin = ::LinGe.Admin.IsAdmin;
 		::AdminSystem.IsPrivileged = ::LinGe.Admin.IsAdmin;
@@ -418,9 +424,9 @@ if (::LinGe.Admin.SourcemodAdmins != null)
 		return false;
 
 	// 通过steamID判断是否是管理员
-	if (null != ::LinGe.Admin.SourcemodAdmins)
+	if (null != ::LinGe.Admin.adminsFile)
 	{
-		if (null == ::LinGe.Admin.SourcemodAdmins.find(steamID))
+		if (null == ::LinGe.Admin.adminsFile.find(steamID))
 			return false;
 		else
 			return true;
