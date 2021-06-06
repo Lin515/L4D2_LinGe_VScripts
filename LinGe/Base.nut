@@ -14,17 +14,18 @@ printl("[LinGe] Base 正在载入");
 printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 
 // ---------------------------全局函数START-------------------------------------------
-// 根据当前模式获得大厅的最大人数
-::GetLobbySlots <- function ()
+// 当前模式是否是对抗模式
+::CheckVersus <- function ()
 {
 	if (Director.GetGameMode() == "mutation15") // 生还者对抗
-		return 8;
+		return true;
 	if ("versus" == g_BaseMode)
-		return 8;
+		return true;
 	if ("scavenge" == g_BaseMode)
-		return 8;
-	return 4;
+		return true;
+	return false;
 }
+::isVersus <- ::CheckVersus();
 
 // 设置某类下所有已生成实体的KeyValue
 ::SetKeyValueByClassname <- function (classname, key, value)
@@ -452,7 +453,7 @@ if (::LinGe.Admin.SourcemodAdmins != null)
 
 //------------------------------Cache---------------------------------------
 ::LinGe.Cache <- {};
-// 这两个事件事件由VSLib/easylogic.nut触发
+// 这两个事件由VSLib/easylogic.nut触发
 ::LinGe.Event_VSLibScriptStart <- function (params)
 {
 	RestoreTable("LinGe_Cache", ::LinGe.Cache);
@@ -469,7 +470,6 @@ if (::LinGe.Admin.SourcemodAdmins != null)
 //----------------------------Base-----START--------------------------------
 ::LinGe.Base <- {};
 ::LinGe.Base.Config <- {
-	teamHurtInfo = 2, // 友伤信息提示 0:关闭 1:公开处刑 2:仅攻击者和被攻击者可见
 	isShowTeamChange = true,
 	recordPlayerInfo = false
 };
@@ -508,14 +508,12 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 // 事件：回合开始
 ::LinGe.Base.OnGameEvent_round_start <- function (params)
 {
-	if (Config.teamHurtInfo > 0)
-		::EventHook("OnGameEvent_player_hurt", ::LinGe.Base.OnGameEvent_player_hurt, ::LinGe.Base);
-
 	UpdateMaxplayers();
 	// 当前关卡重开的话，脚本会被重新加载，玩家数据会被清空
 	// 而重开情况下玩家的队伍不会发生改变，不会触发事件
 	// 所以需要开局时搜索玩家
 	::Merge(::pyinfo, SearchForPlayers());
+
 }
 ::EventHook("OnGameEvent_round_start", ::LinGe.Base.OnGameEvent_round_start, ::LinGe.Base);
 
@@ -645,116 +643,6 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 ::EventHook("human_team");
 ::EventHook("OnGameEvent_player_team", ::LinGe.Base.OnGameEvent_player_team, ::LinGe.Base);
 
-// 事件：玩家受伤 友伤信息提示
-::LinGe.Base.teamHurtData <- {}; // 友伤临时数据记录
-::LinGe.Base.OnGameEvent_player_hurt <- function (params)
-{
-	if (!params.rawin("dmg_health"))
-		return;
-	// 如果伤害值小于1则不提示
-	if (params.dmg_health < 1)
-		return;
-	// 获得攻击者实体
-    local attacker = GetPlayerFromUserID(params.attacker);
-    // 如果攻击者无效则不提示
-    if (null == attacker)
-    	return;
-    // 如果攻击者不是生还者则不提示
-	if (!attacker.IsSurvivor())
-		return;
-
-	// 获取被攻击者实体
-    local victim = GetPlayerFromUserID(params.userid);
-    // 如果被攻击者不是生还者则不提示
-	if (!victim.IsSurvivor())
-		return;
-	// 如果被攻击者是BOT则不显示
-//	if ("BOT" == victim.GetNetworkIDString())
-//		return;
-	// 如果伤害类型为0则不提示（使用LinGe/Server.nut中的!zs自杀，伤害类型为0）
-	if (0 == params.type)
-		return;
-	// 如果被攻击者处于已死亡等状态则不提示
-    if ( victim.IsDead() || victim.IsDying() || victim.IsIncapacitated() )
-    	return;
-
-	local key = params.attacker + "_" + params.userid;
-	if (!teamHurtData.rawin(key))
-	{
-		teamHurtData[key] <- { dmg=0, attacker=attacker, victim=victim };
-	}
-	teamHurtData[key].dmg += params.dmg_health;
-	// 友伤发生后，0.5秒内同一人若未再对同一人造成友伤，则输出其造成的伤害
-	VSLib.Timers.AddTimerByName(key, 0.5, false, Timer_PrintHurt, key);
-}
-// 提示一次友伤伤害并删除累积数据
-::LinGe.Base.Timer_PrintHurt <- function (key)
-{
-	local info = teamHurtData[key];
-	local atkName = info.attacker.GetPlayerName();
-	local vctName = info.victim.GetPlayerName();
-	if (Config.teamHurtInfo == 1)
-	{
-		if (info.attacker == info.victim)
-			vctName = "他自己";
-		ClientPrint(null, 3, "\x03" + atkName
-			+ "\x04 对 \x03" + vctName
-			+ "\x04 造成了 \x03" + info.dmg + "\x04 点伤害");
-	}
-	else if (Config.teamHurtInfo == 2)
-	{
-		if (info.attacker == info.victim)
-		{
-			ClientPrint(info.attacker, 3, "\x04你对 \x03自己\x04 造成了 \x03" + info.dmg + "\x04 点伤害");
-		}
-		else
-		{
-			ClientPrint(info.attacker, 3, "\x04你对 \x03" + vctName
-				+ "\x04 造成了 \x03" + info.dmg + "\x04 点伤害");
-			ClientPrint(info.victim, 3, "\x03" + atkName
-				+ "\x04 对你造成了 \x03" + info.dmg + "\x04 点伤害");
-		}
-	}
-	teamHurtData.rawdelete(key);
-}.bindenv(LinGe.Base);
-
-::LinGe.Base.Cmd_teamhurt <- function (player, msg)
-{
-	if (2 == msg.len())
-	{
-		local style = msg[1].tointeger();
-		if (style < 0 || style > 2)
-		{
-			ClientPrint(player, 3, "!teamhurt 0:关闭友伤提示 1:公开处刑 2:仅双方可见");
-			return;
-		}
-		else
-			Config.teamHurtInfo = style;
-
-		::EventUnHook("OnGameEvent_player_hurt", ::LinGe.Base.OnGameEvent_player_hurt, ::LinGe.Base);
-		switch (Config.teamHurtInfo)
-		{
-		case 0:
-			ClientPrint(null, 3, "服务器已关闭友伤提示");
-			break;
-		case 1:
-			::EventHook("OnGameEvent_player_hurt", ::LinGe.Base.OnGameEvent_player_hurt, ::LinGe.Base);
-			ClientPrint(null, 3, "服务器已开启友伤提示[公开处刑]");
-			break;
-		case 2:
-			::EventHook("OnGameEvent_player_hurt", ::LinGe.Base.OnGameEvent_player_hurt, ::LinGe.Base);
-			ClientPrint(null, 3, "服务器已开启友伤提示[仅双方可见]");
-			break;
-		default:
-			throw "未知异常情况";
-		}
-		::LinGe.Config.Save("Players");
-	}
-	else
-		ClientPrint(player, 3, "!teamhurt 0:关闭友伤提示 1:公开处刑 2:仅双方可见");
-}
-::CmdAdd("teamhurt", ::LinGe.Base.Cmd_teamhurt, ::LinGe.Base);
-
 ::LinGe.Base.Cmd_teaminfo <- function (player, msg)
 {
 	if (1 == msg.len())
@@ -817,7 +705,12 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 			::pyinfo.maxplayers = ::pyinfo.maxplayers.tointeger();
 
 		if (::pyinfo.maxplayers < 0 || (!isExistMaxplayers))
-			::pyinfo.maxplayers = ::GetLobbySlots();
+		{
+			if (::isVersus)
+				::pyinfo.maxplayers = 8;
+			else
+				::pyinfo.maxplayers = 4;
+		}
 	}
 }
 //----------------------------Base-----END---------------------------------

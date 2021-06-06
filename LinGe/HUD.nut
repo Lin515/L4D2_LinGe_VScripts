@@ -1,19 +1,22 @@
 // HUD聊天窗指令：
 // !hud ：	开关hud显示
 // !rank n：	设置排行榜人数为n人，为0则不显示排行榜
-// !hudstyle n ： 设置玩家显示数风格为n (0:自动 1：战役风格（活跃：x 旁观：x 空余：x） 2：对抗风格(生还：x VS 特感：x) 
+// !hudstyle n ： 设置玩家显示数风格为n (0:自动 1：战役风格（活跃：x 旁观：x 空余：x） 2：对抗风格(生还：x VS 特感：x)
 printl("[LinGe] HUD 正在载入");
 ::LinGe.HUD <- {};
 
 ::LinGe.HUD.Config <- {
 	isShowHUD = true,
 	isShowTime = true,
-	rank = 3,
+	teamHurtInfo = 2, // 友伤信即时提示 0:关闭 1:公开处刑 2:仅攻击者和被攻击者可见
+	rank = 3, // 无法显示太多，4人以上容易出现无法显示，感觉是dataval的容量有限制
+			  // 如果你想显示更多人可以自己多加几个HUD slots来分开显示
 	style = 0
 };
 ::LinGe.Config.Add("HUD", ::LinGe.HUD.Config);
 
-local killData = [];	// 击杀数据数组
+::LinGe.HUD.killData <- []; // 击杀数据数组 包括特感击杀和丧尸击杀数
+
 local singlePlayer = Director.IsSinglePlayerGame();
 
 // 服务器每1s内会多次根据HUD_table更新屏幕上的HUD
@@ -55,8 +58,12 @@ local singlePlayer = Director.IsSinglePlayerGame();
 // 事件：回合开始
 ::LinGe.HUD.OnGameEvent_round_start <- function (params)
 {
+	// 初始化数组
 	for (local i=0; i<=32; i++)
+	{
 		killData.append( { si=0, ci=0 } ); // si=特感 ci=小丧尸
+	}
+
 	// 如果linge_time变量不存在则显示回合时间
 	if (null == Convars.GetStr("linge_time"))
 	{
@@ -94,6 +101,89 @@ local singlePlayer = Director.IsSinglePlayerGame();
 if (!singlePlayer)
 	::EventHook("human_team", ::LinGe.HUD.Event_human_team, ::LinGe.HUD);
 
+// 事件：玩家受伤 友伤信息提示
+// 对witch伤害和对小僵尸伤害不会触发这个事件
+::LinGe.HUD.tempTeamHurt <- {}; // 友伤临时数据记录
+::LinGe.HUD.OnGameEvent_player_hurt <- function (params)
+{
+	if (!params.rawin("dmg_health"))
+		return;
+	// 伤害值小于1
+	if (params.dmg_health < 1)
+		return;
+	// 伤害类型为0
+	if (0 == params.type)
+		return;
+
+	// 获得攻击者实体
+    local attacker = GetPlayerFromUserID(params.attacker);
+    // 攻击者无效
+    if (null == attacker)
+    	return;
+    // 攻击者不是生还者
+	if (!attacker.IsSurvivor())
+		return;
+	// 攻击者是BOT
+	if ("BOT" == attacker.GetNetworkIDString())
+		return;
+
+	// 获取被攻击者实体
+    local victim = GetPlayerFromUserID(params.userid);
+    // 如果被攻击者是生还者则统计友伤数据
+	if (victim.IsSurvivor())
+	{
+		// 如果不想显示对BOT的友伤可以将下面两行取消注释
+	//	if ("BOT" == victim.GetNetworkIDString())
+	//		return;
+		// 如果被攻击者处于已死亡等状态则不提示
+	    if ( victim.IsDead() || victim.IsDying() || victim.IsIncapacitated() )
+	    	return;
+		if (Config.teamHurtInfo > 0)
+		{
+			local key = params.attacker + "_" + params.userid;
+			if (!tempTeamHurt.rawin(key))
+			{
+				tempTeamHurt[key] <- { dmg=0, attacker=attacker, victim=victim };
+			}
+			tempTeamHurt[key].dmg += params.dmg_health;
+			// 友伤发生后，0.5秒内同一人若未再对同一人造成友伤，则输出其造成的伤害
+			VSLib.Timers.AddTimerByName(key, 0.5, false, Timer_PrintHurt, key);
+		}
+	}
+}
+::EventHook("OnGameEvent_player_hurt", ::LinGe.HUD.OnGameEvent_player_hurt, ::LinGe.HUD);
+
+// 提示一次友伤伤害并删除累积数据
+::LinGe.HUD.Timer_PrintHurt <- function (key)
+{
+	local info = tempTeamHurt[key];
+	local atkName = info.attacker.GetPlayerName();
+	local vctName = info.victim.GetPlayerName();
+	if (Config.teamHurtInfo == 1)
+	{
+		if (info.attacker == info.victim)
+			vctName = "他自己";
+		ClientPrint(null, 3, "\x03" + atkName
+			+ "\x04 对 \x03" + vctName
+			+ "\x04 造成了 \x03" + info.dmg + "\x04 点伤害");
+	}
+	else if (Config.teamHurtInfo == 2)
+	{
+		if (info.attacker == info.victim)
+		{
+			ClientPrint(info.attacker, 3, "\x04你对 \x03自己\x04 造成了 \x03" + info.dmg + "\x04 点伤害");
+		}
+		else
+		{
+			ClientPrint(info.attacker, 3, "\x04你对 \x03" + vctName
+				+ "\x04 造成了 \x03" + info.dmg + "\x04 点伤害");
+			ClientPrint(info.victim, 3, "\x03" + atkName
+				+ "\x04 对你造成了 \x03" + info.dmg + "\x04 点伤害");
+		}
+	}
+	tempTeamHurt.rawdelete(key);
+}.bindenv(LinGe.HUD);
+
 // 事件：玩家(特感/丧尸)死亡 统计击杀数量
 // 虽然是player_death 但小丧尸和witch死亡也会触发该事件
 ::LinGe.HUD.OnGameEvent_player_death <- function (params)
@@ -125,6 +215,40 @@ if (!singlePlayer)
 	UpdateRankHUD();
 }
 ::EventHook("OnGameEvent_player_death", ::LinGe.HUD.OnGameEvent_player_death, ::LinGe.HUD);
+
+::LinGe.HUD.Cmd_teamhurt <- function (player, msg)
+{
+	if (2 == msg.len())
+	{
+		local style = msg[1].tointeger();
+		if (style < 0 || style > 2)
+		{
+			ClientPrint(player, 3, "\x04!teamhurt 0:关闭友伤提示 1:公开处刑 2:仅双方可见");
+			return;
+		}
+		else
+			Config.teamHurtInfo = style;
+
+		switch (Config.teamHurtInfo)
+		{
+		case 0:
+			ClientPrint(null, 3, "\x04服务器已关闭友伤提示");
+			break;
+		case 1:
+			ClientPrint(null, 3, "\x04服务器已开启友伤提示[公开处刑]");
+			break;
+		case 2:
+			ClientPrint(null, 3, "\x04服务器已开启友伤提示[仅双方可见]");
+			break;
+		default:
+			throw "未知异常情况";
+		}
+		::LinGe.Config.Save("Players");
+	}
+	else
+		ClientPrint(player, 3, "\x04!teamhurt 0:关闭友伤提示 1:公开处刑 2:仅双方可见");
+}
+::CmdAdd("teamhurt", ::LinGe.HUD.Cmd_teamhurt, ::LinGe.HUD);
 
 ::LinGe.HUD.Cmd_hud <- function (player, msg)
 {
@@ -203,7 +327,7 @@ local emptyHud = { Fields = {} };
 	local style = Config.style;
 	if (0 == style)
 	{
-		if ("versus" == g_BaseMode)
+		if (::isVersus)
 			style = 2;
 		else
 			style = 1;
