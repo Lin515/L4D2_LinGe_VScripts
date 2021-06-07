@@ -63,7 +63,7 @@ void ReStart()
 	if (cv_date.IntValue == -1 && cv_hms.IntValue == -1
 		&& timer_updateTime != INVALID_HANDLE )
 	{
-		CloseHandle(timer_updateTime);
+		KillTimer(timer_updateTime);
 		timer_updateTime = INVALID_HANDLE;
 	}
 	else if (INVALID_HANDLE == timer_updateTime)
