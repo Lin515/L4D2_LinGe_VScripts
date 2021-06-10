@@ -1,8 +1,10 @@
-printl("[LinGe] Server 正在载入");
+const SERVERVER = "1.0";
+printl("[LinGe] Server v" + SERVERVER +" 正在载入");
+::LinGe.Server <- {};
+
 const EnabledMultiple = 0; // 停用自动多倍物资，该功能已改用多人控制插件完成
 
 // 服务器控制 附加功能脚本
-::LinGe.Server <- {};
 ::LinGe.Server.Config <- {
 	autoMultiple = true, // 是否启用自动多倍物资
 	autoMultipleDivisor = 4,
@@ -85,16 +87,6 @@ if ("coop" == g_BaseMode) {
 if (EnabledMultiple)
 	::CmdAdd("mmn", ::LinGe.Server.Cmd_mmn, ::LinGe.Server);
 
-::LinGe.Server.OnGameEvent_round_start <- function (params)
-{
-	if (Config.tankUpdateFrequency >= 0)
-	{
-		EventHook("OnGameEvent_tank_spawn", ::LinGe.Server.OnGameEvent_tank_spawn, ::LinGe.Server);
-		EventHook("OnGameEvent_tank_killed", ::LinGe.Server.OnGameEvent_tank_killed, ::LinGe.Server);
-	}
-}
-::EventHook("OnGameEvent_round_start", ::LinGe.Server.OnGameEvent_round_start, ::LinGe.Server, false);
-
 local nowTank = 0;
 local oldUpdateFrequency = Convars.GetStr("nb_update_frequency").tofloat();
 local oldMinInterpRatio = Convars.GetStr("sv_client_min_interp_ratio").tointeger();
@@ -107,7 +99,6 @@ local oldMinInterpRatio = Convars.GetStr("sv_client_min_interp_ratio").tointeger
 		::VSLib.Timers.AddTimerByName("Timer_TankActivation", 1.0, true, Timer_TankActivation);
 	}
 }
-
 ::LinGe.Server.OnGameEvent_tank_killed <- function (params)
 {
 	nowTank--;
@@ -122,6 +113,11 @@ local oldMinInterpRatio = Convars.GetStr("sv_client_min_interp_ratio").tointeger
 		&& Convars.GetStr("sv_client_min_interp_ratio").tointeger() != oldMinInterpRatio )
 			Convars.SetValue("sv_client_min_interp_ratio", oldMinInterpRatio);
 	}
+}
+if (::LinGe.Server.Config.tankUpdateFrequency >= 0)
+{
+	EventHook("OnGameEvent_tank_spawn", ::LinGe.Server.OnGameEvent_tank_spawn, ::LinGe.Server);
+	EventHook("OnGameEvent_tank_killed", ::LinGe.Server.OnGameEvent_tank_killed, ::LinGe.Server);
 }
 
 // 玩家队伍变换时自动设置物资倍数

@@ -3,10 +3,10 @@
 // L4D2脚本函数清单：https://developer.valvesoftware.com/wiki/L4D2%E8%84%9A%E6%9C%AC%E5%87%BD%E6%95%B0%E6%B8%85%E5%8D%95
 // L4D2 EMS/Appendix：HUD：https://developer.valvesoftware.com/wiki/L4D2_EMS/Appendix:_HUD
 // L4D2 Events：https://wiki.alliedmods.net/Left_4_Dead_2_Events
-const _LINGE_VERSION_ = "1.0";
-printl("[LinGe] 脚本功能集正在载入，版本： " + _LINGE_VERSION_);
+printl("[LinGe] 脚本功能集正在载入");
 
-printl("[LinGe] Base 正在载入");
+const BASEVER = "1.0";
+printl("[LinGe] Base v" + BASEVER +" 正在载入");
 ::LinGe <- {};
 ::LinGe.Debug <- true;
 
@@ -186,7 +186,6 @@ local FILE_CONFIG = "LinGe/Config_" + ::LinGe.hostport;
 ::LinGe.Events <- {};
 ::LinGe.Events.trigger <- []; // 触发表
 ::LinGe.Events.index <- {}; // 索引表
-::EventTrigger <- ::LinGe.Events.trigger.weakref();
 getconsttable().ACTION_CONTINUE <- 0;
 getconsttable().ACTION_RESETPARAMS <- 1;
 getconsttable().ACTION_STOP <- 2;
@@ -299,10 +298,17 @@ getconsttable().ACTION_STOP <- 2;
 		return -1;
 }.bindenv(::LinGe.Events);
 
-::LinGe.Events.EventTrigger <- function (event, params=null)
+// delay为否则立即触发
+::LinGe.Events.EventTrigger <- function (event, params=null, delay=true)
 {
+	// 默认为延时触发
 	if (event in index)
-		trigger[index[event]][event](params);
+	{
+		if (delay)
+			::VSLib.Timers.AddTimer(0.1, false, (@(params) trigger[index[event]][event](params)).bindenv(::LinGe.Events), params);
+		else
+			trigger[index[event]][event](params);
+	}
 }.bindenv(::LinGe.Events);
 
 ::EventHook <- ::LinGe.Events.EventHook.weakref();
@@ -384,6 +390,7 @@ if (::LinGe.Admin.adminsFile != null)
 		}
 		else
 		{
+			msg[0] = cmdstr;
 			if (cmd.callOf != null)
 				cmd.func.call(cmd.callOf, player, msg);
 			else

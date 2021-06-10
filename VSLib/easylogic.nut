@@ -659,7 +659,7 @@ if ( !("MutationState" in g_ModeScript) )
 	foreach (func in ::VSLib.EasyLogic.OnScriptStart)
 		func();
 
-	::EventTrigger("VSLibScriptStart");
+	::EventTrigger("VSLibScriptStart", null, false);
 }
 
 // Make a call to MapScript and ModeScript, returns whether any calls were made
@@ -791,7 +791,7 @@ g_MapScript.ScriptMode_OnShutdown <- function (reason, nextmap)
 
 	// 触发事件 ScriptMode_OnShutdown
 	local params = { reason=reason, nextmap=nextmap };
-	::EventTrigger("ScriptMode_OnShutdown", params);
+	::EventTrigger("ScriptMode_OnShutdown", params, false);
 }
 
 //=========================================================

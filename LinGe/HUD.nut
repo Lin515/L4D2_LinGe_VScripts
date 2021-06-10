@@ -2,7 +2,8 @@
 // !hud ：	开关hud显示
 // !rank n：	设置排行榜人数为n人，为0则不显示排行榜
 // !hudstyle n ： 设置玩家显示数风格为n (0:自动 1：战役风格（活跃：x 旁观：x 空余：x） 2：对抗风格(生还：x VS 特感：x)
-printl("[LinGe] HUD 正在载入");
+const HUDVER = "1.0";
+printl("[LinGe] HUD v" + HUDVER +" 正在载入");
 ::LinGe.HUD <- {};
 
 ::LinGe.HUD.Config <- {
@@ -106,8 +107,6 @@ if (!singlePlayer)
 ::LinGe.HUD.tempTeamHurt <- {}; // 友伤临时数据记录
 ::LinGe.HUD.OnGameEvent_player_hurt <- function (params)
 {
-	if (!params.rawin("dmg_health"))
-		return;
 	// 伤害值小于1
 	if (params.dmg_health < 1)
 		return;
@@ -151,7 +150,8 @@ if (!singlePlayer)
 		}
 	}
 }
-::EventHook("OnGameEvent_player_hurt", ::LinGe.HUD.OnGameEvent_player_hurt, ::LinGe.HUD);
+if (::LinGe.HUD.Config.teamHurtInfo > 0)
+	::EventHook("OnGameEvent_player_hurt", ::LinGe.HUD.OnGameEvent_player_hurt, ::LinGe.HUD);
 
 // 提示一次友伤伤害并删除累积数据
 ::LinGe.HUD.Timer_PrintHurt <- function (key)
@@ -228,7 +228,7 @@ if (!singlePlayer)
 		}
 		else
 			Config.teamHurtInfo = style;
-
+		::EventUnHook("OnGameEvent_player_hurt", ::LinGe.HUD.OnGameEvent_player_hurt, ::LinGe.HUD);
 		switch (Config.teamHurtInfo)
 		{
 		case 0:
@@ -236,9 +236,11 @@ if (!singlePlayer)
 			break;
 		case 1:
 			ClientPrint(null, 3, "\x04服务器已开启友伤提示[公开处刑]");
+			::EventHook("OnGameEvent_player_hurt", ::LinGe.HUD.OnGameEvent_player_hurt, ::LinGe.HUD);
 			break;
 		case 2:
 			ClientPrint(null, 3, "\x04服务器已开启友伤提示[仅双方可见]");
+			::EventHook("OnGameEvent_player_hurt", ::LinGe.HUD.OnGameEvent_player_hurt, ::LinGe.HUD);
 			break;
 		default:
 			throw "未知异常情况";
@@ -305,7 +307,8 @@ local emptyHud = { Fields = {} };
 	if (singlePlayer)
 		HUD_table.Fields.players.flags = HUD_table.Fields.players.flags | HUD_FLAG_NOTVISIBLE;
 
-	if (Config.rank > 0)
+	// 对抗类模式下不显示排行榜 如果你想显示可以删除 && !::isVersus 这个条件
+	if (Config.rank > 0 && !::isVersus)
 	{
 		if (singlePlayer)
 			HUDPlace(HUD_FAR_LEFT, 0.15, 0.0, 1.0, 0.025);
