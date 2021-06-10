@@ -28,7 +28,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 ::isVersus <- ::CheckVersus();
 
 // 设置某类下所有已生成实体的KeyValue
-::SetKeyValueByClassname <- function (classname, key, value)
+::SetKeyValueByClassname <- function (className, key, value)
 {
 	local entity = null;
 	local func = null;
@@ -52,9 +52,10 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 	}
 
 	local count = 0;
-	while ( (entity = Entities.FindByClassname(entity, classname)) != null)
+	while ( (entity = Entities.FindByClassname(entity, className)) != null)
 	{
 		func(entity, key, value);
+		count++;
 	}
 	return count;
 }
