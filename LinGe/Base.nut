@@ -652,7 +652,7 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 	// 触发真实玩家变更事件
 	local _params = clone params;
 	_params.player <- player;
-	::EventTrigger("human_team", _params);
+	::EventTrigger("human_team", _params, false);
 }
 ::EventHook("human_team");
 ::EventHook("OnGameEvent_player_team", ::LinGe.Base.OnGameEvent_player_team, ::LinGe.Base);
