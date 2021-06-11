@@ -9,6 +9,7 @@ printl("[LinGe] HUD v" + HUDVER +" 正在载入");
 ::LinGe.HUD.Config <- {
 	isShowHUD = true,
 	isShowTime = true,
+	versusNoRank = true, // 对抗模式是否不显示击杀排行
 	teamHurtInfo = 2, // 友伤信即时提示 0:关闭 1:公开处刑 2:仅攻击者和被攻击者可见
 	rank = 3, // 无法显示太多，4人以上容易出现无法显示，感觉是dataval的容量有限制
 			  // 如果你想显示更多人可以自己多加几个HUD slots来分开显示
@@ -309,8 +310,9 @@ local emptyHud = { Fields = {} };
 	if (singlePlayer)
 		HUD_table.Fields.players.flags = HUD_table.Fields.players.flags | HUD_FLAG_NOTVISIBLE;
 
-	// 对抗类模式下不显示排行榜 如果你想显示可以删除 && !::isVersus 这个条件
-	if (Config.rank > 0 && !::isVersus)
+	if ( Config.rank <= 0 || (::isVersus&&Config.versusNoRank) )
+		HUD_table.Fields.rank.flags = HUD_table.Fields.rank.flags | HUD_FLAG_NOTVISIBLE;
+	else
 	{
 		if (singlePlayer)
 			HUDPlace(HUD_FAR_LEFT, 0.15, 0.0, 1.0, 0.025);
@@ -318,8 +320,6 @@ local emptyHud = { Fields = {} };
 			HUDPlace(HUD_FAR_LEFT, 0.0, 0.0, 1.0, 0.025*(Config.rank+1));
 		HUD_table.Fields.rank.flags = HUD_table.Fields.rank.flags & (~HUD_FLAG_NOTVISIBLE);
 	}
-	else
-		HUD_table.Fields.rank.flags = HUD_table.Fields.rank.flags | HUD_FLAG_NOTVISIBLE;
 
 	UpdatePlayerHUD();
 	UpdateRankHUD();
