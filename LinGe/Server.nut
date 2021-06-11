@@ -2,20 +2,10 @@ const SERVERVER = "1.0";
 printl("[LinGe] Server v" + SERVERVER +" 正在载入");
 ::LinGe.Server <- {};
 
-const EnabledMultiple = 0; // 停用自动多倍物资，该功能已改用多人控制插件完成
-
 // 服务器控制 附加功能脚本
 ::LinGe.Server.Config <- {
-	autoMultiple = true, // 是否启用自动多倍物资
-	autoMultipleDivisor = 4,
 	tankUpdateFrequency = -1, // Tank生成时是否自动调整刷新率 为-1则不调整 对抗模式不生效
 	tankMinInterpRatio = -1, // Tank生成时是否强制调整lerp 为-1则不调整 （刷新率开启时此参数才有效）
-	supply = { // 哪些物资启用多倍
-		weapon_first_aid_kit_spawn = true, // 医疗包
-		weapon_pain_pills_spawn = false, // 药丸
-		weapon_adrenaline_spawn = false, // 肾上腺素
-		weapon_melee_spawn = false // 近战武器
-	}
 };
 ::LinGe.Config.Add("Server", ::LinGe.Server.Config);
 
@@ -51,14 +41,14 @@ const EnabledMultiple = 0; // 停用自动多倍物资，该功能已改用多�
 {
 	if (msg.len() == 1)
 	{
-		ClientPrint(null, 3, "\x04当前服务器刷新率为 \x03" + Convars.GetStr("nb_update_frequency"));
+		ClientPrint(null, 3, "\x04当前服务器刷新率为 \x03" + Convars.GetFloat("nb_update_frequency"));
 	}
 	else if (msg.len() == 2)
 	{
 		if (msg[1].tofloat()>=0.0 && msg[1].tofloat()<=0.1)
 		{
 			Convars.SetValue("nb_update_frequency", msg[1].tofloat());
-			ClientPrint(null, 3, "\x04服务器刷新率已设置为 \x03" + Convars.GetStr("nb_update_frequency"));
+			ClientPrint(null, 3, "\x04服务器刷新率已设置为 \x03" + Convars.GetFloat("nb_update_frequency"));
 		}
 	}
 }
@@ -66,29 +56,8 @@ const EnabledMultiple = 0; // 停用自动多倍物资，该功能已改用多�
 
 if ("coop" == g_BaseMode) {
 
-::LinGe.Server.Cmd_mmn <- function (player, msg)
-{
-	if (msg.len() == 1)
-	{
-		Config.autoMultiple = !Config.autoMultiple;
-		if (Config.autoMultiple)
-		{
-			ClientPrint(null, 3, "\x04自动多倍物资补给\x03 已开启");
-			SetMultiple();
-		}
-		else
-		{
-			ClientPrint(null, 3, "\x04自动多倍物资补给\x03 已关闭");
-			SetMultiple(1);
-		}
-		::LinGe.Config.Save("Server");
-	}
-}
-if (EnabledMultiple)
-	::CmdAdd("mmn", ::LinGe.Server.Cmd_mmn, ::LinGe.Server);
-
 local nowTank = 0;
-local oldUpdateFrequency = Convars.GetStr("nb_update_frequency").tofloat();
+local oldUpdateFrequency = Convars.GetFloat("nb_update_frequency");
 local oldMinInterpRatio = Convars.GetStr("sv_client_min_interp_ratio").tointeger();
 ::LinGe.Server.OnGameEvent_tank_spawn <- function (params)
 {
@@ -107,7 +76,7 @@ local oldMinInterpRatio = Convars.GetStr("sv_client_min_interp_ratio").tointeger
 	{
 		// 无Tank时去除定时器 还原设置
 		::VSLib.Timers.RemoveTimerByName("Timer_TankActivation");
-		if (Convars.GetStr("nb_update_frequency").tofloat() != oldUpdateFrequency )
+		if (Convars.GetFloat("nb_update_frequency") != oldUpdateFrequency )
 			Convars.SetValue("nb_update_frequency", oldUpdateFrequency);
 		if (Config.tankMinInterpRatio > -1
 		&& Convars.GetStr("sv_client_min_interp_ratio").tointeger() != oldMinInterpRatio )
@@ -120,23 +89,12 @@ if (::LinGe.Server.Config.tankUpdateFrequency >= 0)
 	EventHook("OnGameEvent_tank_killed", ::LinGe.Server.OnGameEvent_tank_killed, ::LinGe.Server);
 }
 
-// 玩家队伍变换时自动设置物资倍数
-::LinGe.Server.Event_human_team <- function (params)
-{
-	if (EnabledMultiple)
-	{
-		if (Config.autoMultiple)
-			SetMultiple();
-	}
-}
-::EventHook("human_team", ::LinGe.Server.Event_human_team, ::LinGe.Server);
-
 // 当前是否有Tank被激活仇恨
 ::LinGe.Server.Timer_TankActivation <- function (params)
 {
 	if (Director.IsTankInPlay())
 	{
-		if (Convars.GetStr("nb_update_frequency").tofloat() != Config.tankUpdateFrequency )
+		if (Convars.GetFloat("nb_update_frequency") != Config.tankUpdateFrequency )
 			Convars.SetValue("nb_update_frequency", Config.tankUpdateFrequency);
 		if ( Config.tankMinInterpRatio > -1
 		&& Convars.GetStr("sv_client_min_interp_ratio").tointeger() != Config.tankMinInterpRatio )
@@ -144,7 +102,7 @@ if (::LinGe.Server.Config.tankUpdateFrequency >= 0)
 	}
 	else
 	{
-		if (Convars.GetStr("nb_update_frequency").tofloat() != oldUpdateFrequency )
+		if (Convars.GetFloat("nb_update_frequency") != oldUpdateFrequency )
 			Convars.SetValue("nb_update_frequency", oldUpdateFrequency);
 		if (Config.tankMinInterpRatio > -1
 		&& Convars.GetStr("sv_client_min_interp_ratio").tointeger() != oldMinInterpRatio )
@@ -171,33 +129,6 @@ if (::LinGe.Server.Config.tankUpdateFrequency >= 0)
 		}
 	}
 	return num;
-}
-
-::LinGe.Server.nowMultiple <- 1; // 当前物资倍数
-// 设置物资补给倍数 若不传参数 则根据人数自动设置
-::LinGe.Server.SetMultiple <- function (num=null)
-{
-	if (null == num)
-	{
-		local playerNum = ::pyinfo.survivor + ::pyinfo.ob;
-		num = (playerNum / Config.autoMultipleDivisor).tointeger();
-		if (playerNum%Config.autoMultipleDivisor != 0 || 0==num)
-			num += 1;
-	}
-	else if (typeof num != "integer")
-		throw "num 参数类型非法";
-
-	if (nowMultiple != num)
-	{
-		foreach (key, val in Config.supply)
-		{
-			if (val)
-				::SetKeyValueByClassname(key, "count", num);
-		}
-		nowMultiple = num;
-
-		ClientPrint(null, 3, "\x04物资补给倍数已修改为\x03 " + nowMultiple);
-	}
 }
 
 } // if ("coop" == g_BaseMode) {
