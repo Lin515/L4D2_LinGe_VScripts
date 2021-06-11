@@ -107,9 +107,11 @@ if (!singlePlayer)
 ::LinGe.HUD.tempTeamHurt <- {}; // 友伤临时数据记录
 ::LinGe.HUD.OnGameEvent_player_hurt <- function (params)
 {
-	// 伤害值小于1
+	if (!params.rawin("dmg_health"))
+		return;
 	if (params.dmg_health < 1)
 		return;
+
 	// 伤害类型为0
 	if (0 == params.type)
 		return;
@@ -216,14 +218,14 @@ if (::LinGe.HUD.Config.teamHurtInfo > 0)
 }
 ::EventHook("OnGameEvent_player_death", ::LinGe.HUD.OnGameEvent_player_death, ::LinGe.HUD);
 
-::LinGe.HUD.Cmd_teamhurt <- function (player, msg)
+::LinGe.HUD.Cmd_thinfo <- function (player, msg)
 {
 	if (2 == msg.len())
 	{
 		local style = msg[1].tointeger();
 		if (style < 0 || style > 2)
 		{
-			ClientPrint(player, 3, "\x04!teamhurt 0:关闭友伤提示 1:公开处刑 2:仅双方可见");
+			ClientPrint(player, 3, "\x04!thinfo 0:关闭友伤提示 1:公开处刑 2:仅双方可见");
 			return;
 		}
 		else
@@ -248,9 +250,9 @@ if (::LinGe.HUD.Config.teamHurtInfo > 0)
 		::LinGe.Config.Save("Players");
 	}
 	else
-		ClientPrint(player, 3, "\x04!teamhurt 0:关闭友伤提示 1:公开处刑 2:仅双方可见");
+		ClientPrint(player, 3, "\x04!thinfo 0:关闭友伤提示 1:公开处刑 2:仅双方可见");
 }
-::CmdAdd("teamhurt", ::LinGe.HUD.Cmd_teamhurt, ::LinGe.HUD);
+::CmdAdd("thinfo", ::LinGe.HUD.Cmd_thinfo, ::LinGe.HUD);
 
 ::LinGe.HUD.Cmd_hud <- function (player, msg)
 {
