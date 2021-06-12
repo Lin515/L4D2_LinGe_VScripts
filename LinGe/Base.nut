@@ -300,9 +300,8 @@ getconsttable().ACTION_STOP <- 2;
 }.bindenv(::LinGe.Events);
 
 // delay为否则立即触发
-::LinGe.Events.EventTrigger <- function (event, params=null, delay=true)
+::LinGe.Events.EventTrigger <- function (event, params=null, delay=false)
 {
-	// 默认为延时触发
 	if (event in index)
 	{
 		if (delay)
