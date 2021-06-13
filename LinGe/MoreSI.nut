@@ -1,5 +1,5 @@
 if ( "coop" == g_BaseMode ) {
-const MORESIVER = "1.0";
+const MORESIVER = "1.1";
 printl("[LinGe] 简易多特控制 v" + MORESIVER +" 正在载入");
 ::LinGe.MoreSI <- {};
 
@@ -14,6 +14,7 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 	noci = false // 是否允许普通感染者存在
 };
 ::LinGe.Config.Add("MoreSI", ::LinGe.MoreSI.Config);
+::Cache.MoreSI_Cache <- ::LinGe.MoreSI.Config;
 
 // 按照Config设置特感数量和刷新时间
 ::LinGe.MoreSI.ExecConfig <- function ()
@@ -47,9 +48,7 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 			simax = 31;
 
 		::SessionOptions.rawset("cm_MaxSpecials", simax);
-		::SessionOptions.rawset("cm_BaseSpecialLimit", (::SessionOptions.cm_MaxSpecials / 5).tointeger() ); // 平均特感数量
-		if (::SessionOptions.cm_MaxSpecials%5 != 0)
-			::SessionOptions.cm_BaseSpecialLimit += 1;
+		::SessionOptions.rawset("cm_BaseSpecialLimit", ceil(::SessionOptions.cm_MaxSpecials / 5) ); // 平均特感数量
 		::SessionOptions.rawset("cm_DominatorLimit", ::SessionOptions.cm_MaxSpecials);
 	}
 	else
@@ -80,9 +79,7 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 	 	::SessionOptions.rawset("JockeyLimit", 0);
 
 	 	local maxsi = ctrlNum ? ::SessionOptions.cm_MaxSpecials : 4;
-	 	::SessionOptions.rawset("cm_BaseSpecialLimit", (maxsi / Config.sionly.len()).tointeger() ); // 平均特感数量
-		if (maxsi % Config.sionly.len() != 0)
-			::SessionOptions.cm_BaseSpecialLimit += 1;
+	 	::SessionOptions.rawset("cm_BaseSpecialLimit", ceil( maxsi / Config.sionly.len() ) ); // 平均特感数量
 		::SessionOptions.rawset("cm_DominatorLimit", maxsi);
 	 	foreach (val in Config.sionly)
 	 		::SessionOptions.rawset(val + "Limit", ::SessionOptions.cm_BaseSpecialLimit);
@@ -213,7 +210,6 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 		{
 			Config.enabled = true;
 			ExecConfig();
-			::LinGe.Config.Save("MoreSI");
 		}
 		ShowInfo();
 	}
@@ -229,7 +225,6 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 		{
 			Config.enabled = false;
 			ExecConfig();
-			::LinGe.Config.Save("MoreSI");
 		}
 		ShowInfo();
 	}
@@ -252,7 +247,6 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 			return;
 		}
 		Config.sibase = num;
-		::LinGe.Config.Save("MoreSI");
 		if (Config.enabled)
 			ExecConfig();
 	}
@@ -283,7 +277,6 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 			return;
 		}
 		Config.siauto = num;
-		::LinGe.Config.Save("MoreSI");
 		if (Config.enabled)
 			ExecConfig();
 	}
@@ -308,7 +301,6 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 	if (2 == msgLen)
 	{
 		Config.sitime = msg[1].tointeger();
-		::LinGe.Config.Save("MoreSI");
 		if (Config.enabled)
 			ExecConfig();
 	}
@@ -331,7 +323,6 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 			ExecConfig();
 		else
 			Checksionly();
-		::LinGe.Config.Save("MoreSI");
 	}
 
 	if (Config.sionly.len() > 0)
@@ -357,7 +348,6 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 		return;
 
 	Config.noci = !Config.noci;
-	::LinGe.Config.Save("MoreSI");
 	if (Config.enabled)
 		ExecConfig();
 

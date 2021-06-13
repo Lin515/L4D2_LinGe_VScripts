@@ -1,4 +1,4 @@
-const SERVERVER = "1.0";
+const SERVERVER = "1.1";
 printl("[LinGe] Server v" + SERVERVER +" 正在载入");
 ::LinGe.Server <- {};
 
@@ -8,6 +8,7 @@ printl("[LinGe] Server v" + SERVERVER +" 正在载入");
 	tankMinInterpRatio = -1, // Tank生成时是否强制调整lerp 为-1则不调整 （刷新率开启时此参数才有效）
 };
 ::LinGe.Config.Add("Server", ::LinGe.Server.Config);
+::Cache.Server_Config <- ::LinGe.Server.Config;
 
 // !zs 自杀指令
 ::LinGe.Server.Cmd_zs <- function (player, msg)

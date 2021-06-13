@@ -2,13 +2,14 @@
 // !hud ：	开关hud显示
 // !rank n：	设置排行榜人数为n人，为0则不显示排行榜
 // !hudstyle n ： 设置玩家显示数风格为n (0:自动 1：战役风格（活跃：x 旁观：x 空余：x） 2：对抗风格(生还：x VS 特感：x)
-const HUDVER = "1.0";
+const HUDVER = "1.1";
 printl("[LinGe] HUD v" + HUDVER +" 正在载入");
 ::LinGe.HUD <- {};
 
 ::LinGe.HUD.Config <- {
 	isShowHUD = true,
 	isShowTime = true,
+	versusNoPlayerInfo = true, // 对抗模式是否不显示人数统计 因为对抗模式下多次出现统计问题，可能是药抗插件的关系
 	versusNoRank = true, // 对抗模式是否不显示击杀排行
 	teamHurtInfo = 2, // 友伤信即时提示 0:关闭 1:公开处刑 2:仅攻击者和被攻击者可见
 	rank = 3, // 无法显示太多，4人以上容易出现无法显示，感觉是dataval的容量有限制
@@ -16,6 +17,7 @@ printl("[LinGe] HUD v" + HUDVER +" 正在载入");
 	style = 0
 };
 ::LinGe.Config.Add("HUD", ::LinGe.HUD.Config);
+::Cache.HUD_Config <- ::LinGe.HUD.Config;
 
 ::LinGe.HUD.killData <- []; // 击杀数据数组 包括特感击杀和丧尸击杀数
 
@@ -248,7 +250,6 @@ if (::LinGe.HUD.Config.teamHurtInfo > 0)
 		default:
 			throw "未知异常情况";
 		}
-		::LinGe.Config.Save("Players");
 	}
 	else
 		ClientPrint(player, 3, "\x04!thinfo 0:关闭友伤提示 1:公开处刑 2:仅双方可见");
@@ -261,7 +262,6 @@ if (::LinGe.HUD.Config.teamHurtInfo > 0)
 	{
 		Config.isShowHUD = !Config.isShowHUD;
 		UpdateHUD();
-		::LinGe.Config.Save("HUD");
 	}
 }
 ::CmdAdd("hud", ::LinGe.HUD.Cmd_hud, ::LinGe.HUD);
@@ -272,7 +272,6 @@ if (::LinGe.HUD.Config.teamHurtInfo > 0)
 	{
 		Config.style = msg[1].tointeger();
 		UpdatePlayerHUD();
-		::LinGe.Config.Save("HUD");
 	}
 }
 ::CmdAdd("hudstyle", ::LinGe.HUD.Cmd_hudstyle, ::LinGe.HUD);
@@ -283,7 +282,6 @@ if (::LinGe.HUD.Config.teamHurtInfo > 0)
 	{
 		Config.rank = msg[1].tointeger();
 		UpdateHUD();
-		::LinGe.Config.Save("HUD");
 	}
 }
 ::CmdAdd("rank", ::LinGe.HUD.Cmd_rank, ::LinGe.HUD);
@@ -306,10 +304,12 @@ local emptyHud = { Fields = {} };
 		HUD_table.Fields.time.flags = HUD_table.Fields.time.flags & (~HUD_FLAG_NOTVISIBLE);
 	else
 		HUD_table.Fields.time.flags = HUD_table.Fields.time.flags | HUD_FLAG_NOTVISIBLE;
-
-	if (singlePlayer)
+	
+	if (singlePlayer || (::isVersus&&Config.versusNoPlayerInfo))
 		HUD_table.Fields.players.flags = HUD_table.Fields.players.flags | HUD_FLAG_NOTVISIBLE;
-
+	else
+		HUD_table.Fields.players.flags = HUD_table.Fields.players.flags & (~HUD_FLAG_NOTVISIBLE);
+	
 	if ( Config.rank <= 0 || (::isVersus&&Config.versusNoRank) )
 		HUD_table.Fields.rank.flags = HUD_table.Fields.rank.flags | HUD_FLAG_NOTVISIBLE;
 	else

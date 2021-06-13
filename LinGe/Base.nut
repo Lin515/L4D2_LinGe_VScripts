@@ -5,7 +5,7 @@
 // L4D2 Events：https://wiki.alliedmods.net/Left_4_Dead_2_Events
 printl("[LinGe] 脚本功能集正在载入");
 
-const BASEVER = "1.0";
+const BASEVER = "1.1";
 printl("[LinGe] Base v" + BASEVER +" 正在载入");
 ::LinGe <- {};
 ::LinGe.Debug <- true;
@@ -465,20 +465,36 @@ if (::LinGe.Admin.adminsFile != null)
 //----------------------------Admin-----END---------------------------------
 
 //------------------------------Cache---------------------------------------
-::LinGe.Cache <- {};
-// 这两个事件由VSLib/easylogic.nut触发
-::LinGe.Event_VSLibScriptStart <- function (params)
-{
-	RestoreTable("LinGe_Cache", ::LinGe.Cache);
-}
-::EventHook("VSLibScriptStart", ::LinGe.Event_VSLibScriptStart, ::LinGe);
+::LinGe.Cache <- { isValidCache=false }; // isValidCache指定是否是有效Cache 数据无效时不恢复 使用changelevel换图会导致这个数据无效
+::Cache <- ::LinGe.Cache.weakref();
 
-::LinGe.Event_ScriptMode_OnShutdown <- function (params)
+// 这两个事件由VSLib/easylogic.nut触发
+::LinGe.CacheRestore <- function (params)
 {
-	SaveTable("LinGe_Cache", ::LinGe.Cache);
+	local temp = {};
+	local isValidCache = false;
+	RestoreTable("LinGe_Cache", temp);
+	if (temp.rawin("isValidCache"))
+	{
+		if (temp.isValidCache)
+		{
+			::Merge(Cache, temp);
+			Cache.isValidCache = false;
+			SaveTable("LinGe_Cache", Cache);
+			isValidCache = true;
+		}
+	}
+	local _params = { isValidCache=isValidCache };
+	::EventTrigger("LinGe_CacheRestore", _params);
+}
+::LinGe.CacheSave <- function (params)
+{
+	Cache.rawset("isValidCache", true);
+	SaveTable("LinGe_Cache", Cache);
 	delete ::LinGe;
 }
-::EventHook("ScriptMode_OnShutdown", ::LinGe.Event_ScriptMode_OnShutdown, ::LinGe);
+::EventHook("VSLibScriptStart", ::LinGe.CacheRestore, ::LinGe);
+::EventHook("ScriptMode_OnShutdown", ::LinGe.CacheSave, ::LinGe);
 
 //----------------------------Base-----START--------------------------------
 ::LinGe.Base <- {};
@@ -486,7 +502,8 @@ if (::LinGe.Admin.adminsFile != null)
 	isShowTeamChange = true,
 	recordPlayerInfo = false
 };
-::LinGe.Config.Add("Players", ::LinGe.Base.Config);
+::LinGe.Config.Add("Base", ::LinGe.Base.Config);
+::Cache.Base_Config <- ::LinGe.Base.Config;
 local isExistMaxplayers = true;
 
 // 已知玩家列表 存储加入过服务器玩家的SteamID与名字
@@ -526,7 +543,6 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 	// 而重开情况下玩家的队伍不会发生改变，不会触发事件
 	// 所以需要开局时搜索玩家
 	::Merge(::pyinfo, SearchForPlayers());
-
 }
 ::EventHook("OnGameEvent_round_start", ::LinGe.Base.OnGameEvent_round_start, ::LinGe.Base);
 
@@ -663,7 +679,6 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 		Config.isShowTeamChange = !Config.isShowTeamChange;
 		local text = Config.isShowTeamChange ? "开启" : "关闭";
 		ClientPrint(null, 3, "服务器已" + text + "队伍更换提示");
-		::LinGe.Config.Save("Players");
 	}
 }
 ::CmdAdd("teaminfo", ::LinGe.Base.Cmd_teaminfo, ::LinGe.Base);
