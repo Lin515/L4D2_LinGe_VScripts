@@ -1,3 +1,7 @@
+// 这个只是拿AdminSystem里的同名文件改了一下函数名字
+// 这个文件是必须的，且文件名不能随意更改，否则脚本无法正常工作
+// 我不太清楚这个的具体作用，因为对求生之路的游戏机制还不是特别了解
+
 ///////////////////////////////////////////////////////////////////////////////
 // Scriptedmode.nut 
 //  this holds the "control logic" for all scriptmodes, and loads up the Mode 
