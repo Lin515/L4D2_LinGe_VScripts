@@ -472,19 +472,19 @@ if (::LinGe.Admin.adminsFile != null)
 ::LinGe.CacheRestore <- function (params)
 {
 	local temp = {};
-	local isValidCache = false;
+	local _params = { isValidCache=false };
 	RestoreTable("LinGe_Cache", temp);
 	if (temp.rawin("isValidCache"))
 	{
 		if (temp.isValidCache)
 		{
 			::Merge(Cache, temp);
-			Cache.isValidCache = false;
+			Cache.rawset("isValidCache", false);
 			SaveTable("LinGe_Cache", Cache);
-			isValidCache = true;
+			_params.isValidCache = true;
 		}
 	}
-	local _params = { isValidCache=isValidCache };
+	Cache.rawset("isValidCache", _params.isValidCache);
 	::EventTrigger("LinGe_CacheRestore", _params);
 }
 ::LinGe.CacheSave <- function (params)
