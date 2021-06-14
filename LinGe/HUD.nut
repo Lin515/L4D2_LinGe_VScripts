@@ -314,6 +314,8 @@ local emptyHud = { Fields = {} };
 		HUD_table.Fields.rank.flags = HUD_table.Fields.rank.flags | HUD_FLAG_NOTVISIBLE;
 	else
 	{
+		if (Config.rank > 4)
+			Config.rank = 4;
 		if (singlePlayer)
 			HUDPlace(HUD_FAR_LEFT, 0.15, 0.0, 1.0, 0.025);
 		else
