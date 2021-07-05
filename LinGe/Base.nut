@@ -1,19 +1,57 @@
-// By LinGe QQ794182250
+// By LinGe https://github.com/Lin515/L4D2_LinGe_VScripts
 // 本系列脚本编写主要参考以下文档
 // L4D2脚本函数清单：https://developer.valvesoftware.com/wiki/L4D2%E8%84%9A%E6%9C%AC%E5%87%BD%E6%95%B0%E6%B8%85%E5%8D%95
 // L4D2 EMS/Appendix：HUD：https://developer.valvesoftware.com/wiki/L4D2_EMS/Appendix:_HUD
 // L4D2 Events：https://wiki.alliedmods.net/Left_4_Dead_2_Events
+// 以及VSLib与admin_system的脚本源码
 printl("[LinGe] 脚本功能集正在载入");
 
-const BASEVER = "1.1";
+const BASEVER = "1.2";
 printl("[LinGe] Base v" + BASEVER +" 正在载入");
 ::LinGe <- {};
 ::LinGe.Debug <- true;
 
-::LinGe.hostport <- Convars.GetStr("hostport").tointeger();
+::LinGe.hostport <- Convars.GetFloat("hostport").tointeger();
 printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 
 // ---------------------------全局函数START-------------------------------------------
+// 主要用于调试
+::DebugPrintTable <- function (table)
+{
+	foreach (key, val in table)
+		print(key + "=" + val + " ; ");
+	print("\n");
+}
+
+// 尝试将一个字符串转换为int类型 eValue为出现异常时返回的值
+::TryStringToInt <- function (value, eValue=0)
+{
+	local ret = eValue;
+	try
+	{
+		ret = value.tointeger();
+	}
+	catch (e)
+	{
+		ret = eValue;
+	}
+	return ret;
+}
+// 尝试将一个字符串转换为float类型 eValue为出现异常时返回的值
+::TryStringToFloat <- function (value, eValue=0.0)
+{
+	local ret = eValue;
+	try
+	{
+		ret = value.tofloat();
+	}
+	catch (e)
+	{
+		ret = eValue;
+	}
+	return ret;
+}
+
 // 当前模式是否是对抗模式
 ::CheckVersus <- function ()
 {
@@ -48,7 +86,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 		func = @(entity, key, value) entity.__KeyValueFromVector(key, value);
 		break;
 	default:
-		throw "Value 参数类型非法：" + typeof value;
+		throw "参数类型非法";
 	}
 
 	local count = 0;
@@ -90,6 +128,110 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 		return "BOT"==entity.GetNetworkIDString();
 }
 
+// 从网络属性判断一个实体是否存活
+::IsAlive <- function (ent)
+{
+	return NetProps.GetPropInt(ent, "m_lifeState") == 0;
+}
+
+// 从bot生还者中获取其就位的生还者玩家实体
+// 须自己先检查是否是有效生还者bot 否则可能出错
+::GetHumanPlayer <- function (bot)
+{
+	if (IsAlive(bot))
+	{
+		local human = GetPlayerFromUserID(NetProps.GetPropInt(bot, "m_humanSpectatorUserID"));
+		if (null != human)
+		{
+			if (human.IsValid())
+			{
+				if ( "BOT" != human.GetNetworkIDString()
+				&& 1==GetPlayerTeam(human) )
+					return human;
+			}
+		}
+	}
+	return null;
+}
+
+// 判断玩家是否处于闲置 参数可以是玩家实体也可以是实体索引
+::IsPlayerIdle <- function (player)
+{
+	local entityIndex = 0;
+	local _player = null;
+	// 通过类名查找玩家
+	if ("integer" == typeof player)
+	{
+		entityIndex = player;
+		_player = PlayerInstanceFromIndex(entityIndex);
+	}
+	else if ("instance" == typeof player)
+	{
+		entityIndex = player.GetEntityIndex();
+		_player = player;
+	}
+	else
+		throw "参数类型非法";
+	if (!_player.IsValid())
+		return false;
+	if (1 != GetPlayerTeam(_player))
+		return false;
+
+	local bot = null;
+	while ( bot = Entities.FindByClassname(bot, "player") )
+	{
+		// 判断搜索到的实体有效性
+		if ( bot.IsValid() )
+		{
+			// 判断阵营
+			if ( bot.IsSurvivor()
+			&& "BOT" == bot.GetNetworkIDString()
+			&& IsAlive(bot) )
+			{
+				local human = GetHumanPlayer(bot);
+				if (human != null)
+				{
+					if (human.GetEntityIndex() == entityIndex)
+						return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+::GetPlayerTeam <- function (player)
+{
+	return NetProps.GetPropInt(player, "m_iTeamNum");
+}
+
+// 获取玩家实体数组
+// team 指定要获取的队伍
+// bot 是否获取bot
+// alive 是否必须存活
+::GetPlayers <- function (team=0, bot=true, alive=false)
+{
+	local arr = [];
+	// 通过类名查找玩家
+	local player = null;
+	while ( player = Entities.FindByClassname(player, "player") )
+	{
+		// 判断搜索到的实体有效性
+		if ( player.IsValid() )
+		{
+			// 判断阵营
+			if (team!=0 && ::GetPlayerTeam(player)!=team)
+				continue;
+			if (!bot && "BOT" == player.GetNetworkIDString())
+				continue;
+			if (alive && !::IsAlive(player))
+				continue;
+			arr.append(player);
+		}
+	}
+	return arr;
+}
+
 // 如果source中某个key在dest中也存在，则将其赋值给dest中的key
 ::Merge <- function (dest, source)
 {
@@ -110,6 +252,143 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 	}
 }
 // ---------------------------全局函数END-------------------------------------------
+
+// -------------------------------VSLib-------------------------------------------------
+
+// 让VSLib触发一些有用的事件
+::VSLibScriptStart_VSLib <- ::VSLibScriptStart;
+::VSLibScriptStart = function()
+{
+	if (getroottable().rawin("LinGe"))
+		::EventTrigger("VSLibScriptStart_pre", null);
+	::VSLibScriptStart_VSLib();
+	if (getroottable().rawin("LinGe"))
+		::EventTrigger("VSLibScriptStart_post", null);
+}
+
+g_MapScript.ScriptMode_OnShutdown_VSLib <- g_MapScript.ScriptMode_OnShutdown;
+g_MapScript.ScriptMode_OnShutdown = function (reason, nextmap)
+{
+	local params = { reason=reason, nextmap=nextmap };
+	if (getroottable().rawin("LinGe"))
+		::EventTrigger("ScriptMode_OnShutdown_pre", params);
+	delete ::LinGe;
+	ScriptMode_OnShutdown_VSLib(reason, nextmap);
+//	if (getroottable().rawin("LinGe"))
+//		::EventTrigger("ScriptMode_OnShutdown_post", params);
+}
+
+// 让指令支持 . 前缀，AdminSystem 的指令通过 InterceptChat 被调用
+// 本系列脚本的指令不通过 InterceptChat
+g_ModeScript.InterceptChat_VSLib <- g_ModeScript.InterceptChat;
+g_ModeScript.InterceptChat = function (_str, srcEnt)
+{
+	// 如果是 . 前缀的消息 则将 . 替换为 /
+	local str = _str;
+	local name = "", msg = "";
+	if (srcEnt != null)
+	{
+		name = srcEnt.GetPlayerName() + ": ";
+		msg = strip(str.slice(str.find(name) + name.len()));
+	}
+	else if ( str.find("Console: ") != null )
+	{
+		name = "Console: ";
+		msg = strip(str.slice(str.find(name) + name.len()));
+	}
+	if (msg.find(".") == 0)
+		str = name + "/" + msg.slice(1);
+	InterceptChat_VSLib(str, srcEnt);
+}
+
+
+// 判断玩家是否为BOT时通过steamid进行判断
+function VSLib::Entity::IsBot()
+{
+	if (!IsEntityValid())
+	{
+		printl("VSLib Warning: Entity " + _idx + " is invalid.");
+		return false;
+	}
+	if (IsPlayer())
+		return "BOT" == GetSteamID();
+	else
+		return IsPlayerABot(_ent);
+}
+
+// 改良原函数，使其输出的文件带有缩进
+function VSLib::FileIO::SerializeTable(object, predicateStart = "{\n", predicateEnd = "}\n", indice = true, indent=1)
+{
+	local indstr = "";
+	for (local i=0; i<indent; i++)
+		indstr += "\t";
+
+	local baseString = predicateStart;
+
+	foreach (idx, val in object)
+	{
+		local idxType = typeof idx;
+
+		if (idxType == "instance" || idxType == "class" || idxType == "function")
+			continue;
+
+		// Check for invalid characters
+		local idxStr = idx.tostring();
+		local reg = regexp("^[a-zA-Z0-9_]*$");
+
+		if (!reg.match(idxStr))
+		{
+			printf("VSLib Warning: Index '%s' is invalid (invalid characters found), skipping...", idxStr);
+			continue;
+		}
+
+		// Check for numeric fields and prefix them so system can compile
+		reg = regexp("^[0-9]+$");
+		if (reg.match(idxStr))
+			idxStr = "_vslInt_" + idxStr;
+
+
+		local preCompileString = indstr + ((indice) ? (idxStr + " = ") : "");
+
+		switch (typeof val)
+		{
+			case "table":
+				baseString += preCompileString + ::VSLib.FileIO.SerializeTable(val, "{\n", "}\n", true, indent+1);
+				break;
+
+			case "string":
+				baseString += preCompileString + "\"" + ::VSLib.Utils.StringReplace(::VSLib.Utils.StringReplace(val, "\"", "{VSQUOTE}"), @"\\", "{VSSLASH}") + "\"\n"; // "
+				break;
+
+			case "integer":
+				baseString += preCompileString + val + "\n";
+				break;
+
+			case "float":
+				baseString += preCompileString + val + "\n";
+				break;
+
+			case "array":
+				baseString += preCompileString + ::VSLib.FileIO.SerializeTable(val, "[\n", "]\n", false, indent+1);
+				break;
+
+			case "bool":
+				baseString += preCompileString + ((val) ? "true" : "false") + "\n";
+				break;
+		}
+	}
+
+	// 末尾括号的缩进与上一级同级
+	indstr = "";
+	for (local i=0; i<indent-1; i++)
+		indstr += "\t";
+
+	baseString += indstr + predicateEnd;
+
+	return baseString;
+}
+
+// -------------------------------VSLib-------------------------------------------------
 
 // ---------------------------CONFIG-配置管理START---------------------------------------
 class ::LinGe.ConfigManager
@@ -183,15 +462,16 @@ local FILE_CONFIG = "LinGe/Config_" + ::LinGe.hostport;
 // ---------------------------CONFIG-配置管理END-----------------------------------------
 
 // -----------------------事件回调函数注册START--------------------------------------
-// 集合管理事件函数，可以让多个脚本中同事件的函数调用顺序变得可控
+//	集合管理事件函数，可以让多个脚本中同事件的函数调用顺序变得可控
+
 ::LinGe.Events <- {};
-::LinGe.Events.trigger <- []; // 触发表
-::LinGe.Events.index <- {}; // 索引表
+::LinGe.Events.trigger <- {}; // 触发表
 getconsttable().ACTION_CONTINUE <- 0;
 getconsttable().ACTION_RESETPARAMS <- 1;
 getconsttable().ACTION_STOP <- 2;
 
 // 绑定函数到事件 允许同一事件重复绑定同一函数
+// event 为事件名 若以 OnGameEvent_ 开头则视为游戏事件
 // callOf为函数执行时所在表，为null则不指定表
 // last为真即插入到回调函数列表的最后，为否则插入到最前，越靠前的函数调用得越早
 // 成功绑定则返回该事件当前绑定的函数数量
@@ -200,17 +480,20 @@ getconsttable().ACTION_STOP <- 2;
 {
 	// 若该事件未注册则进行注册
 	if (event == "callback")
-		throw "非法事件";
+		throw "事件名不能为 callback";
 
-	if (!(event in index))
+	if (!trigger.rawin(event))
 	{
-		local table = { callback=[] };
-		table[event] <- function (params)
+		trigger.rawset(event, { callback=[] });
+		trigger[event][event] <- function (params)
 		{
 			local action = ACTION_CONTINUE;
 			local _params = null==params ? null : clone params;
-			foreach (val in callback)
+			local len = callback.len();
+			local val = null;
+			for (local i=0; i<len; i++)
 			{
+				val = callback[i];
 				if (null == val.func)
 					continue;
 				else
@@ -221,7 +504,7 @@ getconsttable().ACTION_STOP <- 2;
 						action = val.func(_params);
 					switch (action)
 					{
-					case null:
+					case null: // 若没有使用return返回数值 则为null
 						break;
 					case ACTION_CONTINUE:
 						break;
@@ -231,18 +514,22 @@ getconsttable().ACTION_STOP <- 2;
 					case ACTION_STOP:
 						return;
 					default:
-						throw "未知ACTION";
+						throw "事件函数返回了非法的ACTION";
 					}
 				}
 			}
-		};
-		trigger.append(table);
-		index[event] <- trigger.len()-1;
+		}.bindenv(trigger[event]);
+		// trigger触发表中每个元素的key=事件名（用于查找），而每个元素的值都是一个table
+		// 这个table中有一个事件函数，以事件名命名（用于注册与调用），以及一个key为callback的回调函数数组
+		// 事件函数的所完成的就是依次调用同table下callback中所有函数
+		// 没有把所有事件函数放在同一table下是为了让每个事件函数能快速找到自己的callback
+
+		// 自动注册OnGameEvent_开头的游戏事件
 		if (event.find("OnGameEvent_") == 0)
-			__CollectEventCallbacks(trigger[index[event]], "OnGameEvent_", "GameEventCallbacks", RegisterScriptGameEventListener);
+			__CollectEventCallbacks(trigger[event], "OnGameEvent_", "GameEventCallbacks", RegisterScriptGameEventListener);
 	}
 
-	local callback = trigger[index[event]].callback;
+	local callback = trigger[event].callback;
 	if (null != func)
 	{
 		local _callOf = (callOf==null) ? null : callOf.weakref();
@@ -259,7 +546,7 @@ getconsttable().ACTION_STOP <- 2;
 {
 	local idx = EventIndex(event, func, callOf, reverse);
 	if (idx >= 0)
-		trigger[index[event]].callback.remove(idx);
+		trigger[event].callback.remove(idx);
 	return idx;
 }.bindenv(::LinGe.Events);
 
@@ -267,9 +554,9 @@ getconsttable().ACTION_STOP <- 2;
 // 事件未注册返回-1 未找到函数返回-2
 ::LinGe.Events.EventIndex <- function (event, func, callOf=null, reverse=true)
 {
-	if (event in index)
+	if (trigger.rawin(event))
 	{
-		local callback = trigger[index[event]].callback;
+		local callback = trigger[event].callback;
 		local len = callback.len();
 		local i = 0;
 		if (reverse)
@@ -299,15 +586,15 @@ getconsttable().ACTION_STOP <- 2;
 		return -1;
 }.bindenv(::LinGe.Events);
 
-// delay为否则立即触发
-::LinGe.Events.EventTrigger <- function (event, params=null, delay=false)
+::LinGe.Events.EventTrigger <- function (event, params=null, delay=0.0)
 {
-	if (event in index)
+	if (trigger.rawin(event))
 	{
-		if (delay)
-			::VSLib.Timers.AddTimer(0.1, false, (@(params) trigger[index[event]][event](params)).bindenv(::LinGe.Events), params);
+		if (delay > 0.0)
+			::VSLib.Timers.AddTimer(delay, false,
+				@(params) ::LinGe.Events.trigger[event][event](params), params);
 		else
-			trigger[index[event]][event](params);
+			trigger[event][event](params);
 	}
 }.bindenv(::LinGe.Events);
 
@@ -315,6 +602,13 @@ getconsttable().ACTION_STOP <- 2;
 ::EventUnHook <- ::LinGe.Events.EventUnHook.weakref();
 ::EventIndex <- ::LinGe.Events.EventIndex.weakref();
 ::EventTrigger <- ::LinGe.Events.EventTrigger.weakref();
+
+// 只有具有FCVAR_NOTIFY flags的变量才会触发该事件
+//::LinGe.Events.OnGameEvent_server_cvar <- function (params)
+//{
+//	EventTrigger("cvar_" + params.cvarname, params);
+//}
+//::EventHook("OnGameEvent_server_cvar", ::LinGe.Events.OnGameEvent_server_cvar, ::LinGe.Events);
 // --------------------------事件回调函数注册END----------------------------------------
 
 // ------------------------------Admin---START--------------------------------------
@@ -322,38 +616,156 @@ getconsttable().ACTION_STOP <- 2;
 ::LinGe.Admin.Config <- {
 	enabled = true,
 	takeOverAdminSystem = true, // 是否接管adminsystem的权限判断
-	adminsFile = "linge/admins_simple.ini",
-	list = [ { id="STEAM_1:0:64877973", name="Homura Chan" } ]
+	adminsFile = "linge/admins_simple.ini"
 };
-::LinGe.Admin.ConfigManager <- ::LinGe.ConfigManager("LinGe/Admin");
-::LinGe.Admin.ConfigManager.Add("Admin", ::LinGe.Admin.Config);
-::LinGe.Admin.cmdTable <- {}; // 指令表
-// 如果你在 ems/linge 目录下创建了 sourcemod 管理员配置文件admins_simple.ini的链接
-// 那么本系列脚本就会以该文件为准来判断是否为管理员
-// 注意：只要steamid能在该文件中搜索到，那么就会判断为是管理员，即便这段ID在配置文件中被注释了（因为懒）
-// 你也可以把这个文件改成别的文件 例如使用admin system的管理员列表：adminsFile = "admin system/admins.txt"
-// 链接创建方法 请在left4dead2目录下运行以下命令：
-// Windows	mklink /H "ems/linge/admins_simple.ini" "addons/sourcemod/configs/admins_simple.ini"
-// Linux 	ln "addons/sourcemod/configs/admins_simple.ini" "ems/linge/admins_simple.ini"
-::LinGe.Admin.adminsFile <- FileToString(::LinGe.Admin.Config.adminsFile);
-if (::LinGe.Admin.adminsFile != null)
-	printl("[LinGe] 将在 " + ::LinGe.Admin.Config.adminsFile + " 中搜索管理员ID");
+::LinGe.Config.Add("Admin", ::LinGe.Admin.Config);
 
-// 添加指令 参数：指令，回调函数，函数执行表，是否是管理员指令
-// 若已有相同指令存在会覆盖旧指令
-::LinGe.Admin.CmdAdd <- function (string, func, callOf=null, isAdminCmd=true)
+::LinGe.Admin.cmdTable <- {}; // 指令表
+// 读取管理员列表，若文件不存在则创建
+::LinGe.Admin.adminslist <- FileToString(::LinGe.Admin.Config.adminsFile);
+if (null == ::LinGe.Admin.adminslist)
 {
-	local table = { func=func, callOf=callOf, isAdminCmd=isAdminCmd };
-	::LinGe.Admin.cmdTable.rawset(string, table);
+	::LinGe.Admin.adminslist = "STEAM_1:0:64877973 // Homura Chan";
+	StringToFile(::LinGe.Admin.Config.adminsFile, ::LinGe.Admin.adminslist);
+	::LinGe.Admin.adminslist = FileToString(::LinGe.Admin.Config.adminsFile);
+	if (null == ::LinGe.Admin.adminslist)
+		printl("[LinGe] " + adminsFile + " 文件读取失败，无法获取管理员列表");
+}
+
+/*	添加指令 若同名指令会覆盖旧指令
+	string	指令名
+	func	指令回调函数
+	callOf	回调函数执行所在的表
+	isAdminCmd 是否是管理员指令
+*/
+::LinGe.Admin.CmdAdd <- function (command, func, callOf=null, isAdminCmd=true)
+{
+	local _callOf = (callOf==null) ? null : callOf.weakref();
+	local table = { func=func.weakref(), callOf=_callOf, isAdminCmd=isAdminCmd };
+	cmdTable.rawset(command, table);
 }.bindenv(::LinGe.Admin);
 
 // 删除指令 成功删除返回其值 否则返回null
-::LinGe.Admin.CmdDelete <- function (string)
+::LinGe.Admin.CmdDelete <- function (command)
 {
-	return ::LinGe.Admin.cmdTable.rawdelete(string);
+	return cmdTable.rawdelete(command);
 }.bindenv(::LinGe.Admin);
 ::CmdAdd <- ::LinGe.Admin.CmdAdd.weakref();
 ::CmdDelete <- ::LinGe.Admin.CmdDelete.weakref();
+
+// 消息指令触发 通过 InterceptChat
+/*
+::LinGe.Admin.InterceptChat <- function (str, srcEnt)
+{
+	if (null == srcEnt || !srcEnt.IsValid())
+		return;
+	// 去掉消息的前缀
+	local name = srcEnt.GetPlayerName() + ": ";
+	local args = strip(str.slice(str.find(name) + name.len()));
+	// 按空格分割消息为参数列表
+	args = split(args, " ");
+	if (args[0].len() < 2)
+		return;
+
+	local firstChar = args[0].slice(0, 1); // 取第一个字符
+	// 判断前缀有效性
+	if (firstChar != "!"
+	&& firstChar != "/"
+	&& firstChar != "." )
+		return;
+
+	args[0] = args[0].slice(1); // 设置 args 第一个元素为指令名
+	if (!cmdTable.rawin(args[0])) // 如果未找到指令则置为小写再进行一次查找
+		args[0] = args[0].tolower();
+	if (cmdTable.rawin(args[0]))
+		CmdExec(args[0], srcEnt, args);
+}.bindenv(::LinGe.Admin);
+::VSLib.EasyLogic.AddInterceptChat(::LinGe.Admin.InterceptChat.weakref());
+*/
+// 消息指令触发 通过 player_say
+::LinGe.Admin.OnGameEvent_player_say <- function (params)
+{
+	local args = split(params.text, " ");
+	if (args[0].len() < 2)
+		return;
+	local player = GetPlayerFromUserID(params.userid);
+	if (null == player || !player.IsValid())
+		return;
+	local firstChar = args[0].slice(0, 1); // 取第一个字符
+	// 判断前缀有效性
+	if (firstChar != "!"
+	&& firstChar != "/"
+	&& firstChar != "." )
+		return;
+
+	args[0] = args[0].slice(1); // 设置 args 第一个元素为指令名
+	if (!cmdTable.rawin(args[0]))
+		args[0] = args[0].tolower();
+	if (cmdTable.rawin(args[0]))
+		CmdExec(args[0], player, args);
+}
+::EventHook("OnGameEvent_player_say", ::LinGe.Admin.OnGameEvent_player_say, ::LinGe.Admin);
+
+// scripted_user_func 指令触发
+::LinGe.Admin.OnUserCommand <- function (vplayer, args, text)
+{
+	local _args = split(text, ",");
+	local cmdstr = _args[0];
+	local cmdTable = ::LinGe.Admin.cmdTable;
+	if (!cmdTable.rawin(cmdstr))
+		cmdstr = cmdstr.tolower();
+	if (cmdTable.rawin(cmdstr))
+		::LinGe.Admin.CmdExec(cmdstr, vplayer._ent, _args);
+}
+::EasyLogic.OnUserCommand.LinGeCommands <- ::LinGe.Admin.OnUserCommand.weakref();
+
+// 指令调用执行
+::LinGe.Admin.CmdExec <- function (command, player, args)
+{
+	local cmd = cmdTable[command];
+	if (cmd.isAdminCmd && !IsAdmin(player))
+	{	// 如果是管理员指令而用户身份不是管理员，则发送权限不足提示
+		ClientPrint(player, 3, "\x04此条指令仅管理员可用！");
+		return;
+	}
+
+	if (cmd.callOf != null)
+		cmd.func.call(cmd.callOf, player, args);
+	else
+		cmd.func(player, args);
+}
+
+// 判断该玩家是否是管理员
+::LinGe.Admin.IsAdmin <- function (player)
+{
+	// 未启用权限管理则所有人视作管理员
+	if (!Config.enabled)
+		return true;
+	// 如果是单人游戏则直接返回true
+	if (Director.IsSinglePlayerGame())
+		return true;
+	// 获取steam id
+	local steamID = null;
+	local vplayer = player;
+	if (typeof vplayer != "VSLIB_PLAYER")
+		vplayer = ::VSLib.Player(player);
+	if ( vplayer.IsServerHost() )
+		return true;
+	steamID = vplayer.GetSteamID();
+	if (null == steamID)
+		return false;
+
+	// 通过steamID判断是否是管理员
+	if (null != adminslist)
+	{
+		if (null == adminslist.find(steamID))
+			return false;
+		else
+			return true;
+	}
+	else
+		return false;
+}.bindenv(::LinGe.Admin);
 
 // 事件：回合开始 如果启用了AdminSystem则覆盖其管理员判断指令
 ::LinGe.Admin.OnGameEvent_round_start <- function (params)
@@ -366,110 +778,38 @@ if (::LinGe.Admin.adminsFile != null)
 }
 ::EventHook("OnGameEvent_round_start", ::LinGe.Admin.OnGameEvent_round_start, ::LinGe.Admin);
 
-// 事件：玩家发送消息 提取调用指令函数
-::LinGe.Admin.OnGameEvent_player_say <- function (params)
+::LinGe.Admin.Cmd_setvalue <- function (player, args)
 {
-	local msg = split(params.text, " ");
-	if (msg[0].len() < 2)
-		return;
-
-	local firstChar = msg[0].slice(0, 1); // 取第一个字符
-	local cmdstr = msg[0].slice(1);
-	if (firstChar != "!"
-	&& firstChar != "/"
-	&& firstChar != "." )
-		return;
-
-	if (cmdTable.rawin(cmdstr))
-	{
-		local cmd = cmdTable[cmdstr];
-		local player = GetPlayerFromUserID(params.userid);
-		if (cmd.isAdminCmd && !IsAdmin(params))
-		{	// 如果是管理员指令而用户身份不是管理员，则发送权限不足提示
-			ClientPrint(player, 3, "\x04此条指令仅管理员可用！");
-		}
-		else
-		{
-			msg[0] = cmdstr;
-			if (cmd.callOf != null)
-				cmd.func.call(cmd.callOf, player, msg);
-			else
-				cmd.func(player, msg);
-		}
-	}
-}
-::EventHook("OnGameEvent_player_say", ::LinGe.Admin.OnGameEvent_player_say, ::LinGe.Admin);
-
-// 传入一个带有userid或者networkid的table
-// 函数将根据这两个值的其中一个来判断是否是管理员
-::LinGe.Admin.IsAdmin <- function (params)
-{
-	// 未启用权限管理则所有人视作管理员
-	if (!::LinGe.Admin.Config.enabled)
-		return true;
-	// 如果是单人游戏则直接返回true
-	if (Director.IsSinglePlayerGame())
-		return true;
-
-	// 获取steam id
-	local steamID = null;
-	// 如果是被AdminSystem调用的 传入的参数会是VSLib的Player类实例
-	if (typeof params == "VSLIB_PLAYER")
-	{
-		if ( params.IsServerHost() )
-			return true;
-		steamID = params.GetSteamID();
-	}
-	else
-	{
-		if (params.rawin("networkid"))
-			steamID = params.networkid;
-		else if (params.rawin("userid"))
-			steamID = GetSteamIDFromUserID(params.userid);
-	}
-	if (null == steamID)
-		return false;
-
-	// 通过steamID判断是否是管理员
-	if (null != ::LinGe.Admin.adminsFile)
-	{
-		if (null == ::LinGe.Admin.adminsFile.find(steamID))
-			return false;
-		else
-			return true;
-	}
-	else
-	{
-		foreach (val in ::LinGe.Admin.Config.list)
-		{
-			if (val.id == steamID)
-				return true;
-		}
-		return false;
-	}
-}
-
-::LinGe.Admin.Cmd_setvalue <- function (player, msg)
-{
-	if (msg.len() == 3)
-		Convars.SetValue(msg[1], msg[2]);
+	if (args.len() == 3)
+		Convars.SetValue(args[1], args[2]);
 }
 ::CmdAdd("setvalue", ::LinGe.Admin.Cmd_setvalue, ::LinGe.Admin);
 
-::LinGe.Admin.Cmd_getvalue <- function (player, msg)
+::LinGe.Admin.Cmd_getvalue <- function (player, args)
 {
-	if (msg.len() == 2)
-		ClientPrint(player, 3, Convars.GetStr(msg[1]));
+	if (args.len() == 2)
+		ClientPrint(player, 3, Convars.GetStr(args[1]));
 }
 ::CmdAdd("getvalue", ::LinGe.Admin.Cmd_getvalue, ::LinGe.Admin);
 //----------------------------Admin-----END---------------------------------
 
 //------------------------------Cache---------------------------------------
-::LinGe.Cache <- { isValidCache=false }; // isValidCache指定是否是有效Cache 数据无效时不恢复 使用changelevel换图会导致这个数据无效
+::LinGe.Cache <- { isValidCache=false }; // isValidCache指定是否是有效Cache 数据无效时不恢复
 ::Cache <- ::LinGe.Cache.weakref();
 
-// 这两个事件由VSLib/easylogic.nut触发
-::LinGe.CacheRestore <- function (params)
+::LinGe.VSLibScriptStart_post <- function (params)
+{
+	CacheRestore();
+}
+::EventHook("VSLibScriptStart_post", ::LinGe.VSLibScriptStart_post, ::LinGe);
+
+::LinGe.ScriptMode_OnShutdown_pre <- function (params)
+{
+	CacheSave();
+}
+::EventHook("ScriptMode_OnShutdown_pre", ::LinGe.ScriptMode_OnShutdown_pre, ::LinGe);
+
+::LinGe.CacheRestore <- function ()
 {
 	local temp = {};
 	local _params = { isValidCache=false };
@@ -479,22 +819,22 @@ if (::LinGe.Admin.adminsFile != null)
 		if (temp.isValidCache)
 		{
 			::Merge(Cache, temp);
-			Cache.rawset("isValidCache", false);
+			Cache.rawset("isValidCache", false); // 开局时保存一个Cache 并且设置为无效
 			SaveTable("LinGe_Cache", Cache);
 			_params.isValidCache = true;
 		}
 	}
 	Cache.rawset("isValidCache", _params.isValidCache);
-	::EventTrigger("LinGe_CacheRestore", _params);
+	::EventTrigger("cache_restore", _params);
 }
-::LinGe.CacheSave <- function (params)
+
+::LinGe.CacheSave <- function ()
 {
 	Cache.rawset("isValidCache", true);
 	SaveTable("LinGe_Cache", Cache);
-	delete ::LinGe;
+	::EventTrigger("cache_save");
 }
-::EventHook("VSLibScriptStart", ::LinGe.CacheRestore, ::LinGe);
-::EventHook("ScriptMode_OnShutdown", ::LinGe.CacheSave, ::LinGe);
+
 
 //----------------------------Base-----START--------------------------------
 ::LinGe.Base <- {};
@@ -522,14 +862,6 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 };
 ::pyinfo <- ::LinGe.Base.info.weakref();
 
-::LinGe.Base.IsNoHuman <- function ()
-{
-	if (survivor>0 || special>0 || ob>0)
-		return false;
-	else
-		return true;
-}
-
 ::LinGe.Base.GetHumans <- function ()
 {
 	return ::pyinfo.ob + ::pyinfo.survivor + ::pyinfo.special;
@@ -538,11 +870,10 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 // 事件：回合开始
 ::LinGe.Base.OnGameEvent_round_start <- function (params)
 {
-	UpdateMaxplayers();
 	// 当前关卡重开的话，脚本会被重新加载，玩家数据会被清空
 	// 而重开情况下玩家的队伍不会发生改变，不会触发事件
 	// 所以需要开局时搜索玩家
-	::Merge(::pyinfo, SearchForPlayers());
+	InitPyinfo();
 }
 ::EventHook("OnGameEvent_round_start", ::LinGe.Base.OnGameEvent_round_start, ::LinGe.Base);
 
@@ -603,28 +934,37 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 {
 	if (!params.rawin("userid"))
 		return;
-
 	local player = GetPlayerFromUserID(params.userid);
-	local entityIndex = player.GetEntityIndex();
+	local steamid = player.GetNetworkIDString();
 	// 使用插件等方式加入bot时，params.isbot不准确
 	// 应获取其SteamID进行判断
-	if ("BOT" == player.GetNetworkIDString())
+	if ("BOT" == steamid)
 		return;
-	if (params.oldteam == params.team)
-		throw "异常：oldteam与team相等";
 
+	// 触发真实玩家变更事件
+	local _params = clone params;
+	_params.player <- player;
+	_params.steamid <- steamid;
+	// 使用插件等方式改变阵营的时候，可能导致 params.name 为空
+	// 通过GetPlayerName重新获取会比较稳定
+	_params.name <- player.GetPlayerName();
+	_params.entityIndex <- player.GetEntityIndex();
+	::EventTrigger("human_team", _params, 0.1); // 延时0.1s触发
+}
+::EventHook("OnGameEvent_player_team", ::LinGe.Base.OnGameEvent_player_team, ::LinGe.Base);
+
+::LinGe.Base.human_team <- function (params)
+{
 	UpdateMaxplayers();
 
-	// 使用插件等方式改变阵营的时候，可能导致参数 params.name 为空
-	// 通过GetPlayerName获取会比较稳定
-	local text = "\x03" + player.GetPlayerName() + "\x04 ";
+	local text = "\x03" + params.name + "\x04 ";
 	switch (params.oldteam)
 	{
 	case 0: break;
 	case 1:	::pyinfo.ob--; break;
 	case 2:	::pyinfo.survivor--; break;
 	case 3:	::pyinfo.special--; break;
-	default: throw "未知异常发生";
+	default: throw "未知情况发生";
 	}
 	if (params.disconnect)
 	{
@@ -637,96 +977,91 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 	{
 		switch (params.team)
 		{
-		case 1: ::pyinfo.ob++; text += "加入了旁观者"; break;
+		case 1:
+			::pyinfo.ob++;
+			if (IsPlayerIdle(params.entityIndex))
+				text += "已闲置";
+			else
+				text += "加入了旁观者";
+			break;
 		case 2: ::pyinfo.survivor++; text += "加入了生还者"; break;
 		case 3: ::pyinfo.special++; text += "加入了感染者"; break;
 		default: throw "意外情况";
 		}
 	}
 
-	local idx = ::pyinfo.survivorIdx.find(entityIndex);
+	local idx = ::pyinfo.survivorIdx.find(params.entityIndex);
 	// 如果是离开或者加入特感就将其从生还者实体索引数组删除
-	// 如果是加入生还者或旁观者就将其索引加入
+	// 如果是加入生还者就将其索引加入
 	if ( (params.disconnect || 3 == params.team)
 	&& null != idx )
 		::pyinfo.survivorIdx.remove(idx);
-	else if ( (1 == params.team || 2 == params.team)
+	else if ( (2 == params.team)
 	&& null == idx)
-		::pyinfo.survivorIdx.append(entityIndex);
+		::pyinfo.survivorIdx.append(params.entityIndex);
 
 	if (Config.isShowTeamChange)
 		ClientPrint(null, 3, text);
 
 	// 对抗模式下经常出现队伍人数错误 不知道是否是药抗插件的问题
-	if (::LinGe.Debug)
+	if (::LinGe.Debug && ::isVersus)
 	{
-		printl(player.GetPlayerName() + ": " + params.oldteam + " -> " + params.team);
+		printl(params.name + ": " + params.oldteam + " -> " + params.team);
 		printl("now:ob=" + ::pyinfo.ob + ", survivor=" + ::pyinfo.survivor + ", special=" + ::pyinfo.special);
 	}
-
-	// 触发真实玩家变更事件
-	local _params = clone params;
-	_params.player <- player;
-	::EventTrigger("human_team", _params, false);
 }
-::EventHook("human_team");
-::EventHook("OnGameEvent_player_team", ::LinGe.Base.OnGameEvent_player_team, ::LinGe.Base);
+::EventHook("human_team", LinGe.Base.human_team, LinGe.Base);
 
-::LinGe.Base.Cmd_teaminfo <- function (player, msg)
+::LinGe.Base.Cmd_teaminfo <- function (player, args)
 {
-	if (1 == msg.len())
+	if (1 == args.len())
 	{
 		Config.isShowTeamChange = !Config.isShowTeamChange;
 		local text = Config.isShowTeamChange ? "开启" : "关闭";
-		ClientPrint(null, 3, "服务器已" + text + "队伍更换提示");
+		ClientPrint(null, 3, "\x04服务器已" + text + "队伍更换提示");
 	}
 }
 ::CmdAdd("teaminfo", ::LinGe.Base.Cmd_teaminfo, ::LinGe.Base);
 
 // 搜索玩家
-::LinGe.Base.SearchForPlayers <- function ()
+::LinGe.Base.InitPyinfo <- function ()
 {
-	local player = null; // 玩家实例
-	local entityIndex = 0;	// 实体索引
-	local table = {
-		survivor = 0, // 生还玩家数量
-		ob = 0, // 旁观者玩家数量
-		special = 0, // 特感玩家数量
-		survivorIdx = [] // 生还者实体索引数组
-	};
+	UpdateMaxplayers();
 
+	local player = null; // 玩家实例
+	local table = ::pyinfo;
 	// 通过类名查找玩家
-	while ( (player = Entities.FindByClassname(player, "player")) != null )
+	while ( player = Entities.FindByClassname(player, "player") )
 	{
 		// 判断搜索到的实体有效性
 		if ( player.IsValid() )
 		{
 			// 判断阵营
-			entityIndex = player.GetEntityIndex();
 			if ("BOT" == player.GetNetworkIDString())
 				continue;
-			else if (player.IsSurvivor())
+			switch (GetPlayerTeam(player))
 			{
-				table.survivor++;
-				table.survivorIdx.append(entityIndex);
-			}
-			else if (9 == player.GetZombieType())
-			{
+			case 1:
 				table.ob++;
-				table.survivorIdx.append(entityIndex);
-			}
-			else
+				break;
+			case 2:
+				table.survivor++;
+				table.survivorIdx.append(player.GetEntityIndex());
+				break;
+			case 3:
 				table.special++;
+				break;
+			}
 		}
 	}
-	return table;
 }
 
 ::LinGe.Base.UpdateMaxplayers <- function ()
 {
 	if (isExistMaxplayers)
 	{
-		::pyinfo.maxplayers = Convars.GetStr("sv_maxplayers");
+		local old = ::pyinfo.maxplayers;
+		::pyinfo.maxplayers = Convars.GetFloat("sv_maxplayers");
 		if (null == ::pyinfo.maxplayers)
 			isExistMaxplayers = false;
 		else
@@ -739,6 +1074,8 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 			else
 				::pyinfo.maxplayers = 4;
 		}
+		if (old != ::pyinfo.maxplayers)
+			::EventTrigger("maxplayers_changed");
 	}
 }
 //----------------------------Base-----END---------------------------------

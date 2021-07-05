@@ -11,9 +11,9 @@ printl("[LinGe] Server v" + SERVERVER +" 正在载入");
 ::Cache.Server_Config <- ::LinGe.Server.Config;
 
 // !zs 自杀指令
-::LinGe.Server.Cmd_zs <- function (player, msg)
+::LinGe.Server.Cmd_zs <- function (player, args)
 {
-	if (msg.len() == 1)
+	if (args.len() == 1)
 	{
 		if (!player.IsSurvivor())
 			return;
@@ -38,17 +38,18 @@ printl("[LinGe] Server v" + SERVERVER +" 正在载入");
 ::CmdAdd("zs", ::LinGe.Server.Cmd_zs, ::LinGe.Server, false);
 
 // !update 便捷设置服务器刷新率指令
-::LinGe.Server.Cmd_update <- function (player, msg)
+::LinGe.Server.Cmd_update <- function (player, args)
 {
-	if (msg.len() == 1)
+	if (args.len() == 1)
 	{
 		ClientPrint(null, 3, "\x04当前服务器刷新率为 \x03" + Convars.GetFloat("nb_update_frequency"));
 	}
-	else if (msg.len() == 2)
+	else if (args.len() == 2)
 	{
-		if (msg[1].tofloat()>=0.0 && msg[1].tofloat()<=0.1)
+		local val = TryStringToFloat(args[1], -1.0);
+		if (val>=0.0 && val<=0.1)
 		{
-			Convars.SetValue("nb_update_frequency", msg[1].tofloat());
+			Convars.SetValue("nb_update_frequency", val);
 			ClientPrint(null, 3, "\x04服务器刷新率已设置为 \x03" + Convars.GetFloat("nb_update_frequency"));
 		}
 	}
@@ -59,7 +60,7 @@ if ("coop" == g_BaseMode) {
 
 local nowTank = 0;
 local oldUpdateFrequency = Convars.GetFloat("nb_update_frequency");
-local oldMinInterpRatio = Convars.GetStr("sv_client_min_interp_ratio").tointeger();
+local oldMinInterpRatio = Convars.GetFloat("sv_client_min_interp_ratio").tointeger();
 ::LinGe.Server.OnGameEvent_tank_spawn <- function (params)
 {
 	nowTank++;
@@ -80,7 +81,7 @@ local oldMinInterpRatio = Convars.GetStr("sv_client_min_interp_ratio").tointeger
 		if (Convars.GetFloat("nb_update_frequency") != oldUpdateFrequency )
 			Convars.SetValue("nb_update_frequency", oldUpdateFrequency);
 		if (Config.tankMinInterpRatio > -1
-		&& Convars.GetStr("sv_client_min_interp_ratio").tointeger() != oldMinInterpRatio )
+		&& Convars.GetFloat("sv_client_min_interp_ratio").tointeger() != oldMinInterpRatio )
 			Convars.SetValue("sv_client_min_interp_ratio", oldMinInterpRatio);
 	}
 }
@@ -98,7 +99,7 @@ if (::LinGe.Server.Config.tankUpdateFrequency >= 0)
 		if (Convars.GetFloat("nb_update_frequency") != Config.tankUpdateFrequency )
 			Convars.SetValue("nb_update_frequency", Config.tankUpdateFrequency);
 		if ( Config.tankMinInterpRatio > -1
-		&& Convars.GetStr("sv_client_min_interp_ratio").tointeger() != Config.tankMinInterpRatio )
+		&& Convars.GetFloat("sv_client_min_interp_ratio").tointeger() != Config.tankMinInterpRatio )
 			Convars.SetValue("sv_client_min_interp_ratio", Config.tankMinInterpRatio);
 	}
 	else
@@ -106,7 +107,7 @@ if (::LinGe.Server.Config.tankUpdateFrequency >= 0)
 		if (Convars.GetFloat("nb_update_frequency") != oldUpdateFrequency )
 			Convars.SetValue("nb_update_frequency", oldUpdateFrequency);
 		if (Config.tankMinInterpRatio > -1
-		&& Convars.GetStr("sv_client_min_interp_ratio").tointeger() != oldMinInterpRatio )
+		&& Convars.GetFloat("sv_client_min_interp_ratio").tointeger() != oldMinInterpRatio )
 			Convars.SetValue("sv_client_min_interp_ratio", oldMinInterpRatio);
 	}
 }.bindenv(::LinGe.Server);

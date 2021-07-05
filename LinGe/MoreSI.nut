@@ -1,5 +1,5 @@
 if ( "coop" == g_BaseMode ) {
-const MORESIVER = "1.1";
+const MORESIVER = "1.2";
 printl("[LinGe] 简易多特控制 v" + MORESIVER +" 正在载入");
 ::LinGe.MoreSI <- {};
 
@@ -7,24 +7,27 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 ::LinGe.MoreSI.Config <- {
 	enabled = false, // 多特控制总开关
 	simin = 4, // 最小特感数量
-	sibase = 8, // 基础特感数量 若设定为 < 0 则单独关闭特感数量控制
+	sibase = -1, // 基础特感数量 若设定为 < 0 则单独关闭特感数量控制
 	siauto = 0, // 每1名玩家增加多少特感 在基础特感数量上增加 为0则不自动增加
-	sitime = 15, // 特感刷新间隔 若设定为 < 0 则单独关闭特感刷新时间控制
+	sitime = -1, // 特感刷新间隔 若设定为 < 0 则单独关闭特感刷新时间控制
 	sionly = [], // 只允许生成哪些特感，若数组为空则不限制
-	noci = false // 是否允许普通感染者存在
+	noci = false // 是否清除小僵尸
 };
 ::LinGe.Config.Add("MoreSI", ::LinGe.MoreSI.Config);
 ::Cache.MoreSI_Cache <- ::LinGe.MoreSI.Config;
+// 在配置未生效之前将 Config.enabled 临时设置为 false
+local _enabled = ::LinGe.MoreSI.Config.enabled;
+::LinGe.MoreSI.Config.enabled = false;
 
 // 按照Config设置特感数量和刷新时间
 ::LinGe.MoreSI.ExecConfig <- function ()
 {
+	// 判断哪些控制处于开启
 	local ctrlNum = (Config.sibase >= 0);
 	local ctrlTime = (Config.sitime >= 0);
 	local ctrlNoci = Config.noci;
 	Checksionly();
 	local ctrlType = ( Config.sionly.len() > 0 );
-
 
 	if (!Config.enabled)
 	{
@@ -39,7 +42,7 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 	{
 		local autoNum = 0; // 额外特感数量
 		if (Config.siauto > 0)
-			autoNum = Config.siauto * (::pyinfo.survivor + ::pyinfo.ob);
+			autoNum = Config.siauto * ::GetPlayers(2).len();
 
 		local simax = Config.sibase + autoNum;
 		if (simax < Config.simin)
@@ -99,7 +102,7 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 		}
 	}
 
-	// 设置无普通感染者
+	// 设置无小僵尸
 	if (ctrlNoci)
 	{
 	 	::SessionOptions.rawset("cm_CommonLimit", 0);
@@ -143,83 +146,154 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 // 输出当前设置信息
 ::LinGe.MoreSI.ShowInfo <- function ()
 {
-	if (Config.enabled)
+	if (!Config.enabled)
 	{
-//		ClientPrint(null, 3, "\x04多特控制：当前状态\x03 开启");
-		local text = "\x04多特控制：";
-		if (Config.sibase >= 0)
-			text += "特感数量为\x03 " + ::SessionOptions.cm_MaxSpecials + " \x04，";
-		else
-			text += "数量控制\x03 关闭 \x04，";
-		if (Config.sitime >= 0)
-			text += "刷新时间为\x03 " + ::SessionOptions.cm_SpecialRespawnInterval;
-		else
-			text += "刷新控制为\x03 关闭";
-		ClientPrint(null, 3, text);
+		ClientPrint(null, 3, "\x04多特控制：总开关\x03 关闭");
+		return;
+	}
+
+	local text = "\x04多特控制：";
+	if (Config.sibase >= 0)
+		text += "特感数量为\x03 " + ::SessionOptions.cm_MaxSpecials + " \x04，";
+	else
+		text += "数量控制\x03 关闭 \x04，";
+	if (Config.sitime >= 0)
+		text += "刷新时间为\x03 " + ::SessionOptions.cm_SpecialRespawnInterval;
+	else
+		text += "刷新控制为\x03 关闭";
+	ClientPrint(null, 3, text);
+
+	if (Config.sionly.len() > 0 || Config.noci)
+	{
+		text = "\x04多特控制："
 		if (Config.sionly.len() > 0)
 		{
 			local list = "";
 			foreach (val in Config.sionly)
 				list += val + " ";
-			ClientPrint(null, 3, "\x04多特控制：限制只生成特感 \x03" + list);
+			text += "限制只生成特感 \x03" + list;
 		}
+		else
+			text += "限制特感生成 \x03关闭";
 		if (Config.noci)
-			ClientPrint(null, 3, "\x04多特控制：无普通感染者 \x03开启");
+			text += "\x04，无小僵尸 \x03开启";
+		else
+			text += "\x04，无小僵尸 \x03关闭";
+		ClientPrint(null, 3, text);
 	}
-	else
-		ClientPrint(null, 3, "\x04多特控制：当前状态\x03 关闭");
 }
 
 // 回合开始
 ::LinGe.MoreSI.OnGameEvent_round_start <- function (params)
 {
+	Config.enabled = _enabled;
 	if (Config.enabled)
+	{
 		ExecConfig();
-	ShowInfo();
+		ShowInfo();
+	}
 }
 ::EventHook("OnGameEvent_round_start", ::LinGe.MoreSI.OnGameEvent_round_start, ::LinGe.MoreSI);
 
 // 玩家队伍变更 调整特感数量
-::LinGe.MoreSI.Event_human_team <- function (params)
+::LinGe.MoreSI.OnGameEvent_player_team <- function (params)
 {
+	if (!params.rawin("userid"))
+		return;
+	// 根据生还者人数调整特感数量
 	if ( Config.enabled && Config.sibase >= 0 && Config.siauto > 0 )
 	{
-		local old = ::SessionOptions.cm_MaxSpecials;
+		// 只有新加入生还者或生还者完全离开时才更新特感数量
+		if ( (0 == params.oldteam && 2 == params.team)
+		|| (2 == params.oldteam && 0 == params.team) )
+		{
+			local oldmax = ::SessionOptions.cm_MaxSpecials;
+			// 延迟1.2秒再更新特感数量，避免短时间内多次数量刷新
+			::VSLib.Timers.AddTimerByName("SIAUTO", 1.2, false, Delay_siauto, oldmax);
+		}
+	}
+}
+::EventHook("OnGameEvent_player_team", ::LinGe.MoreSI.OnGameEvent_player_team, ::LinGe.MoreSI);
+
+::LinGe.MoreSI.Delay_siauto <- function (oldmax)
+{
+	if (Config.enabled && Config.sibase >= 0 && Config.siauto > 0)
+	{
 		ExecConfig();
-		if (old != ::SessionOptions.cm_MaxSpecials)
+		if (oldmax != ::SessionOptions.cm_MaxSpecials)
 			ClientPrint(null, 3, "\x04多特控制：当前特感数量已修改为\x03 " + ::SessionOptions.cm_MaxSpecials);
 	}
-}
-::EventHook("human_team", ::LinGe.MoreSI.Event_human_team, ::LinGe.MoreSI);
+}.bindenv(::LinGe.MoreSI);
 
 // !si 查看当前多特控制状态
-::LinGe.MoreSI.Cmd_si <- function (player, msg)
+::LinGe.MoreSI.Cmd_si <- function (player, args)
 {
-	if (msg.len() == 1)
-		ShowInfo();
+	ShowInfo();
 }
-::CmdAdd("si", ::LinGe.MoreSI.Cmd_si, ::LinGe.MoreSI);
+::CmdAdd("si", ::LinGe.MoreSI.Cmd_si, ::LinGe.MoreSI, false);
 
-// !sion 打开多特控制
-::LinGe.MoreSI.Cmd_sion <- function (player, msg)
+// !sion 打开多特控制 同时可以用来一次设置多个值 sibase siauto sitime noci sionly(限制特感类型需用逗号分隔)
+// 不修改的数值输入 -2
+// 一次正确的用法： !sion 4 1 15 -2 Hunter,Jockey 设置sibase=4,siauto=1,sitime=15,noci不变,sionly=["Hunter", "Jockey"]
+::LinGe.MoreSI.Cmd_sion <- function (player, args)
 {
-	if (msg.len() == 1)
+	local sibase = -2;
+	local siauto = -2;
+	local sitime = -2;
+	local noci = -2;
+	local sionly = -2;
+
+	local argc = args.len();
+	if (argc > 1)
 	{
-		// 如果未开启则开启
-		if (!Config.enabled)
-		{
-			Config.enabled = true;
-			ExecConfig();
-		}
-		ShowInfo();
+		sibase = TryStringToInt(args[1], -2);
+		if (sibase > 31)
+			sibase = 31;
+		if (sibase != -2)
+			Config.sibase = sibase;
 	}
+	if (argc > 2)
+	{
+		siauto = TryStringToInt(args[2], -2);
+		if (siauto < 0 && siauto!=-2)
+			siauto = 0;
+		else if (siauto > 7)
+			siauto = 7;
+		if (siauto != -2)
+			Config.siauto = siauto;
+	}
+	if (argc > 3)
+	{
+		sitime = TryStringToInt(args[3], -2);
+		if (sitime != -2)
+			Config.sitime = sitime;
+	}
+	if (argc > 4)
+	{
+		noci = args[4];
+		if ("on" == noci)
+			Config.noci = true;
+		else if ("off" == noci)
+			Config.noci = false;
+		else
+			noci = -2;
+	}
+	if (argc > 5)
+	{
+		sionly = split(args[5], ",");
+		Config.sionly = sionly;
+	}
+
+	Config.enabled = true;
+	ExecConfig();
+	ShowInfo();
 }
 ::CmdAdd("sion", ::LinGe.MoreSI.Cmd_sion, ::LinGe.MoreSI);
 
 // !sioff 关闭多特控制
-::LinGe.MoreSI.Cmd_sioff <- function (player, msg)
+::LinGe.MoreSI.Cmd_sioff <- function (player, args)
 {
-	if (msg.len() == 1)
+	if (args.len() == 1)
 	{
 		if (Config.enabled)
 		{
@@ -232,29 +306,33 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 ::CmdAdd("sioff", ::LinGe.MoreSI.Cmd_sioff, ::LinGe.MoreSI);
 
 // !sibase 设置基础特感数量
-::LinGe.MoreSI.Cmd_sibase <- function (player, msg)
+::LinGe.MoreSI.Cmd_sibase <- function (player, args)
 {
-	local msgLen = msg.len();
-	if (msgLen > 2)
+	if (!Config.enabled)
+	{
+		ClientPrint(null, 3, "\x04多特控制：总开关\x03 关闭");
+		return;
+	}
+
+	local argsLen = args.len();
+	if (argsLen > 2)
 		return;
 
-	if (2 == msgLen)
+	if (2 == argsLen)
 	{
-		local num = msg[1].tointeger();
+		local num = TryStringToInt(args[1], -1);
 		if (num > 31)
 		{
 			ClientPrint(player, 3, "\x04多特控制：基础特感数量不能超过\x03 31");
 			return;
 		}
 		Config.sibase = num;
-		if (Config.enabled)
-			ExecConfig();
+		ExecConfig();
 	}
 	if (Config.sibase >= 0)
 	{
 		ClientPrint(null, 3, "\x04多特控制：基础特感数量\x03 " + Config.sibase);
-		if (Config.enabled)
-			ClientPrint(null, 3, "\x04多特控制：当前特感总数为\x03 " + ::SessionOptions.cm_MaxSpecials);
+		ClientPrint(null, 3, "\x04多特控制：当前特感总数为\x03 " + ::SessionOptions.cm_MaxSpecials);
 	}
 	else
 		ClientPrint(null, 3, "\x04多特控制：数量控制\x03 关闭");
@@ -262,29 +340,33 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 ::CmdAdd("sibase", ::LinGe.MoreSI.Cmd_sibase, ::LinGe.MoreSI);
 
 // !siauto 设置自动增加特感数量
-::LinGe.MoreSI.Cmd_siauto <- function (player, msg)
+::LinGe.MoreSI.Cmd_siauto <- function (player, args)
 {
-	local msgLen = msg.len();
-	if (msgLen > 2)
+	if (!Config.enabled)
+	{
+		ClientPrint(null, 3, "\x04多特控制：总开关\x03 关闭");
+		return;
+	}
+
+	local argsLen = args.len();
+	if (argsLen > 2)
 		return;
 
-	if (2 == msgLen)
+	if (2 == argsLen)
 	{
-		local num = msg[1].tointeger();
+		local num = TryStringToInt(args[1], -1);
 		if (num < 0 || num > 7)
 		{
 			ClientPrint(player, 3, "\x04多特控制：预设自动增加特感数量只能为\x03 0~7");
 			return;
 		}
 		Config.siauto = num;
-		if (Config.enabled)
-			ExecConfig();
+		ExecConfig();
 	}
 	if (Config.siauto > 0)
 	{
 		ClientPrint(null, 3, "\x04多特控制：每\x03 1 \x04名生还者玩家加入将增加\x03 " + Config.siauto + " \x04个特感");
-		if (Config.enabled)
-			ClientPrint(null, 3, "\x04多特控制：当前特感总数为\x03 " + ::SessionOptions.cm_MaxSpecials);
+		ClientPrint(null, 3, "\x04多特控制：当前特感总数为\x03 " + ::SessionOptions.cm_MaxSpecials);
 	}
 	else
 		ClientPrint(null, 3, "\x04多特控制：自动增加特感\x03 关闭");
@@ -292,17 +374,22 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 ::CmdAdd("siauto", ::LinGe.MoreSI.Cmd_siauto, ::LinGe.MoreSI);
 
 // !sitime 设置特感刷新时间
-::LinGe.MoreSI.Cmd_sitime <- function (player, msg)
+::LinGe.MoreSI.Cmd_sitime <- function (player, args)
 {
-	local msgLen = msg.len();
-	if (msgLen > 2)
+	if (!Config.enabled)
+	{
+		ClientPrint(null, 3, "\x04多特控制：总开关\x03 关闭");
+		return;
+	}
+
+	local argsLen = args.len();
+	if (argsLen > 2)
 		return;
 
-	if (2 == msgLen)
+	if (2 == argsLen)
 	{
-		Config.sitime = msg[1].tointeger();
-		if (Config.enabled)
-			ExecConfig();
+		Config.sitime = TryStringToInt(args[1], -1);
+		ExecConfig();
 	}
 	if (Config.sitime >= 0)
 		ClientPrint(null, 3, "\x04多特控制：特感刷新时间为\x03 " + Config.sitime);
@@ -312,17 +399,19 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 ::CmdAdd("sitime", ::LinGe.MoreSI.Cmd_sitime, ::LinGe.MoreSI);
 
 // !sionly 限制只生成某一种特感 只能是sitypelist中的一种
-::LinGe.MoreSI.Cmd_sionly <- function (player, msg)
+// 用逗号分隔多种特感，例如 !sionly Hunter,Boomer
+::LinGe.MoreSI.Cmd_sionly <- function (player, args)
 {
-	if (msg.len() > 1)
+	if (!Config.enabled)
 	{
-		local arr = clone msg;
-		arr.remove(0);
-		Config.sionly = arr;
-		if (Config.enabled)
-			ExecConfig();
-		else
-			Checksionly();
+		ClientPrint(null, 3, "\x04多特控制：总开关\x03 关闭");
+		return;
+	}
+
+	if (args.len() > 1)
+	{
+		Config.sionly = split(args[1], ",");
+		ExecConfig();
 	}
 
 	if (Config.sionly.len() > 0)
@@ -331,27 +420,37 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 		foreach (val in Config.sionly)
 			list += val + " ";
 		ClientPrint(null, 3, "\x04多特控制：限制只生成特感 \x03" + list);
-		ClientPrint(null, 3, "\x04关闭方法：!sionly\x03 任意字符");
+//		ClientPrint(null, 3, "\x04关闭方法：!sionly\x03 任意字符");
 	}
 	else
 	{
 		ClientPrint(null, 3, "\x04多特控制：限制特感生成 \x03关闭");
-		ClientPrint(null, 3, "\x04开启方法：!sionly\x03 Boomer Spitter Smoker Hunter Charger Jockey");
+//		ClientPrint(null, 3, "\x04开启方法：!sionly\x03 Boomer,Spitter,Smoker,Hunter,Charger,Jockey");
 	}
 }
 ::CmdAdd("sionly", ::LinGe.MoreSI.Cmd_sionly, ::LinGe.MoreSI);
 
-// !noci 是否设置无普通感染者
-::LinGe.MoreSI.Cmd_noci <- function (player, msg)
+// !noci 是否设置无小僵尸
+::LinGe.MoreSI.Cmd_noci <- function (player, args)
 {
-	if (msg.len() != 1)
+	if (!Config.enabled)
+	{
+		ClientPrint(null, 3, "\x04多特控制：总开关\x03 关闭");
 		return;
+	}
 
-	Config.noci = !Config.noci;
-	if (Config.enabled)
+	if (args.len() == 2)
+	{
+		if (args[1] == "on")
+			Config.noci = true;
+		else if (args[1] == "off")
+			Config.noci = false;
 		ExecConfig();
-
-	ClientPrint(null, 3, "\x04多特控制：无普通感染者 \x03" + (Config.noci?"开启":"关闭"));
+	}
+	if (Config.noci)
+		ClientPrint(null, 3, "\x04多特控制：无小僵尸 \x03开启");
+	else
+		ClientPrint(null, 3, "\x04多特控制：无小僵尸 \x03关闭");
 }
 ::CmdAdd("noci", ::LinGe.MoreSI.Cmd_noci, ::LinGe.MoreSI);
 
