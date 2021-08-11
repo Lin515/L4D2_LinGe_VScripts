@@ -6,7 +6,7 @@
 // 以及VSLib与admin_system的脚本源码
 printl("[LinGe] 脚本功能集正在载入");
 
-const BASEVER = "1.2";
+const BASEVER = "1.3";
 printl("[LinGe] Base v" + BASEVER +" 正在载入");
 ::LinGe <- {};
 ::LinGe.Debug <- true;
@@ -930,66 +930,60 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 // 玩家队伍更换事件
 // team=0：玩家刚连接、和断开连接时会被分配到此队伍 不统计此队伍的人数
 // team=1：旁观者 team=2：生还者 team=3：特感
-::LinGe.Base.OnGameEvent_player_team <- function (params)
+::LinGe.Base.OnGameEvent_player_team <- function (_params)
 {
-	if (!params.rawin("userid"))
-		return;
-	local player = GetPlayerFromUserID(params.userid);
-	local steamid = player.GetNetworkIDString();
-	// 使用插件等方式加入bot时，params.isbot不准确
-	// 应获取其SteamID进行判断
-	if ("BOT" == steamid)
+	if (!_params.rawin("userid"))
 		return;
 
-	// 触发真实玩家变更事件
-	local _params = clone params;
-	_params.player <- player;
-	_params.steamid <- steamid;
+	local params = clone _params;
+	params.player <- GetPlayerFromUserID(params.userid);
+	params.steamid <- params.player.GetNetworkIDString();
 	// 使用插件等方式改变阵营的时候，可能导致 params.name 为空
 	// 通过GetPlayerName重新获取会比较稳定
-	_params.name <- player.GetPlayerName();
-	_params.entityIndex <- player.GetEntityIndex();
-	::EventTrigger("human_team", _params, 0.1); // 延时0.1s触发
-}
-::EventHook("OnGameEvent_player_team", ::LinGe.Base.OnGameEvent_player_team, ::LinGe.Base);
+	params.name <- params.player.GetPlayerName();
+	params.entityIndex <- params.player.GetEntityIndex();
 
-::LinGe.Base.human_team <- function (params)
-{
+	// 使用插件等方式加入bot时，params.isbot不准确
+	// 应获取其SteamID进行判断
+	if ("BOT" == params.steamid)
+		return;
+
+	// 更新玩家最大人数
 	UpdateMaxplayers();
-
-	local text = "\x03" + params.name + "\x04 ";
+	// 更新玩家数据信息
 	switch (params.oldteam)
 	{
-	case 0: break;
-	case 1:	::pyinfo.ob--; break;
-	case 2:	::pyinfo.survivor--; break;
-	case 3:	::pyinfo.special--; break;
-	default: throw "未知情况发生";
+	case 0:
+		break;
+	case 1:
+		::pyinfo.ob--;
+		break;
+	case 2:
+		::pyinfo.survivor--;
+		break;
+	case 3:
+		::pyinfo.special--;
+		break;
+	default:
+		throw "未知情况发生";
 	}
-	if (params.disconnect)
+	switch (params.team)
 	{
-		if (0 == params.team)
-			text += "已离开";
-		else
-			throw "断开连接 team != 0";
+	case 0:
+		break;
+	case 1:
+		::pyinfo.ob++;
+		break;
+	case 2:
+		::pyinfo.survivor++; 
+		break;
+	case 3:
+		::pyinfo.special++; 
+		break;
+	default:
+		throw "未知情况发生";
 	}
-	else
-	{
-		switch (params.team)
-		{
-		case 1:
-			::pyinfo.ob++;
-			if (IsPlayerIdle(params.entityIndex))
-				text += "已闲置";
-			else
-				text += "加入了旁观者";
-			break;
-		case 2: ::pyinfo.survivor++; text += "加入了生还者"; break;
-		case 3: ::pyinfo.special++; text += "加入了感染者"; break;
-		default: throw "意外情况";
-		}
-	}
-
+	
 	local idx = ::pyinfo.survivorIdx.find(params.entityIndex);
 	// 如果是离开或者加入特感就将其从生还者实体索引数组删除
 	// 如果是加入生还者就将其索引加入
@@ -1000,15 +994,44 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 	&& null == idx)
 		::pyinfo.survivorIdx.append(params.entityIndex);
 
-	if (Config.isShowTeamChange)
-		ClientPrint(null, 3, text);
-
 	// 对抗模式下经常出现队伍人数错误 不知道是否是药抗插件的问题
 	if (::LinGe.Debug && ::isVersus)
 	{
 		printl(params.name + ": " + params.oldteam + " -> " + params.team);
 		printl("now:ob=" + ::pyinfo.ob + ", survivor=" + ::pyinfo.survivor + ", special=" + ::pyinfo.special);
 	}
+
+	// 触发真实玩家变更事件
+	::EventTrigger("human_team", params, 0.1); // 延时0.1s触发
+}
+::EventHook("OnGameEvent_player_team", ::LinGe.Base.OnGameEvent_player_team, ::LinGe.Base);
+
+// 玩家队伍变更提示
+::LinGe.Base.human_team <- function (params)
+{
+	if (!Config.isShowTeamChange)
+		return;
+
+	local text = "\x03" + params.name + "\x04 ";
+	switch (params.team)
+	{
+	case 0:
+		text += "已离开";
+		break;
+	case 1:
+		if (IsPlayerIdle(params.entityIndex))
+			text += "已闲置";
+		else
+			text += "加入了旁观者";
+		break;
+	case 2:
+		text += "加入了生还者";
+		break;
+	case 3:
+		text += "加入了感染者";
+		break;
+	}
+	ClientPrint(null, 3, text);
 }
 ::EventHook("human_team", LinGe.Base.human_team, LinGe.Base);
 
