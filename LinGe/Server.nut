@@ -10,6 +10,27 @@ printl("[LinGe] Server v" + SERVERVER +" 正在载入");
 ::LinGe.Config.Add("Server", ::LinGe.Server.Config);
 ::Cache.Server_Config <- ::LinGe.Server.Config;
 
+// !update 便捷设置服务器刷新率指令
+::LinGe.Server.Cmd_update <- function (player, args)
+{
+	if (args.len() == 1)
+	{
+		ClientPrint(null, 3, "\x04当前服务器刷新率为 \x03" + Convars.GetFloat("nb_update_frequency"));
+	}
+	else if (args.len() == 2)
+	{
+		local val = TryStringToFloat(args[1], -1.0);
+		if (val>=0.0 && val<=0.1)
+		{
+			Convars.SetValue("nb_update_frequency", val);
+			ClientPrint(null, 3, "\x04服务器刷新率已设置为 \x03" + Convars.GetFloat("nb_update_frequency"));
+		}
+	}
+}
+::CmdAdd("update", ::LinGe.Server.Cmd_update, ::LinGe.Server);
+
+if ("coop" == g_BaseMode) {
+
 // !zs 自杀指令
 ::LinGe.Server.Cmd_zs <- function (player, args)
 {
@@ -36,27 +57,6 @@ printl("[LinGe] Server v" + SERVERVER +" 正在载入");
 	}
 }
 ::CmdAdd("zs", ::LinGe.Server.Cmd_zs, ::LinGe.Server, false);
-
-// !update 便捷设置服务器刷新率指令
-::LinGe.Server.Cmd_update <- function (player, args)
-{
-	if (args.len() == 1)
-	{
-		ClientPrint(null, 3, "\x04当前服务器刷新率为 \x03" + Convars.GetFloat("nb_update_frequency"));
-	}
-	else if (args.len() == 2)
-	{
-		local val = TryStringToFloat(args[1], -1.0);
-		if (val>=0.0 && val<=0.1)
-		{
-			Convars.SetValue("nb_update_frequency", val);
-			ClientPrint(null, 3, "\x04服务器刷新率已设置为 \x03" + Convars.GetFloat("nb_update_frequency"));
-		}
-	}
-}
-::CmdAdd("update", ::LinGe.Server.Cmd_update, ::LinGe.Server);
-
-if ("coop" == g_BaseMode) {
 
 local nowTank = 0;
 local oldUpdateFrequency = Convars.GetFloat("nb_update_frequency");
