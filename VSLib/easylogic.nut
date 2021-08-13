@@ -943,6 +943,8 @@ g_MapScript.ScriptMode_AddCriteria <- function ( )
 
 ::VSLib_RescueCheck <- function (args)
 {
+	if (!getroottable().rawin("VSLib"))
+		return;
 	if ( args.player.GetResponseCriterion("InRescueVehicle") == "1" )
 	{
 		::VSLib.EasyLogic.RescueTrigger <- args.entity;
@@ -973,6 +975,8 @@ g_MapScript.ScriptMode_AddCriteria <- function ( )
 
 ::VSLib_LeaveRescue <- function ()
 {
+	if (!getroottable().rawin("VSLib"))
+		return;
 	if ( !::VSLib.Entity(activator).IsSurvivor() )
 		return;
 
@@ -992,6 +996,8 @@ g_MapScript.ScriptMode_AddCriteria <- function ( )
 
 ::VSLib_EnterRescue <- function ()
 {
+	if (!getroottable().rawin("VSLib"))
+		return;
 	if ( !::VSLib.Entity(activator).IsSurvivor() )
 		return;
 
@@ -1014,6 +1020,8 @@ g_MapScript.ScriptMode_AddCriteria <- function ( )
 
 ::VSLib_ConnectRescueVehicleOutputs <- function ()
 {
+	if (!getroottable().rawin("VSLib"))
+		return;
 	if ( Director.GetMapName() == "c1m4_atrium" )
 	{
 		::VSLib.EasyLogic.RescueTrigger <- ::VSLib.EasyLogic.Objects.AnyOfName("trigger_escape");
