@@ -1,5 +1,5 @@
 if ( "coop" == g_BaseMode ) {
-const MORESIVER = "1.2";
+const MORESIVER = "1.3";
 printl("[LinGe] 简易多特控制 v" + MORESIVER +" 正在载入");
 ::LinGe.MoreSI <- {};
 
@@ -16,7 +16,7 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 ::LinGe.Config.Add("MoreSI", ::LinGe.MoreSI.Config);
 ::Cache.MoreSI_Cache <- ::LinGe.MoreSI.Config;
 // 在配置未生效之前将 Config.enabled 临时设置为 false
-local _enabled = ::LinGe.MoreSI.Config.enabled;
+local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配置文件中的值
 ::LinGe.MoreSI.Config.enabled = false;
 
 // 按照Config设置特感数量和刷新时间
@@ -182,6 +182,17 @@ local _enabled = ::LinGe.MoreSI.Config.enabled;
 		ClientPrint(null, 3, text);
 	}
 }
+
+::LinGe.MoreSI.cache_restore <- function (params)
+{
+	// 如果有有效Cache存在 则使用Cache中的配置
+	if (params.isValidCache && ::Cache.rawin("MoreSI_Cache"))
+	{
+		_enabled = ::Cache.MoreSI_Cache.enabled;
+	}
+	Config.enabled = false;
+}
+::EventHook("cache_restore", ::LinGe.MoreSI.cache_restore, ::LinGe.MoreSI);
 
 // 回合开始
 ::LinGe.MoreSI.OnGameEvent_round_start <- function (params)
