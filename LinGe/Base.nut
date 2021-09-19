@@ -6,7 +6,7 @@
 // 以及VSLib与admin_system的脚本源码
 printl("[LinGe] 脚本功能集正在载入");
 
-const BASEVER = "1.3";
+const BASEVER = "1.4";
 printl("[LinGe] Base v" + BASEVER +" 正在载入");
 ::LinGe <- {};
 ::LinGe.Debug <- true;
@@ -466,9 +466,9 @@ local FILE_CONFIG = "LinGe/Config_" + ::LinGe.hostport;
 
 ::LinGe.Events <- {};
 ::LinGe.Events.trigger <- {}; // 触发表
-getconsttable().ACTION_CONTINUE <- 0;
-getconsttable().ACTION_RESETPARAMS <- 1;
-getconsttable().ACTION_STOP <- 2;
+::ACTION_CONTINUE <- 0;
+::ACTION_RESETPARAMS <- 1;
+::ACTION_STOP <- 2;
 
 // 绑定函数到事件 允许同一事件重复绑定同一函数
 // event 为事件名 若以 OnGameEvent_ 开头则视为游戏事件
