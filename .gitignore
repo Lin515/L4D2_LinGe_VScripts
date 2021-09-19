@@ -1,2 +1,12 @@
 test.nut
-LinGe_VScripts.*
+/.vscode
+/LinGe_VScripts.CUEION-PC.Cueio.pui
+/plugin/libtier0_srv.so
+/plugin/libvstdlib_srv.so
+/plugin/LinGe_VScripts
+/plugin/Debug
+/plugin/msvc10/*
+!/plugin/msvc10/LinGe_VScripts.sln
+!/plugin/msvc10/LinGe_VScripts.vcxproj
+!/plugin/msvc10/LinGe_VScripts.vcxproj.filters
+!/plugin/msvc10/LinGe_VScripts.vcxproj.user
