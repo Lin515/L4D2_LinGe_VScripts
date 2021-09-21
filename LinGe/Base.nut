@@ -6,10 +6,10 @@
 // 以及VSLib与admin_system的脚本源码
 printl("[LinGe] 脚本功能集正在载入");
 
-const BASEVER = "1.4";
+const BASEVER = "1.5";
 printl("[LinGe] Base v" + BASEVER +" 正在载入");
 ::LinGe <- {};
-::LinGe.Debug <- true;
+::LinGe.Debug <- false;
 
 ::LinGe.hostport <- Convars.GetFloat("hostport").tointeger();
 printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
@@ -791,6 +791,15 @@ if (null == ::LinGe.Admin.adminslist)
 		ClientPrint(player, 3, Convars.GetStr(args[1]));
 }
 ::CmdAdd("getvalue", ::LinGe.Admin.Cmd_getvalue, ::LinGe.Admin);
+
+::LinGe.Admin.Cmd_saveconfig <- function (player, args)
+{
+	::LinGe.Config.SaveAll();
+	ClientPrint(player, 3, "\x04已保存当前功能设定为默认设定\n");
+	ClientPrint(player, 3, "\x04配置文件: \x05 left4dead2/ems/" + FILE_CONFIG + "\n");
+}
+::CmdAdd("saveconfig", ::LinGe.Admin.Cmd_saveconfig, ::LinGe.Admin);
+::CmdAdd("save", ::LinGe.Admin.Cmd_saveconfig, ::LinGe.Admin);
 //----------------------------Admin-----END---------------------------------
 
 //------------------------------Cache---------------------------------------
