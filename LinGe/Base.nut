@@ -796,7 +796,7 @@ if (null == ::LinGe.Admin.adminslist)
 {
 	::LinGe.Config.SaveAll();
 	ClientPrint(player, 3, "\x04已保存当前功能设定为默认设定\n");
-	ClientPrint(player, 3, "\x04配置文件: \x05 left4dead2/ems/" + FILE_CONFIG + "\n");
+	ClientPrint(player, 3, "\x04配置文件: \x05 left4dead2/ems/" + FILE_CONFIG + ".tbl\n");
 }
 ::CmdAdd("saveconfig", ::LinGe.Admin.Cmd_saveconfig, ::LinGe.Admin);
 ::CmdAdd("save", ::LinGe.Admin.Cmd_saveconfig, ::LinGe.Admin);
