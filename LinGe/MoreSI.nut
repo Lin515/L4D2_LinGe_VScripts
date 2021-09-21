@@ -1,5 +1,5 @@
 if ( "coop" == g_BaseMode ) {
-const MORESIVER = "1.3";
+const MORESIVER = "1.4";
 printl("[LinGe] 简易多特控制 v" + MORESIVER +" 正在载入");
 ::LinGe.MoreSI <- {};
 
@@ -51,7 +51,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 			simax = 31;
 
 		::SessionOptions.rawset("cm_MaxSpecials", simax);
-		::SessionOptions.rawset("cm_BaseSpecialLimit", ceil(::SessionOptions.cm_MaxSpecials / 5) ); // 平均特感数量
+		::SessionOptions.rawset("cm_BaseSpecialLimit", ceil(::SessionOptions.cm_MaxSpecials / 5.0) ); // 平均特感数量
 		::SessionOptions.rawset("cm_DominatorLimit", ::SessionOptions.cm_MaxSpecials);
 	}
 	else
@@ -82,7 +82,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	 	::SessionOptions.rawset("JockeyLimit", 0);
 
 	 	local maxsi = ctrlNum ? ::SessionOptions.cm_MaxSpecials : 4;
-	 	::SessionOptions.rawset("cm_BaseSpecialLimit", ceil( maxsi / Config.sionly.len() ) ); // 平均特感数量
+	 	::SessionOptions.rawset("cm_BaseSpecialLimit", ceil( maxsi / Config.sionly.len() * 1.0 ) ); // 平均特感数量
 		::SessionOptions.rawset("cm_DominatorLimit", maxsi);
 	 	foreach (val in Config.sionly)
 	 		::SessionOptions.rawset(val + "Limit", ::SessionOptions.cm_BaseSpecialLimit);
