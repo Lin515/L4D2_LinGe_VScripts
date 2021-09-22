@@ -82,7 +82,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	 	::SessionOptions.rawset("JockeyLimit", 0);
 
 	 	local maxsi = ctrlNum ? ::SessionOptions.cm_MaxSpecials : 4;
-	 	::SessionOptions.rawset("cm_BaseSpecialLimit", ceil( maxsi / Config.sionly.len() * 1.0 ) ); // 平均特感数量
+	 	::SessionOptions.rawset("cm_BaseSpecialLimit", ceil( 1.0*maxsi / Config.sionly.len() ) ); // 平均特感数量
 		::SessionOptions.rawset("cm_DominatorLimit", maxsi);
 	 	foreach (val in Config.sionly)
 	 		::SessionOptions.rawset(val + "Limit", ::SessionOptions.cm_BaseSpecialLimit);
