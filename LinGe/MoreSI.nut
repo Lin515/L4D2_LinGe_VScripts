@@ -1,5 +1,5 @@
 if ( "coop" == g_BaseMode ) {
-const MORESIVER = "1.4";
+const MORESIVER = "1.5";
 printl("[LinGe] 简易多特控制 v" + MORESIVER +" 正在载入");
 ::LinGe.MoreSI <- {};
 
@@ -14,7 +14,7 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 	noci = false // 是否清除小僵尸
 };
 ::LinGe.Config.Add("MoreSI", ::LinGe.MoreSI.Config);
-::Cache.MoreSI_Cache <- ::LinGe.MoreSI.Config;
+::LinGe.Cache.MoreSI_Cache <- ::LinGe.MoreSI.Config;
 // 在配置未生效之前将 Config.enabled 临时设置为 false
 local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配置文件中的值
 ::LinGe.MoreSI.Config.enabled = false;
@@ -42,7 +42,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	{
 		local autoNum = 0; // 额外特感数量
 		if (Config.siauto > 0)
-			autoNum = Config.siauto * ::GetPlayers(2).len();
+			autoNum = Config.siauto * ::LinGe.GetPlayers(2).len();
 
 		local simax = Config.sibase + autoNum;
 		if (simax < Config.simin)
@@ -52,13 +52,13 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 
 		::SessionOptions.rawset("cm_MaxSpecials", simax);
 		::SessionOptions.rawset("cm_BaseSpecialLimit", ceil(::SessionOptions.cm_MaxSpecials / 5.0) ); // 平均特感数量
-		::SessionOptions.rawset("cm_DominatorLimit", ::SessionOptions.cm_MaxSpecials);
+		::SessionOptions.rawset("DominatorLimit", ::SessionOptions.cm_MaxSpecials);
 	}
 	else
 	{
 		::SessionOptions.rawdelete("cm_MaxSpecials");
 		::SessionOptions.rawdelete("cm_BaseSpecialLimit");
-		::SessionOptions.rawdelete("cm_DominatorLimit");
+		::SessionOptions.rawdelete("DominatorLimit");
 	}
 
 	// 设置特感刷新时间
@@ -83,7 +83,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 
 	 	local maxsi = ctrlNum ? ::SessionOptions.cm_MaxSpecials : 4;
 	 	::SessionOptions.rawset("cm_BaseSpecialLimit", ceil( 1.0*maxsi / Config.sionly.len() ) ); // 平均特感数量
-		::SessionOptions.rawset("cm_DominatorLimit", maxsi);
+		::SessionOptions.rawset("DominatorLimit", maxsi);
 	 	foreach (val in Config.sionly)
 	 		::SessionOptions.rawset(val + "Limit", ::SessionOptions.cm_BaseSpecialLimit);
 	}
@@ -98,7 +98,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	 	if (!ctrlNum)
 	 	{
 		 	::SessionOptions.rawdelete("cm_BaseSpecialLimit");
-		 	::SessionOptions.rawdelete("cm_DominatorLimit");
+		 	::SessionOptions.rawdelete("DominatorLimit");
 		}
 	}
 
@@ -186,13 +186,13 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 ::LinGe.MoreSI.cache_restore <- function (params)
 {
 	// 如果有有效Cache存在 则使用Cache中的配置
-	if (params.isValidCache && ::Cache.rawin("MoreSI_Cache"))
+	if (params.isValidCache && ::LinGe.Cache.rawin("MoreSI_Cache"))
 	{
-		_enabled = ::Cache.MoreSI_Cache.enabled;
+		_enabled = ::LinGe.Cache.MoreSI_Cache.enabled;
 	}
 	Config.enabled = false;
 }
-::EventHook("cache_restore", ::LinGe.MoreSI.cache_restore, ::LinGe.MoreSI);
+::LinEventHook("cache_restore", ::LinGe.MoreSI.cache_restore, ::LinGe.MoreSI);
 
 // 回合开始
 ::LinGe.MoreSI.OnGameEvent_round_start <- function (params)
@@ -204,7 +204,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 		ShowInfo();
 	}
 }
-::EventHook("OnGameEvent_round_start", ::LinGe.MoreSI.OnGameEvent_round_start, ::LinGe.MoreSI);
+::LinEventHook("OnGameEvent_round_start", ::LinGe.MoreSI.OnGameEvent_round_start, ::LinGe.MoreSI);
 
 // 玩家队伍变更 调整特感数量
 ::LinGe.MoreSI.OnGameEvent_player_team <- function (params)
@@ -224,7 +224,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 		}
 	}
 }
-::EventHook("OnGameEvent_player_team", ::LinGe.MoreSI.OnGameEvent_player_team, ::LinGe.MoreSI);
+::LinEventHook("OnGameEvent_player_team", ::LinGe.MoreSI.OnGameEvent_player_team, ::LinGe.MoreSI);
 
 ::LinGe.MoreSI.Delay_siauto <- function (oldmax)
 {
@@ -241,7 +241,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 {
 	ShowInfo();
 }
-::CmdAdd("si", ::LinGe.MoreSI.Cmd_si, ::LinGe.MoreSI, false);
+::LinCmdAdd("si", ::LinGe.MoreSI.Cmd_si, ::LinGe.MoreSI, false);
 
 // !sion 打开多特控制 同时可以用来一次设置多个值 sibase siauto sitime noci sionly(限制特感类型需用逗号分隔)
 // 不修改的数值输入 -2
@@ -257,7 +257,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	local argc = args.len();
 	if (argc > 1)
 	{
-		sibase = TryStringToInt(args[1], -2);
+		sibase = LinGe.TryStringToInt(args[1], -2);
 		if (sibase > 31)
 			sibase = 31;
 		if (sibase != -2)
@@ -265,7 +265,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	}
 	if (argc > 2)
 	{
-		siauto = TryStringToInt(args[2], -2);
+		siauto = LinGe.TryStringToInt(args[2], -2);
 		if (siauto < 0 && siauto!=-2)
 			siauto = 0;
 		else if (siauto > 7)
@@ -275,7 +275,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	}
 	if (argc > 3)
 	{
-		sitime = TryStringToInt(args[3], -2);
+		sitime = LinGe.TryStringToInt(args[3], -2);
 		if (sitime != -2)
 			Config.sitime = sitime;
 	}
@@ -299,7 +299,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	ExecConfig();
 	ShowInfo();
 }
-::CmdAdd("sion", ::LinGe.MoreSI.Cmd_sion, ::LinGe.MoreSI);
+::LinCmdAdd("sion", ::LinGe.MoreSI.Cmd_sion, ::LinGe.MoreSI);
 
 // !sioff 关闭多特控制
 ::LinGe.MoreSI.Cmd_sioff <- function (player, args)
@@ -314,7 +314,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 		ShowInfo();
 	}
 }
-::CmdAdd("sioff", ::LinGe.MoreSI.Cmd_sioff, ::LinGe.MoreSI);
+::LinCmdAdd("sioff", ::LinGe.MoreSI.Cmd_sioff, ::LinGe.MoreSI);
 
 // !sibase 设置基础特感数量
 ::LinGe.MoreSI.Cmd_sibase <- function (player, args)
@@ -331,7 +331,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 
 	if (2 == argsLen)
 	{
-		local num = TryStringToInt(args[1], -1);
+		local num = LinGe.TryStringToInt(args[1], -1);
 		if (num > 31)
 		{
 			ClientPrint(player, 3, "\x04多特控制：基础特感数量不能超过\x03 31");
@@ -348,7 +348,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	else
 		ClientPrint(null, 3, "\x04多特控制：数量控制\x03 关闭");
 }
-::CmdAdd("sibase", ::LinGe.MoreSI.Cmd_sibase, ::LinGe.MoreSI);
+::LinCmdAdd("sibase", ::LinGe.MoreSI.Cmd_sibase, ::LinGe.MoreSI);
 
 // !siauto 设置自动增加特感数量
 ::LinGe.MoreSI.Cmd_siauto <- function (player, args)
@@ -365,7 +365,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 
 	if (2 == argsLen)
 	{
-		local num = TryStringToInt(args[1], -1);
+		local num = LinGe.TryStringToInt(args[1], -1);
 		if (num < 0 || num > 7)
 		{
 			ClientPrint(player, 3, "\x04多特控制：预设自动增加特感数量只能为\x03 0~7");
@@ -382,7 +382,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	else
 		ClientPrint(null, 3, "\x04多特控制：自动增加特感\x03 关闭");
 }
-::CmdAdd("siauto", ::LinGe.MoreSI.Cmd_siauto, ::LinGe.MoreSI);
+::LinCmdAdd("siauto", ::LinGe.MoreSI.Cmd_siauto, ::LinGe.MoreSI);
 
 // !sitime 设置特感刷新时间
 ::LinGe.MoreSI.Cmd_sitime <- function (player, args)
@@ -399,7 +399,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 
 	if (2 == argsLen)
 	{
-		Config.sitime = TryStringToInt(args[1], -1);
+		Config.sitime = LinGe.TryStringToInt(args[1], -1);
 		ExecConfig();
 	}
 	if (Config.sitime >= 0)
@@ -407,7 +407,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	else
 		ClientPrint(null, 3, "\x04多特控制：特感刷新控制\x03 关闭");
 }
-::CmdAdd("sitime", ::LinGe.MoreSI.Cmd_sitime, ::LinGe.MoreSI);
+::LinCmdAdd("sitime", ::LinGe.MoreSI.Cmd_sitime, ::LinGe.MoreSI);
 
 // !sionly 限制只生成某一种特感 只能是sitypelist中的一种
 // 用逗号分隔多种特感，例如 !sionly Hunter,Boomer
@@ -439,7 +439,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 //		ClientPrint(null, 3, "\x04开启方法：!sionly\x03 Boomer,Spitter,Smoker,Hunter,Charger,Jockey");
 	}
 }
-::CmdAdd("sionly", ::LinGe.MoreSI.Cmd_sionly, ::LinGe.MoreSI);
+::LinCmdAdd("sionly", ::LinGe.MoreSI.Cmd_sionly, ::LinGe.MoreSI);
 
 // !noci 是否设置无小僵尸
 ::LinGe.MoreSI.Cmd_noci <- function (player, args)
@@ -463,7 +463,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	else
 		ClientPrint(null, 3, "\x04多特控制：无小僵尸 \x03关闭");
 }
-::CmdAdd("noci", ::LinGe.MoreSI.Cmd_noci, ::LinGe.MoreSI);
+::LinCmdAdd("noci", ::LinGe.MoreSI.Cmd_noci, ::LinGe.MoreSI);
 
 ::LinGe.MoreSI.Timer_AutoKillCI <- function (params)
 {

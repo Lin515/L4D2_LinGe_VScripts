@@ -6,7 +6,7 @@
 // 以及VSLib与admin_system的脚本源码
 printl("[LinGe] 脚本功能集正在载入");
 
-const BASEVER = "1.5";
+const BASEVER = "1.6";
 printl("[LinGe] Base v" + BASEVER +" 正在载入");
 ::LinGe <- {};
 ::LinGe.Debug <- false;
@@ -16,7 +16,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 
 // ---------------------------全局函数START-------------------------------------------
 // 主要用于调试
-::DebugPrintTable <- function (table)
+::LinGe.DebugPrintTable <- function (table)
 {
 	foreach (key, val in table)
 		print(key + "=" + val + " ; ");
@@ -24,7 +24,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 }
 
 // 尝试将一个字符串转换为int类型 eValue为出现异常时返回的值
-::TryStringToInt <- function (value, eValue=0)
+::LinGe.TryStringToInt <- function (value, eValue=0)
 {
 	local ret = eValue;
 	try
@@ -38,7 +38,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 	return ret;
 }
 // 尝试将一个字符串转换为float类型 eValue为出现异常时返回的值
-::TryStringToFloat <- function (value, eValue=0.0)
+::LinGe.TryStringToFloat <- function (value, eValue=0.0)
 {
 	local ret = eValue;
 	try
@@ -53,7 +53,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 }
 
 // 当前模式是否是对抗模式
-::CheckVersus <- function ()
+::LinGe.CheckVersus <- function ()
 {
 	if (Director.GetGameMode() == "mutation15") // 生还者对抗
 		return true;
@@ -63,10 +63,10 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 		return true;
 	return false;
 }
-::isVersus <- ::CheckVersus();
+::LinGe.isVersus <- ::LinGe.CheckVersus();
 
 // 设置某类下所有已生成实体的KeyValue
-::SetKeyValueByClassname <- function (className, key, value)
+::LinGe.SetKeyValueByClassname <- function (className, key, value)
 {
 	local entity = null;
 	local func = null;
@@ -99,7 +99,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 }
 
 // 通过userid获得玩家实体索引
-::GetEntityIndexFromUserID <- function (userid)
+::LinGe.GetEntityIndexFromUserID <- function (userid)
 {
 	local entity = GetPlayerFromUserID(userid);
 	if (null == entity)
@@ -109,7 +109,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 }
 
 // 通过userid获得steamid
-::GetSteamIDFromUserID <- function (userid)
+::LinGe.GetSteamIDFromUserID <- function (userid)
 {
 	local entity = GetPlayerFromUserID(userid);
 	if (null == entity)
@@ -119,7 +119,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 }
 
 // 该userid是否为BOT所有
-::IsBotUserID <- function (userid)
+::LinGe.IsBotUserID <- function (userid)
 {
 	local entity = GetPlayerFromUserID(userid);
 	if (null == entity)
@@ -129,16 +129,16 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 }
 
 // 从网络属性判断一个实体是否存活
-::IsAlive <- function (ent)
+::LinGe.IsAlive <- function (ent)
 {
 	return NetProps.GetPropInt(ent, "m_lifeState") == 0;
 }
 
 // 从bot生还者中获取其就位的生还者玩家实体
 // 须自己先检查是否是有效生还者bot 否则可能出错
-::GetHumanPlayer <- function (bot)
+::LinGe.GetHumanPlayer <- function (bot)
 {
-	if (IsAlive(bot))
+	if (::LinGe.IsAlive(bot))
 	{
 		local human = GetPlayerFromUserID(NetProps.GetPropInt(bot, "m_humanSpectatorUserID"));
 		if (null != human)
@@ -146,7 +146,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 			if (human.IsValid())
 			{
 				if ( "BOT" != human.GetNetworkIDString()
-				&& 1==GetPlayerTeam(human) )
+				&& 1 == ::LinGe.GetPlayerTeam(human) )
 					return human;
 			}
 		}
@@ -155,7 +155,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 }
 
 // 判断玩家是否处于闲置 参数可以是玩家实体也可以是实体索引
-::IsPlayerIdle <- function (player)
+::LinGe.IsPlayerIdle <- function (player)
 {
 	local entityIndex = 0;
 	local _player = null;
@@ -174,7 +174,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 		throw "参数类型非法";
 	if (!_player.IsValid())
 		return false;
-	if (1 != GetPlayerTeam(_player))
+	if (1 != ::LinGe.GetPlayerTeam(_player))
 		return false;
 
 	local bot = null;
@@ -186,9 +186,9 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 			// 判断阵营
 			if ( bot.IsSurvivor()
 			&& "BOT" == bot.GetNetworkIDString()
-			&& IsAlive(bot) )
+			&& ::LinGe.IsAlive(bot) )
 			{
-				local human = GetHumanPlayer(bot);
+				local human = ::LinGe.GetHumanPlayer(bot);
 				if (human != null)
 				{
 					if (human.GetEntityIndex() == entityIndex)
@@ -200,7 +200,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 	return false;
 }
 
-::GetPlayerTeam <- function (player)
+::LinGe.GetPlayerTeam <- function (player)
 {
 	return NetProps.GetPropInt(player, "m_iTeamNum");
 }
@@ -209,7 +209,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 // team 指定要获取的队伍
 // bot 是否获取bot
 // alive 是否必须存活
-::GetPlayers <- function (team=0, bot=true, alive=false)
+::LinGe.GetPlayers <- function (team=0, bot=true, alive=false)
 {
 	local arr = [];
 	// 通过类名查找玩家
@@ -220,11 +220,11 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 		if ( player.IsValid() )
 		{
 			// 判断阵营
-			if (team!=0 && ::GetPlayerTeam(player)!=team)
+			if (team!=0 && ::LinGe.GetPlayerTeam(player)!=team)
 				continue;
 			if (!bot && "BOT" == player.GetNetworkIDString())
 				continue;
-			if (alive && !::IsAlive(player))
+			if (alive && !::LinGe.IsAlive(player))
 				continue;
 			arr.append(player);
 		}
@@ -233,7 +233,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 }
 
 // 如果source中某个key在dest中也存在，则将其赋值给dest中的key
-::Merge <- function (dest, source)
+::LinGe.Merge <- function (dest, source)
 {
 	if ("table" == typeof dest && "table" == typeof source)
 	{
@@ -244,7 +244,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 				// 如果指定key也是table，则进行递归
 				if ("table" == typeof dest[key]
 				&& "table" == typeof val )
-					::Merge(dest[key], val);
+					::LinGe.Merge(dest[key], val);
 				else
 					dest[key] = val;
 			}
@@ -254,16 +254,17 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 // ---------------------------全局函数END-------------------------------------------
 
 // -------------------------------VSLib-------------------------------------------------
-
-// 让VSLib触发一些有用的事件
+// 让VSLib触发一些需要用到的事件
+// 为尽量避免冲突，以下事件弃用 2021年9月23日
+/*
 ::VSLibScriptStart_VSLib <- ::VSLibScriptStart;
 ::VSLibScriptStart = function()
 {
 	if (getroottable().rawin("LinGe"))
-		::EventTrigger("VSLibScriptStart_pre", null);
+		::LinEventTrigger("VSLibScriptStart_pre", null);
 	::VSLibScriptStart_VSLib();
 	if (getroottable().rawin("LinGe"))
-		::EventTrigger("VSLibScriptStart_post", null);
+		::LinEventTrigger("VSLibScriptStart_post", null);
 }
 
 g_MapScript.ScriptMode_OnShutdown_VSLib <- g_MapScript.ScriptMode_OnShutdown;
@@ -271,20 +272,23 @@ g_MapScript.ScriptMode_OnShutdown = function (reason, nextmap)
 {
 	local params = { reason=reason, nextmap=nextmap };
 	if (getroottable().rawin("LinGe"))
-		::EventTrigger("ScriptMode_OnShutdown_pre", params);
+		::LinEventTrigger("ScriptMode_OnShutdown_pre", params);
 	delete ::LinGe;
 	ScriptMode_OnShutdown_VSLib(reason, nextmap);
 //	if (getroottable().rawin("LinGe"))
-//		::EventTrigger("ScriptMode_OnShutdown_post", params);
-}
+//		::LinEventTrigger("ScriptMode_OnShutdown_post", params);
+}*/
 
 // 让指令支持 . 前缀，AdminSystem 的指令通过 InterceptChat 被调用
 // 本系列脚本的指令不通过 InterceptChat
+// 同时运行多种带有VSLib库的脚本时，InterceptChat被多次重写可能造成死循环导致游戏卡死
+// 所以移除此功能 2021年9月23日
+/*
 g_ModeScript.InterceptChat_VSLib <- g_ModeScript.InterceptChat;
 g_ModeScript.InterceptChat = function (_str, srcEnt)
 {
 	// 如果是 . 前缀的消息 则将 . 替换为 /
-	local str = _str;
+	local str = clone _str;
 	local name = "", msg = "";
 	if (srcEnt != null)
 	{
@@ -299,8 +303,7 @@ g_ModeScript.InterceptChat = function (_str, srcEnt)
 	if (msg.find(".") == 0)
 		str = name + "/" + msg.slice(1);
 	InterceptChat_VSLib(str, srcEnt);
-}
-
+}*/
 
 // 判断玩家是否为BOT时通过steamid进行判断
 function VSLib::Entity::IsBot()
@@ -423,7 +426,7 @@ class ::LinGe.ConfigManager
 		if (null != fromFile)
 		{
 			if (fromFile.rawin(tableName))
-				::Merge(table[tableName], fromFile[tableName]);
+				::LinGe.Merge(table[tableName], fromFile[tableName]);
 		}
 		Save(tableName); // 保持文件配置和已载入配置的一致性
 	}
@@ -447,7 +450,7 @@ class ::LinGe.ConfigManager
 	{
 		local fromFile = ::VSLib.FileIO.LoadTable(filePath);
 		if (null != fromFile)
-			::Merge(table, fromFile);
+			::LinGe.Merge(table, fromFile);
 		SaveAll();
 	}
 	// 保存所有表
@@ -598,17 +601,17 @@ local FILE_CONFIG = "LinGe/Config_" + ::LinGe.hostport;
 	}
 }.bindenv(::LinGe.Events);
 
-::EventHook <- ::LinGe.Events.EventHook.weakref();
-::EventUnHook <- ::LinGe.Events.EventUnHook.weakref();
-::EventIndex <- ::LinGe.Events.EventIndex.weakref();
-::EventTrigger <- ::LinGe.Events.EventTrigger.weakref();
+::LinEventHook <- ::LinGe.Events.EventHook.weakref();
+::LinEventUnHook <- ::LinGe.Events.EventUnHook.weakref();
+::LinEventIndex <- ::LinGe.Events.EventIndex.weakref();
+::LinEventTrigger <- ::LinGe.Events.EventTrigger.weakref();
 
 // 只有具有FCVAR_NOTIFY flags的变量才会触发该事件
 //::LinGe.Events.OnGameEvent_server_cvar <- function (params)
 //{
 //	EventTrigger("cvar_" + params.cvarname, params);
 //}
-//::EventHook("OnGameEvent_server_cvar", ::LinGe.Events.OnGameEvent_server_cvar, ::LinGe.Events);
+//::LinEventHook("OnGameEvent_server_cvar", ::LinGe.Events.OnGameEvent_server_cvar, ::LinGe.Events);
 // --------------------------事件回调函数注册END----------------------------------------
 
 // ------------------------------Admin---START--------------------------------------
@@ -650,8 +653,8 @@ if (null == ::LinGe.Admin.adminslist)
 {
 	return cmdTable.rawdelete(command);
 }.bindenv(::LinGe.Admin);
-::CmdAdd <- ::LinGe.Admin.CmdAdd.weakref();
-::CmdDelete <- ::LinGe.Admin.CmdDelete.weakref();
+::LinCmdAdd <- ::LinGe.Admin.CmdAdd.weakref();
+::LinCmdDelete <- ::LinGe.Admin.CmdDelete.weakref();
 
 // 消息指令触发 通过 InterceptChat
 /*
@@ -704,7 +707,7 @@ if (null == ::LinGe.Admin.adminslist)
 	if (cmdTable.rawin(args[0]))
 		CmdExec(args[0], player, args);
 }
-::EventHook("OnGameEvent_player_say", ::LinGe.Admin.OnGameEvent_player_say, ::LinGe.Admin);
+::LinEventHook("OnGameEvent_player_say", ::LinGe.Admin.OnGameEvent_player_say, ::LinGe.Admin);
 
 // scripted_user_func 指令触发
 ::LinGe.Admin.OnUserCommand <- function (vplayer, args, text)
@@ -776,21 +779,21 @@ if (null == ::LinGe.Admin.adminslist)
 		::AdminSystem.IsPrivileged = ::LinGe.Admin.IsAdmin;
 	}
 }
-::EventHook("OnGameEvent_round_start", ::LinGe.Admin.OnGameEvent_round_start, ::LinGe.Admin);
+::LinEventHook("OnGameEvent_round_start", ::LinGe.Admin.OnGameEvent_round_start, ::LinGe.Admin);
 
 ::LinGe.Admin.Cmd_setvalue <- function (player, args)
 {
 	if (args.len() == 3)
 		Convars.SetValue(args[1], args[2]);
 }
-::CmdAdd("setvalue", ::LinGe.Admin.Cmd_setvalue, ::LinGe.Admin);
+::LinCmdAdd("setvalue", ::LinGe.Admin.Cmd_setvalue, ::LinGe.Admin);
 
 ::LinGe.Admin.Cmd_getvalue <- function (player, args)
 {
 	if (args.len() == 2)
 		ClientPrint(player, 3, Convars.GetStr(args[1]));
 }
-::CmdAdd("getvalue", ::LinGe.Admin.Cmd_getvalue, ::LinGe.Admin);
+::LinCmdAdd("getvalue", ::LinGe.Admin.Cmd_getvalue, ::LinGe.Admin);
 
 ::LinGe.Admin.Cmd_saveconfig <- function (player, args)
 {
@@ -798,25 +801,27 @@ if (null == ::LinGe.Admin.adminslist)
 	ClientPrint(player, 3, "\x04已保存当前功能设定为默认设定\n");
 	ClientPrint(player, 3, "\x04配置文件: \x05 left4dead2/ems/" + FILE_CONFIG + ".tbl\n");
 }
-::CmdAdd("saveconfig", ::LinGe.Admin.Cmd_saveconfig, ::LinGe.Admin);
-::CmdAdd("save", ::LinGe.Admin.Cmd_saveconfig, ::LinGe.Admin);
+::LinCmdAdd("saveconfig", ::LinGe.Admin.Cmd_saveconfig, ::LinGe.Admin);
+::LinCmdAdd("save", ::LinGe.Admin.Cmd_saveconfig, ::LinGe.Admin);
 //----------------------------Admin-----END---------------------------------
 
-//------------------------------Cache---------------------------------------
+//------------------------------LinGe.Cache---------------------------------------
 ::LinGe.Cache <- { isValidCache=false }; // isValidCache指定是否是有效Cache 数据无效时不恢复
-::Cache <- ::LinGe.Cache.weakref();
 
-::LinGe.VSLibScriptStart_post <- function (params)
+::LinGe.OnGameEvent_round_start_post_nav <- function (params)
 {
 	CacheRestore();
+	// 以下事件应插入到最后
+	::LinEventHook("OnGameEvent_round_end", ::LinGe.OnGameEvent_round_end, ::LinGe);
+	::LinEventHook("OnGameEvent_map_transition", ::LinGe.OnGameEvent_round_end, ::LinGe);
 }
-::EventHook("VSLibScriptStart_post", ::LinGe.VSLibScriptStart_post, ::LinGe);
+// 如果后续插入了排序在本事件之前的回调，那么该回调中不应访问cache
+::LinEventHook("OnGameEvent_round_start_post_nav", ::LinGe.OnGameEvent_round_start_post_nav, ::LinGe, false);
 
-::LinGe.ScriptMode_OnShutdown_pre <- function (params)
+::LinGe.OnGameEvent_round_end <- function (params)
 {
 	CacheSave();
 }
-::EventHook("ScriptMode_OnShutdown_pre", ::LinGe.ScriptMode_OnShutdown_pre, ::LinGe);
 
 ::LinGe.CacheRestore <- function ()
 {
@@ -827,21 +832,21 @@ if (null == ::LinGe.Admin.adminslist)
 	{
 		if (temp.isValidCache)
 		{
-			::Merge(Cache, temp);
+			::LinGe.Merge(Cache, temp);
 			Cache.rawset("isValidCache", false); // 开局时保存一个Cache 并且设置为无效
 			SaveTable("LinGe_Cache", Cache);
 			_params.isValidCache = true;
 		}
 	}
 	Cache.rawset("isValidCache", _params.isValidCache);
-	::EventTrigger("cache_restore", _params);
+	::LinEventTrigger("cache_restore", _params);
 }
 
 ::LinGe.CacheSave <- function ()
 {
 	Cache.rawset("isValidCache", true);
 	SaveTable("LinGe_Cache", Cache);
-	::EventTrigger("cache_save");
+	::LinEventTrigger("cache_save");
 }
 
 
@@ -852,7 +857,7 @@ if (null == ::LinGe.Admin.adminslist)
 	recordPlayerInfo = false
 };
 ::LinGe.Config.Add("Base", ::LinGe.Base.Config);
-::Cache.Base_Config <- ::LinGe.Base.Config;
+::LinGe.Cache.Base_Config <- ::LinGe.Base.Config;
 local isExistMaxplayers = true;
 
 // 已知玩家列表 存储加入过服务器玩家的SteamID与名字
@@ -884,7 +889,7 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 	// 所以需要开局时搜索玩家
 	InitPyinfo();
 }
-::EventHook("OnGameEvent_round_start", ::LinGe.Base.OnGameEvent_round_start, ::LinGe.Base);
+::LinEventHook("OnGameEvent_round_start", ::LinGe.Base.OnGameEvent_round_start, ::LinGe.Base);
 
 // 玩家连接事件 参数列表：
 // xuid			如果是BOT就为0，是玩家会是一串数字
@@ -934,7 +939,7 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 		}
 	}
 }
-::EventHook("OnGameEvent_player_connect", ::LinGe.Base.OnGameEvent_player_connect, ::LinGe.Base);
+::LinEventHook("OnGameEvent_player_connect", ::LinGe.Base.OnGameEvent_player_connect, ::LinGe.Base);
 
 // 玩家队伍更换事件
 // team=0：玩家刚连接、和断开连接时会被分配到此队伍 不统计此队伍的人数
@@ -1004,16 +1009,16 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 		::pyinfo.survivorIdx.append(params.entityIndex);
 
 	// 对抗模式下经常出现队伍人数错误 不知道是否是药抗插件的问题
-	if (::LinGe.Debug && ::isVersus)
+	if (::LinGe.Debug && ::LinGe.isVersus)
 	{
 		printl(params.name + ": " + params.oldteam + " -> " + params.team);
 		printl("now:ob=" + ::pyinfo.ob + ", survivor=" + ::pyinfo.survivor + ", special=" + ::pyinfo.special);
 	}
 
 	// 触发真实玩家变更事件
-	::EventTrigger("human_team", params, 0.1); // 延时0.1s触发
+	::LinEventTrigger("human_team", params, 0.1); // 延时0.1s触发
 }
-::EventHook("OnGameEvent_player_team", ::LinGe.Base.OnGameEvent_player_team, ::LinGe.Base);
+::LinEventHook("OnGameEvent_player_team", ::LinGe.Base.OnGameEvent_player_team, ::LinGe.Base);
 
 // 玩家队伍变更提示
 ::LinGe.Base.human_team <- function (params)
@@ -1028,7 +1033,7 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 		text += "已离开";
 		break;
 	case 1:
-		if (IsPlayerIdle(params.entityIndex))
+		if (LinGe.IsPlayerIdle(params.entityIndex))
 			text += "已闲置";
 		else
 			text += "加入了旁观者";
@@ -1042,7 +1047,7 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 	}
 	ClientPrint(null, 3, text);
 }
-::EventHook("human_team", LinGe.Base.human_team, LinGe.Base);
+::LinEventHook("human_team", LinGe.Base.human_team, LinGe.Base);
 
 ::LinGe.Base.Cmd_teaminfo <- function (player, args)
 {
@@ -1053,7 +1058,7 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 		ClientPrint(null, 3, "\x04服务器已" + text + "队伍更换提示");
 	}
 }
-::CmdAdd("teaminfo", ::LinGe.Base.Cmd_teaminfo, ::LinGe.Base);
+::LinCmdAdd("teaminfo", ::LinGe.Base.Cmd_teaminfo, ::LinGe.Base);
 
 // 搜索玩家
 ::LinGe.Base.InitPyinfo <- function ()
@@ -1071,7 +1076,7 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 			// 判断阵营
 			if ("BOT" == player.GetNetworkIDString())
 				continue;
-			switch (GetPlayerTeam(player))
+			switch (LinGe.GetPlayerTeam(player))
 			{
 			case 1:
 				table.ob++;
@@ -1101,13 +1106,13 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 
 		if (::pyinfo.maxplayers < 0 || (!isExistMaxplayers))
 		{
-			if (::isVersus)
+			if (::LinGe.isVersus)
 				::pyinfo.maxplayers = 8;
 			else
 				::pyinfo.maxplayers = 4;
 		}
 		if (old != ::pyinfo.maxplayers)
-			::EventTrigger("maxplayers_changed");
+			::LinEventTrigger("maxplayers_changed");
 	}
 }
 //----------------------------Base-----END---------------------------------

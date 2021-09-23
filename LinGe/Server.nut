@@ -1,4 +1,4 @@
-const SERVERVER = "1.1";
+const SERVERVER = "1.2";
 printl("[LinGe] Server v" + SERVERVER +" 正在载入");
 ::LinGe.Server <- {};
 
@@ -8,7 +8,7 @@ printl("[LinGe] Server v" + SERVERVER +" 正在载入");
 	tankMinInterpRatio = -1, // Tank生成时是否强制调整lerp 为-1则不调整 （刷新率开启时此参数才有效）
 };
 ::LinGe.Config.Add("Server", ::LinGe.Server.Config);
-::Cache.Server_Config <- ::LinGe.Server.Config;
+::LinGe.Cache.Server_Config <- ::LinGe.Server.Config;
 
 // !update 便捷设置服务器刷新率指令
 ::LinGe.Server.Cmd_update <- function (player, args)
@@ -19,7 +19,7 @@ printl("[LinGe] Server v" + SERVERVER +" 正在载入");
 	}
 	else if (args.len() == 2)
 	{
-		local val = TryStringToFloat(args[1], -1.0);
+		local val = LinGe.TryStringToFloat(args[1], -1.0);
 		if (val>=0.0 && val<=0.1)
 		{
 			Convars.SetValue("nb_update_frequency", val);
@@ -27,7 +27,7 @@ printl("[LinGe] Server v" + SERVERVER +" 正在载入");
 		}
 	}
 }
-::CmdAdd("update", ::LinGe.Server.Cmd_update, ::LinGe.Server);
+::LinCmdAdd("update", ::LinGe.Server.Cmd_update, ::LinGe.Server);
 
 if ("coop" == g_BaseMode) {
 
@@ -42,12 +42,12 @@ if ("coop" == g_BaseMode) {
 		local vplayer = ::VSLib.Player(player);
 		if (!vplayer.IsPlayerEntityValid())
 			return;
-		if (!vplayer.IsAlive() || vplayer.IsDead())
+		if (!vplayer.LinGe.IsAlive() || vplayer.IsDead())
 			return;
 
 		local isIncapacitated = vplayer.IsIncapacitated();
 		vplayer.Kill();
-		if (!vplayer.IsAlive() || vplayer.IsDead()) // 可能不准
+		if (!vplayer.LinGe.IsAlive() || vplayer.IsDead()) // 可能不准
 		{
 			if (isIncapacitated)
 				Say(player, "\x03我不想变成魔女，这个世界还有许多我想守护的东西", false);
@@ -56,7 +56,7 @@ if ("coop" == g_BaseMode) {
 		}
 	}
 }
-::CmdAdd("zs", ::LinGe.Server.Cmd_zs, ::LinGe.Server, false);
+::LinCmdAdd("zs", ::LinGe.Server.Cmd_zs, ::LinGe.Server, false);
 
 local nowTank = 0;
 local oldUpdateFrequency = Convars.GetFloat("nb_update_frequency");
@@ -87,8 +87,8 @@ local oldMinInterpRatio = Convars.GetFloat("sv_client_min_interp_ratio").tointeg
 }
 if (::LinGe.Server.Config.tankUpdateFrequency >= 0)
 {
-	EventHook("OnGameEvent_tank_spawn", ::LinGe.Server.OnGameEvent_tank_spawn, ::LinGe.Server);
-	EventHook("OnGameEvent_tank_killed", ::LinGe.Server.OnGameEvent_tank_killed, ::LinGe.Server);
+	::LinEventHook("OnGameEvent_tank_spawn", ::LinGe.Server.OnGameEvent_tank_spawn, ::LinGe.Server);
+	::LinEventHook("OnGameEvent_tank_killed", ::LinGe.Server.OnGameEvent_tank_killed, ::LinGe.Server);
 }
 
 // 当前是否有Tank被激活仇恨

@@ -2,7 +2,7 @@
 // !hud ：	开关hud显示
 // !rank n：	设置排行榜人数为n人，为0则不显示排行榜
 // !hudstyle n ： 设置玩家显示数风格为n (0:自动 1：战役风格（活跃：x 摸鱼：x 空余：x） 2：对抗风格(生还：x VS 特感：x)
-const HUDVER = "1.2";
+const HUDVER = "1.3";
 printl("[LinGe] HUD v" + HUDVER +" 正在载入");
 ::LinGe.HUD <- {};
 
@@ -28,7 +28,7 @@ printl("[LinGe] HUD v" + HUDVER +" 正在载入");
 	}
 };
 ::LinGe.Config.Add("HUD", ::LinGe.HUD.Config);
-::Cache.HUD_Config <- ::LinGe.HUD.Config;
+::LinGe.Cache.HUD_Config <- ::LinGe.HUD.Config;
 
 ::LinGe.HUD.killData <- []; // 击杀数据数组 包括特感击杀和丧尸击杀数
 
@@ -98,12 +98,12 @@ for (local i=1; i<9; i++)
 	else
 		HUD_table.Fields.time.flags = HUD_table.Fields.time.flags | HUD_FLAG_NOTVISIBLE;
 
-	if (::isVersus && Config.versusNoPlayerInfo)
+	if (::LinGe.isVersus && Config.versusNoPlayerInfo)
 		HUD_table.Fields.players.flags = HUD_table.Fields.players.flags | HUD_FLAG_NOTVISIBLE;
 	else
 		HUD_table.Fields.players.flags = HUD_table.Fields.players.flags & (~HUD_FLAG_NOTVISIBLE);
 
-	if (::isVersus && Config.versusNoRank)
+	if (::LinGe.isVersus && Config.versusNoRank)
 	{
 		for (i=0; i<9; i++)
 			HUD_table.Fields["rank"+i].flags = HUD_table.Fields["rank"+i].flags | HUD_FLAG_NOTVISIBLE;
@@ -157,7 +157,7 @@ for (local i=1; i<9; i++)
 
 	UpdateHUD();
 }
-::EventHook("OnGameEvent_round_start", ::LinGe.HUD.OnGameEvent_round_start, ::LinGe.HUD);
+::LinEventHook("OnGameEvent_round_start", ::LinGe.HUD.OnGameEvent_round_start, ::LinGe.HUD);
 
 // 玩家队伍更换事件
 // team=0：玩家刚连接、和断开连接时会被分配到此队伍 不统计此队伍的人数
@@ -174,7 +174,7 @@ for (local i=1; i<9; i++)
 	UpdatePlayerHUD();
 	UpdateRankHUD();
 }
-::EventHook("human_team", ::LinGe.HUD.human_team, ::LinGe.HUD);
+::LinEventHook("human_team", ::LinGe.HUD.human_team, ::LinGe.HUD);
 
 // 事件：玩家受伤 友伤信息提示
 // 对witch伤害和对小僵尸伤害不会触发这个事件
@@ -231,7 +231,7 @@ for (local i=1; i<9; i++)
 	}
 }
 if (::LinGe.HUD.Config.teamHurtInfo > 0)
-	::EventHook("OnGameEvent_player_hurt", ::LinGe.HUD.OnGameEvent_player_hurt, ::LinGe.HUD);
+	::LinEventHook("OnGameEvent_player_hurt", ::LinGe.HUD.OnGameEvent_player_hurt, ::LinGe.HUD);
 
 // 提示一次友伤伤害并删除累积数据
 ::LinGe.HUD.Timer_PrintHurt <- function (key)
@@ -273,7 +273,7 @@ if (::LinGe.HUD.Config.teamHurtInfo > 0)
 // 虽然是player_death 但小丧尸和witch死亡也会触发该事件
 ::LinGe.HUD.OnGameEvent_player_death <- function (params)
 {
-//	::DebugPrintTable(params);
+//	::LinGe.DebugPrintTable(params);
     local dier = 0;	// 死者ID
     local dierEntity = null;	// 死者实体
 	local attacker = 0; // 攻击者ID
@@ -303,25 +303,25 @@ if (::LinGe.HUD.Config.teamHurtInfo > 0)
 	}
 	UpdateRankHUD();
 }
-::EventHook("OnGameEvent_player_death", ::LinGe.HUD.OnGameEvent_player_death, ::LinGe.HUD);
+::LinEventHook("OnGameEvent_player_death", ::LinGe.HUD.OnGameEvent_player_death, ::LinGe.HUD);
 
 ::LinGe.HUD.maxplayers_changed <- function (params)
 {
 	UpdatePlayerHUD();
 }
-::EventHook("maxplayers_changed", ::LinGe.HUD.maxplayers_changed, ::LinGe.HUD);
+::LinEventHook("maxplayers_changed", ::LinGe.HUD.maxplayers_changed, ::LinGe.HUD);
 
 ::LinGe.HUD.OnGameEvent_hostname_changed <- function (params)
 {
 	HUD_table.Fields.hostname.dataval = params.hostname;
 }
-::EventHook("OnGameEvent_hostname_changed", ::LinGe.HUD.OnGameEvent_hostname_changed, ::LinGe.HUD);
+::LinEventHook("OnGameEvent_hostname_changed", ::LinGe.HUD.OnGameEvent_hostname_changed, ::LinGe.HUD);
 
 ::LinGe.HUD.Cmd_thi <- function (player, args)
 {
 	if (2 == args.len())
 	{
-		local style = TryStringToInt(args[1], -1);
+		local style = LinGe.TryStringToInt(args[1], -1);
 		if (style < 0 || style > 2)
 		{
 			ClientPrint(player, 3, "\x04!thi 0:关闭友伤提示 1:公开处刑 2:仅双方可见");
@@ -329,7 +329,7 @@ if (::LinGe.HUD.Config.teamHurtInfo > 0)
 		}
 		else
 			Config.teamHurtInfo = style;
-		::EventUnHook("OnGameEvent_player_hurt", ::LinGe.HUD.OnGameEvent_player_hurt, ::LinGe.HUD);
+		::LinEventUnHook("OnGameEvent_player_hurt", ::LinGe.HUD.OnGameEvent_player_hurt, ::LinGe.HUD);
 		switch (Config.teamHurtInfo)
 		{
 		case 0:
@@ -337,11 +337,11 @@ if (::LinGe.HUD.Config.teamHurtInfo > 0)
 			break;
 		case 1:
 			ClientPrint(null, 3, "\x04服务器已开启友伤提示 \x03公开处刑");
-			::EventHook("OnGameEvent_player_hurt", ::LinGe.HUD.OnGameEvent_player_hurt, ::LinGe.HUD);
+			::LinEventHook("OnGameEvent_player_hurt", ::LinGe.HUD.OnGameEvent_player_hurt, ::LinGe.HUD);
 			break;
 		case 2:
 			ClientPrint(null, 3, "\x04服务器已开启友伤提示 \x03仅双方可见");
-			::EventHook("OnGameEvent_player_hurt", ::LinGe.HUD.OnGameEvent_player_hurt, ::LinGe.HUD);
+			::LinEventHook("OnGameEvent_player_hurt", ::LinGe.HUD.OnGameEvent_player_hurt, ::LinGe.HUD);
 			break;
 		default:
 			throw "未知异常情况";
@@ -350,7 +350,7 @@ if (::LinGe.HUD.Config.teamHurtInfo > 0)
 	else
 		ClientPrint(player, 3, "\x04!thi 0:关闭友伤提示 1:公开处刑 2:仅双方可见");
 }
-::CmdAdd("thi", ::LinGe.HUD.Cmd_thi, ::LinGe.HUD);
+::LinCmdAdd("thi", ::LinGe.HUD.Cmd_thi, ::LinGe.HUD);
 
 ::LinGe.HUD.Cmd_hud <- function (player, args)
 {
@@ -373,27 +373,27 @@ if (::LinGe.HUD.Config.teamHurtInfo > 0)
 		}
 	}
 }
-::CmdAdd("hud", ::LinGe.HUD.Cmd_hud, ::LinGe.HUD);
+::LinCmdAdd("hud", ::LinGe.HUD.Cmd_hud, ::LinGe.HUD);
 
 ::LinGe.HUD.Cmd_hudstyle <- function (player, args)
 {
 	if (2 == args.len())
 	{
-		Config.style = TryStringToInt(args[1]);
+		Config.style = LinGe.TryStringToInt(args[1]);
 		UpdatePlayerHUD();
 	}
 }
-::CmdAdd("hudstyle", ::LinGe.HUD.Cmd_hudstyle, ::LinGe.HUD);
+::LinCmdAdd("hudstyle", ::LinGe.HUD.Cmd_hudstyle, ::LinGe.HUD);
 
 ::LinGe.HUD.Cmd_rank <- function (player, args)
 {
 	if (2 == args.len())
 	{
-		Config.rank = TryStringToInt(args[1]);
+		Config.rank = LinGe.TryStringToInt(args[1]);
 		UpdateHUD();
 	}
 }
-::CmdAdd("rank", ::LinGe.HUD.Cmd_rank, ::LinGe.HUD);
+::LinCmdAdd("rank", ::LinGe.HUD.Cmd_rank, ::LinGe.HUD);
 
 // 更新玩家信息HUD
 ::LinGe.HUD.UpdatePlayerHUD <- function ()
@@ -402,7 +402,7 @@ if (::LinGe.HUD.Config.teamHurtInfo > 0)
 	local style = Config.style;
 	if (0 == style)
 	{
-		if (::isVersus)
+		if (::LinGe.isVersus)
 			style = 2;
 		else
 			style = 1;
@@ -430,7 +430,7 @@ if (::LinGe.HUD.Config.teamHurtInfo > 0)
 
 ::LinGe.HUD.UpdateRankHUD <- function ()
 {
-	if (::isVersus && Config.versusNoRank)
+	if (::LinGe.isVersus && Config.versusNoRank)
 		return;
 
 	local rank = 0; // 玩家排名
