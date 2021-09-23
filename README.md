@@ -11,7 +11,7 @@
 
 ## 安装
 
-脚本文件和打包版本二选一安装即可，不需要修改脚本代码建议安装打包版本。
+以下方式任意选一安装即可，不需要修改脚本代码建议安装打包文件或创意工坊订阅。
 
 ### 脚本文件
 
@@ -30,11 +30,17 @@ LinGe 目录下一共有 4 个 .nut 脚本文件：
 - scriptedmode_addon.nut
 - VSLib.nut 和 VSLib 文件夹
 
-此外，Plugins 目录下是本系列脚本的一个辅助插件 LinGe VScripts，基于 sourcemod 插件平台，可选安装。
-
 ### 打包文件
 
-请下载右侧的 Release 发布文件中的 LinGe_VScripts.zip 文件，将其解压到 left4dead2 目录下。其中除了打包好的脚本 MOD 文件外，还包含了同名的可选辅助插件 LinGe_VScripts。如果需要使用插件请在游戏启动项中加入 -insecure。
+请下载右侧的 Release 发布文件中的 LinGe_VScripts.zip 文件，将其解压到 left4dead2 目录下。
+
+其中除了打包好的脚本 MOD 文件 LinGe_VScripts.vpk 外，还包含了同名的可选辅助插件 LinGe_VScripts。如果需要使用插件请在游戏启动项中加入 -insecure。
+
+注意：如果已经订阅了创意工坊，那么请取消订阅，或者不要使用压缩包中的 VPK  MOD 文件，以避免冲突。
+
+### 创意工坊订阅
+
+[点击进入创意工坊](https://steamcommunity.com/sharedfiles/filedetails/?id=2587952986)
 
 ## 设置管理员
 
