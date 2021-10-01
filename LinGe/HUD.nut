@@ -181,6 +181,8 @@ for (local i=1; i<9; i++)
 ::LinGe.HUD.tempTeamHurt <- {}; // 友伤临时数据记录
 ::LinGe.HUD.OnGameEvent_player_hurt <- function (params)
 {
+	if (Config.teamHurtInfo == 0)
+		return;
 	if (!params.rawin("dmg_health"))
 		return;
 	if (params.dmg_health < 1)
@@ -230,8 +232,7 @@ for (local i=1; i<9; i++)
 		VSLib.Timers.AddTimerByName(key, 0.5, false, Timer_PrintHurt, key);
 	}
 }
-if (::LinGe.HUD.Config.teamHurtInfo > 0)
-	::LinEventHook("OnGameEvent_player_hurt", ::LinGe.HUD.OnGameEvent_player_hurt, ::LinGe.HUD);
+::LinEventHook("OnGameEvent_player_hurt", ::LinGe.HUD.OnGameEvent_player_hurt, ::LinGe.HUD);
 
 // 提示一次友伤伤害并删除累积数据
 ::LinGe.HUD.Timer_PrintHurt <- function (key)
@@ -329,7 +330,6 @@ if (::LinGe.HUD.Config.teamHurtInfo > 0)
 		}
 		else
 			Config.teamHurtInfo = style;
-		::LinEventUnHook("OnGameEvent_player_hurt", ::LinGe.HUD.OnGameEvent_player_hurt, ::LinGe.HUD);
 		switch (Config.teamHurtInfo)
 		{
 		case 0:
@@ -337,11 +337,9 @@ if (::LinGe.HUD.Config.teamHurtInfo > 0)
 			break;
 		case 1:
 			ClientPrint(null, 3, "\x04服务器已开启友伤提示 \x03公开处刑");
-			::LinEventHook("OnGameEvent_player_hurt", ::LinGe.HUD.OnGameEvent_player_hurt, ::LinGe.HUD);
 			break;
 		case 2:
 			ClientPrint(null, 3, "\x04服务器已开启友伤提示 \x03仅双方可见");
-			::LinEventHook("OnGameEvent_player_hurt", ::LinGe.HUD.OnGameEvent_player_hurt, ::LinGe.HUD);
 			break;
 		default:
 			throw "未知异常情况";
