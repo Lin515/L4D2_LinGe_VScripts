@@ -1,15 +1,38 @@
-﻿#pragma once
+﻿/**
+ * LinGe_VScripts
+ * Copyright (C) 2021 LinGe All rights reserved.
+ * =============================================================================
+ *
+ * This program is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License, version 3.0, as published by the
+ * Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+ * details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * As a special exception, AlliedModders LLC gives you permission to link the
+ * code of this program (as well as its derivative works) to "Half-Life 2," the
+ * "Source Engine," the "SourcePawn JIT," and any Game MODs that run on software
+ * by the Valve Corporation.  You must obey the GNU General Public License in
+ * all respects for all other code used.  Additionally, AlliedModders LLC grants
+ * this exception to all derivative works.  AlliedModders LLC defines further
+ * exceptions, found in LICENSE.txt (as of this writing, version JULY-31-2007),
+ * or <http://www.sourcemod.net/license.php>.
+ */
+#pragma once
 #include <engine/iserverplugin.h>
-#include <game/server/iplayerinfo.h>
-#include <toolframework/itoolentity.h>
-#include <eiface.h>
 #include <tier1.h>
 #define PLNAME	"LinGe_VScripts"
 #define PLVER	"v2.0"
 
-#define _Msg(format, ...)		Msg(PLNAME " Msg : " format, ## __VA_ARGS__)
-#define _Warning(format, ...)	Warning(PLNAME " Warning : " format, ## __VA_ARGS__)
-#define _Error(format, ...)		Error(PLNAME " Error : " format, ## __VA_ARGS__)
+#define _Msg(format, ...)		Msg(PLNAME " Msg: " format, ## __VA_ARGS__)
+#define _Warning(format, ...)	Warning(PLNAME " Warning: " format, ## __VA_ARGS__)
+#define _Error(format, ...)		Error(PLNAME " Error: " format, ## __VA_ARGS__)
 
 class LinGe_VScripts : public IServerPluginCallbacks
 {
@@ -42,15 +65,20 @@ public:
 	virtual void			OnEdictFreed(const edict_t *edict);
 
 public:
+	static int GetFnChangeCallbackOffset(ConVar *var, FnChangeCallback_t callback);
+	static void OnSvMaxplayersChanged(IConVar *var, const char *pOldValue, float flOldValue);
+	static void OnTimeFormatChanged(IConVar *var, const char *pOldValue, float flOldValue);
+
+public:
+	static int iFnChangeCallbackOffset;
+	static FnChangeCallback_t SvMaxplayersCallback;
+
 	int m_iMaxClients;
 
 protected:
 	bool m_bIsFristStart;
 };
 
-// 通过向实体 logic_script 发送实体输入执行 vscripts 脚本代码
-bool L4D2_RunScript(const char *sCode);
-// sv_maxplayers 发生改变
-void OnSvMaxplayersChanged(IConVar *var, const char *pOldValue, float flOldValue);
-// 插件控制台变量发生改变
-void OnFormatCvarChanged(IConVar *var, const char *pOldValue, float flOldValue);
+extern ConVar *cv_pSvMaxplayers;
+extern ConVar cv_time;
+extern ConVar cv_format;

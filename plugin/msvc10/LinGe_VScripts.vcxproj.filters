@@ -18,7 +18,13 @@
     <ClCompile Include="..\LinGe_VScripts.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="..\MemoryUtils\MemoryUtils.cpp">
+    <ClCompile Include="..\sdkapi\sdkapi.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\sdkapi\MemoryUtils\MemoryUtils.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\sdkapi\signature.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -26,16 +32,19 @@
     <ClInclude Include="..\LinGe_VScripts.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="..\signature.h">
+    <ClInclude Include="..\sdkapi\sdkapi.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="..\MemoryUtils\MemoryUtils.h">
+    <ClInclude Include="..\sdkapi\MemoryUtils\MemoryUtils.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="..\MemoryUtils\sm_platform.h">
+    <ClInclude Include="..\sdkapi\MemoryUtils\sm_platform.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="..\MemoryUtils\sm_symtable.h">
+    <ClInclude Include="..\sdkapi\MemoryUtils\sm_symtable.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\sdkapi\signature.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

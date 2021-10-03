@@ -1,14 +1,15 @@
 # 编译环境
 L4D2 ?= ~/l4d2sv
-HL2SDKL4D2 ?= ../../hl2sdk-l4d2
+HL2SDKL4D2 ?= ../../L4D2_Dev/hl2sdk-l4d2
 HL2PUB = $(HL2SDKL4D2)/public
 HL2LIB = $(HL2SDKL4D2)/lib/linux
 HL2GAME = $(HL2SDKL4D2)/game
-CPP = gcc
+CPP = gcc-7
 
 # 工程文件
 PROJECT = LinGe_VScripts
-OBJECTS	= LinGe_VScripts.cpp MemoryUtils/MemoryUtils.cpp
+OBJECTS	= LinGe_VScripts.cpp sdkapi/MemoryUtils/MemoryUtils.cpp sdkapi/sdkapi.cpp \
+	sdkapi/signature.cpp
 
 # 编译器选项
 CFLAGS += -D_LINUX -DL4D2 -m32 \
@@ -18,11 +19,11 @@ CFLAGS += -D_LINUX -DL4D2 -m32 \
 		-Wno-error=uninitialized -Wno-unused -Wno-error=delete-non-virtual-dtor \
 		-mfpmath=sse -msse -DHAVE_STDINT_H
 CPPFLAGS += -Wno-non-virtual-dtor -fno-rtti -fno-threadsafe-statics \
-		-Wno-overloaded-virtual -std=c++11
+		-Wno-overloaded-virtual -std=c++11 -fpermissive
 C_DEBUG_FLAGS = -D_DEBUG -DDEBUG -g -ggdb3
 C_DEBUG_DIR = Debug
 C_RELEASE_FLAGS = -DNDEBUG -O3 -funroll-loops -pipe -fno-strict-aliasing
-C_RELEASE_DIR = LinGe_VScripts
+C_RELEASE_DIR = $(PROJECT)
 
 INCLUDE += -I. -I$(HL2PUB) -I$(HL2PUB)/tier0 -I$(HL2PUB)/tier1 -I$(HL2PUB)/tier2 \
 		-I$(HL2PUB)/tier3 -I$(HL2GAME) -I$(HL2GAME)/shared -I$(HL2GAME)/server \
@@ -34,11 +35,11 @@ LINK += libtier0_srv.so libvstdlib_srv.so $(HL2LIB)/tier1_i486.a \
 		-m32 -ldl -lm -static-libgcc -static-libstdc++ -shared
 
 release: libtier0_srv.so libvstdlib_srv.so
-	$(CPP) $(INCLUDE) $(OBJECTS) $(CFLAGS) $(C_RELEASE_FLAGS) $(LINK) -o $(C_RELEASE_DIR)/$(PROJECT).so
+	$(CPP) $(INCLUDE) $(OBJECTS) $(CFLAGS) $(CPPFLAGS) $(C_RELEASE_FLAGS) $(LINK) -o $(C_RELEASE_DIR)/$(PROJECT).so
 	cp $(C_RELEASE_DIR)/$(PROJECT).so $(L4D2)/left4dead2/addons/$(PROJECT)/$(PROJECT).so
 
 debug: libtier0_srv.so libvstdlib_srv.so 
-	$(CPP) $(INCLUDE) $(OBJECTS) $(CFLAGS) $(C_DEBUG_FLAGS) $(LINK) -o $(C_DEBUG_DIR)/$(PROJECT).so
+	$(CPP) $(INCLUDE) $(OBJECTS) $(CFLAGS) $(CPPFLAGS) $(C_DEBUG_FLAGS) $(LINK) -o $(C_DEBUG_DIR)/$(PROJECT).so
 	cp $(C_DEBUG_DIR)/$(PROJECT).so $(L4D2)/left4dead2/addons/$(PROJECT)/$(PROJECT).so
 
 libtier0_srv.so:

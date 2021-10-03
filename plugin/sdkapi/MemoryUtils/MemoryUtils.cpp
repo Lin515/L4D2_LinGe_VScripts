@@ -26,7 +26,7 @@
  * exceptions, found in LICENSE.txt (as of this writing, version JULY-31-2007),
  * or <http://www.sourcemod.net/license.php>.
  */
- // 修改自 sourcemod/core/logic/MemoryUtils.h
+ // 修改自 sourcemod/core/logic/MemoryUtils.cpp
  // https://github.com/alliedmodders/sourcemod
 
 #include "MemoryUtils.h"
@@ -41,8 +41,8 @@
 #endif
 
 MemoryUtils::MemoryUtils(CreateInterfaceFn factory) :
-	factory(nullptr),
-	isAvailable(false)
+	isAvailable(false),
+	factory(nullptr)
 {
 	if (factory)
 		Init(factory);
