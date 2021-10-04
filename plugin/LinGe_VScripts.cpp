@@ -88,42 +88,17 @@ void LinGe_VScripts::ServerActivate(edict_t *pEdictList, int edictCount, int cli
 	// 本插件一定比 l4dtoolz 先载入，所以不能在插件载入时就去获取 sv_maxplayers
 	if (m_bIsFristStart)
 	{
-		iFnChangeCallbackOffset = GetFnChangeCallbackOffset(&cv_format, LinGe_VScripts::OnTimeFormatChanged);
-		// 如果不能找到偏移地址，则不应安装自己的callback，否则将导致l4dtoolz功能失效
-		if (iFnChangeCallbackOffset > -1)
+		cv_pSvMaxplayers = SDKAPI::iCvar->FindVar("sv_maxplayers");
+		if (cv_pSvMaxplayers)
 		{
-			DevMsg("ConVar::m_fnChangeCallback Offset %d\n", iFnChangeCallbackOffset);
-			cv_pSvMaxplayers = SDKAPI::iCvar->FindVar("sv_maxplayers");
-			if (cv_pSvMaxplayers)
-			{
-				// 保存原有callback，然后安装自己的callback
-				SvMaxplayersCallback = *reinterpret_cast<FnChangeCallback_t *>
-					(reinterpret_cast<char *>(cv_pSvMaxplayers) + iFnChangeCallbackOffset);
-				cv_pSvMaxplayers->InstallChangeCallback(LinGe_VScripts::OnSvMaxplayersChanged);
-			}
+			// 保存原有 callback，然后安装自己的 callback
+			// 直接访问 m_fnChangeCallback 需要修改 hl2sdk-l4d2/public/tier1/convar.h
+			// 将 m_fnChangeCallback 声明为 public
+			SvMaxplayersCallback = cv_pSvMaxplayers->m_fnChangeCallback;
+			cv_pSvMaxplayers->InstallChangeCallback(LinGe_VScripts::OnSvMaxplayersChanged);
 		}
 		m_bIsFristStart = false;
 	}
-}
-
-/* 提供一个ConVar与其已安装的callback地址 以查找其成员变量 m_fnChangeCallback 的偏移量
-*  因为 m_fnChangeCallback 是私有成员，且类没有提供获取该成员值的函数，所以只能通过偏门获取了
-*/
-int LinGe_VScripts::iFnChangeCallbackOffset = -1;
-int LinGe_VScripts::GetFnChangeCallbackOffset(ConVar *var, FnChangeCallback_t callback)
-{
-	char *ptr1 = reinterpret_cast<char *>(var);
-	FnChangeCallback_t *ptr2 = nullptr;
-
-	// 在对象基址+200以内查找，查找范围不宜过大
-	// 在我写这个函数时，Windows上查找到的偏移地址为68
-	for (int i = 0; i < 200; i++)
-	{
-		ptr2 = reinterpret_cast<FnChangeCallback_t *>(ptr1++);
-		if (*ptr2 == callback)
-			return i;
-	}
-	return -1;
 }
 
 // sv_maxplayers 发生改变

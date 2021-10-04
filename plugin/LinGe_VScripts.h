@@ -65,7 +65,6 @@ public:
 	virtual void			OnEdictFreed(const edict_t *edict);
 
 public:
-	static int GetFnChangeCallbackOffset(ConVar *var, FnChangeCallback_t callback);
 	static void OnSvMaxplayersChanged(IConVar *var, const char *pOldValue, float flOldValue);
 	static void OnTimeFormatChanged(IConVar *var, const char *pOldValue, float flOldValue);
 
