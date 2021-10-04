@@ -24,7 +24,7 @@
  * exceptions, found in LICENSE.txt (as of this writing, version JULY-31-2007),
  * or <http://www.sourcemod.net/license.php>.
  */
-#include "SDKAPI.h"
+#include "sdkapi.h"
 #include "signature.h"
 #include <engine/iserverplugin.h>
 #include <tier1.h>

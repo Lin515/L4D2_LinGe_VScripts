@@ -28,7 +28,7 @@
 #include <engine/iserverplugin.h>
 #include <tier1.h>
 #define PLNAME	"LinGe_VScripts"
-#define PLVER	"v2.0"
+#define PLVER	"v2.1"
 
 #define _Msg(format, ...)		Msg(PLNAME " Msg: " format, ## __VA_ARGS__)
 #define _Warning(format, ...)	Warning(PLNAME " Warning: " format, ## __VA_ARGS__)
@@ -69,7 +69,6 @@ public:
 	static void OnTimeFormatChanged(IConVar *var, const char *pOldValue, float flOldValue);
 
 public:
-	static int iFnChangeCallbackOffset;
 	static FnChangeCallback_t SvMaxplayersCallback;
 
 	int m_iMaxClients;
