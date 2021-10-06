@@ -30,9 +30,9 @@
 #define PLNAME	"LinGe_VScripts"
 #define PLVER	"v2.1"
 
-#define _Msg(format, ...)		Msg(PLNAME " Msg: " format, ## __VA_ARGS__)
-#define _Warning(format, ...)	Warning(PLNAME " Warning: " format, ## __VA_ARGS__)
-#define _Error(format, ...)		Error(PLNAME " Error: " format, ## __VA_ARGS__)
+#define _Msg(format, ...)		Msg(PLNAME ": " format, ## __VA_ARGS__)
+#define _Warning(format, ...)	Warning(PLNAME ": " format, ## __VA_ARGS__)
+#define _Error(format, ...)		Error(PLNAME ": " format, ## __VA_ARGS__)
 
 class LinGe_VScripts : public IServerPluginCallbacks
 {

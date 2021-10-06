@@ -38,9 +38,9 @@
 #define __thiscall
 #endif
 
-#define SDKAPI_Msg(format, ...)		Msg("SDKAPI Msg: " format, ## __VA_ARGS__)
-#define SDKAPI_Warning(format, ...)	Warning("SDKAPI Warning: " format, ## __VA_ARGS__)
-#define SDKAPI_Error(format, ...)	Error("SDKAPI Error: " format, ## __VA_ARGS__)
+#define SDKAPI_Msg(format, ...)		Msg("SDKAPI: " format, ## __VA_ARGS__)
+#define SDKAPI_Warning(format, ...)	Warning("SDKAPI: " format, ## __VA_ARGS__)
+#define SDKAPI_Error(format, ...)	Error("SDKAPI: " format, ## __VA_ARGS__)
 
 namespace SDKAPI {
 	class FCGlobalEntityList;
