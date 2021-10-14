@@ -28,7 +28,7 @@
 #include <engine/iserverplugin.h>
 #include <tier1.h>
 #define PLNAME	"LinGe_VScripts"
-#define PLVER	"v2.1"
+#define PLVER	"v2.5"
 
 #define _Msg(format, ...)		Msg(PLNAME ": " format, ## __VA_ARGS__)
 #define _Warning(format, ...)	Warning(PLNAME ": " format, ## __VA_ARGS__)
