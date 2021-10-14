@@ -9,13 +9,19 @@
 
 # 使用说明
 
-## 安装
+## 安装脚本
 
-以下方式任意选一安装即可，不需要修改脚本代码建议安装打包文件或创意工坊订阅。
+以下两种方式任意选一安装即可，不需要修改脚本代码建议创意工坊订阅本脚本。
+
+如果需要安装辅助插件，请点击右侧的发布项目下载 LinGe_VScripts.zip，然后将 addons 下的文件解压到 left4dead2/addons 目录下，再在游戏启动项中加入 -insecure，之后启动游戏即可。
+
+### 创意工坊订阅
+
+[点击进入创意工坊](https://steamcommunity.com/sharedfiles/filedetails/?id=2587952986)
 
 ### 脚本文件
 
-将以下列出的所需文件复制到 left4dead2/scripts/vscripts 目录下即可。
+将以下列出的所需文件复制到 left4dead2/scripts/vscripts 目录下：
 
 LinGe 目录下一共有 4 个 .nut 脚本文件：
 
@@ -29,18 +35,6 @@ LinGe 目录下一共有 4 个 .nut 脚本文件：
 - director_base_addon.nut
 - scriptedmode_addon.nut
 - VSLib.nut 和 VSLib 文件夹
-
-### 打包文件
-
-请下载右侧的 Release 发布文件中的 LinGe_VScripts.zip 文件，将其解压到 left4dead2 目录下。
-
-其中除了打包好的脚本 MOD 文件 LinGe_VScripts.vpk 外，还包含了同名的可选辅助插件 LinGe_VScripts。如果需要使用插件请在游戏启动项中加入 -insecure。
-
-注意：如果已经订阅了创意工坊，那么请取消订阅，或者不要使用压缩包中的 VPK  MOD 文件，以避免冲突。
-
-### 创意工坊订阅
-
-[点击进入创意工坊](https://steamcommunity.com/sharedfiles/filedetails/?id=2587952986)
 
 ## 设置管理员
 
@@ -65,6 +59,12 @@ LinGe 目录下一共有 4 个 .nut 脚本文件：
 	 开启多特控制并按指定参数执行功能。
 
 以上指令的更具体含义请往下看。
+
+# 辅助插件
+
+辅助插件为脚本提供服务器时间，以及在房间最大人数 sv_maxplayers 变更时及时触发更新。
+
+如果没有安装辅助插件，那么 HUD 上的时间将会显示为本局回合时间。
 
 # Base 模块
 
@@ -144,18 +144,6 @@ HUD 模块可以在所有人的屏幕上显示特感击杀排行、时间、服�
 # Server 模块
 
 这个主要是我的服务器自用，不作太多介绍，有需要请自行查看脚本源码。
-
-# 辅助插件
-
-辅助插件为脚本提供服务器时间，以及在房间最大人数(sv_maxplayers)变更时及时触发更新。
-
-如果没有安装辅助插件，那么 HUD 上的时间将会显示为本局回合时间。
-
-**玩家聊天窗指令(待完成功能)：**
-
-- !vshelp 打开总菜单
-- !hudhelp 打开 HUD 控制菜单
-- !sihelp 打开多特控制菜单
 
 # 配置文件
 
