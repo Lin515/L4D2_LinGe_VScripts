@@ -1,5 +1,5 @@
-if ( "coop" == g_BaseMode ) {
-const MORESIVER = "1.5";
+if ( !::LinGe.isVersus ) {
+const MORESIVER = "1.6";
 printl("[LinGe] 简易多特控制 v" + MORESIVER +" 正在载入");
 ::LinGe.MoreSI <- {};
 
