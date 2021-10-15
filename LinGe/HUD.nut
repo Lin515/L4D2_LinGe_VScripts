@@ -2,7 +2,7 @@
 // !hud ：	开关hud显示
 // !rank n：	设置排行榜人数为n人，为0则不显示排行榜
 // !hudstyle n ： 设置玩家显示数风格为n (0:自动 1：战役风格（活跃：x 摸鱼：x 空余：x） 2：对抗风格(生还：x VS 特感：x)
-const HUDVER = "1.4";
+const HUDVER = "1.5";
 printl("[LinGe] HUD v" + HUDVER +" 正在载入");
 ::LinGe.HUD <- {};
 
@@ -35,7 +35,7 @@ printl("[LinGe] HUD v" + HUDVER +" 正在载入");
 const HUD_SLOT_HOSTNAME = 10;
 const HUD_SLOT_TIME = 11;
 const HUD_SLOT_PLAYERS = 12;
-const HUD_SLOT_RANK = 0; // 第一个显示 特感/丧尸击杀： 后续显示玩家数据
+const HUD_SLOT_RANK = 1; // 第一个显示 特感/丧尸击杀： 后续显示玩家数据
 // 服务器每1s内会多次根据HUD_table更新屏幕上的HUD
 // 脚本只需将HUD_table中的数据进行更新 而无需反复执行HUDSetLayout和HUDPlace
 ::LinGe.HUD.HUD_table <- {
@@ -46,7 +46,7 @@ const HUD_SLOT_RANK = 0; // 第一个显示 特感/丧尸击杀： 后续显示�
 			// 无边框 中对齐
 			flags = HUD_FLAG_NOBG | HUD_FLAG_ALIGN_LEFT
 		},
-		time = { // 显示当地时间需 LinGe_vscripts.smx 插件支持
+		time = { // 显示当地时间需 LinGe_VScripts 辅助插件支持
 			slot = HUD_SLOT_TIME,
 			// 无边框 左对齐
 			flags = HUD_FLAG_NOBG | HUD_FLAG_ALIGN_LEFT
@@ -91,7 +91,7 @@ for (local i=1; i<9; i++)
 			HUDPlace(HUD_SLOT_RANK+i, Config.position.rank_x, Config.position.rank_y+height*i, 1.0, height);
 	}
 	else
-		HUDSetLayout( { Fields = {} } );
+		HUDSetLayout( ::VSLib.HUD._hud );
 
 	if (Config.isShowTime)
 		HUD_table.Fields.time.flags = HUD_table.Fields.time.flags & (~HUD_FLAG_NOTVISIBLE);
@@ -217,7 +217,7 @@ for (local i=1; i<9; i++)
 	    else if ( victim.IsIncapacitated() )
 	    {
 	    	// 如果已倒地，判断是否是本次伤害致其倒地
-	    	// 如果是，其当前血量+本次伤害量=300
+	    	// 如果不是，其当前血量+本次伤害量!=300
 	    	if (victim.GetHealth() + params.dmg_health != 300)
 	    		return;
 	    }
