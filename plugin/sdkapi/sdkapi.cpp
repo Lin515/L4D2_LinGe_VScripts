@@ -83,11 +83,11 @@ namespace SDKAPI {
 			SDKAPI_Warning("IGameEventManager2 interface initialize failed!\n");
 
 		mu_engine = new MemoryUtils(interfaceFactory);
-		if (!mu_engine->isAvailable)
+		if (!mu_engine->IsAvailable())
 			SDKAPI_Warning("mu_engine initialize failed!\n");
 
 		mu_server = new MemoryUtils(gameServerFactory);
-		if (!mu_server->isAvailable)
+		if (!mu_server->IsAvailable())
 			SDKAPI_Warning("mu_server initialize failed!\n");
 		else
 			ServerSigFunc::Initialize();
@@ -95,7 +95,7 @@ namespace SDKAPI {
 		// 初始化 pEntList 获取方法参考 sourcemod/core/HalfLife2.cpp
 		// Win32下是通过LevelShutdown函数地址再加上偏移量获得pEntityList(指向gEntList的指针)的地址
 		// Linux下是直接通过符号查找获得gEntList的地址
-		if (mu_server->isAvailable)
+		if (mu_server->IsAvailable())
 		{
 			void *ptr = mu_server->FindSignature<void *>(Sig_gEntList);
 			if (!ptr)

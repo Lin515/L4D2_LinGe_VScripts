@@ -84,6 +84,18 @@ class MemoryUtils
 public:
 	MemoryUtils(CreateInterfaceFn factory = nullptr);
 	bool Init(CreateInterfaceFn factory);
+	bool IsAvailable();
+	static bool GetLibraryInfo(const void *libPtr, DynLibInfo &lib);
+
+private:
+	bool isAvailable;
+	CreateInterfaceFn factory;
+	DynLibInfo lib;
+#ifdef PLATFORM_LINUX
+	LibSymbolTable m_SymTable;
+#endif
+
+public:
 	void *FindPattern(const char *pattern);
 	void *ResolveSymbol(const char *symbol);
 
@@ -96,16 +108,6 @@ public:
 		return reinterpret_cast<Fn>(ResolveSymbol(signature.Linux));
 #endif
 	}
-	static bool GetLibraryInfo(const void *libPtr, DynLibInfo &lib);
-
-public:
-	bool isAvailable;
-private:
-	CreateInterfaceFn factory;
-	DynLibInfo lib;
-#ifdef PLATFORM_LINUX
-	LibSymbolTable m_SymTable;
-#endif
 };
 
 #endif // _INCLUDE_SOURCEMOD_MEMORYUTILS_H_

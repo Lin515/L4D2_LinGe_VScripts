@@ -41,8 +41,7 @@
 #endif
 
 MemoryUtils::MemoryUtils(CreateInterfaceFn factory) :
-	isAvailable(false),
-	factory(nullptr)
+	isAvailable(false), factory(nullptr)
 {
 	if (factory)
 		Init(factory);
@@ -52,6 +51,11 @@ bool MemoryUtils::Init(CreateInterfaceFn factory)
 {
 	this->factory = factory;
 	isAvailable = MemoryUtils::GetLibraryInfo((void *)factory, this->lib);
+	return isAvailable;
+}
+
+bool MemoryUtils::IsAvailable()
+{
 	return isAvailable;
 }
 
