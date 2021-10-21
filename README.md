@@ -1,40 +1,16 @@
 # 简介
 
 脚本实现玩家人数统计、友伤提示、HUD（显示特感击杀、时间、服务器名等）、多特控制等等。  
-显示服务器时间需要安装辅助插件，若未安装插件则将显示本回合用时。
-
-主要适用于多人战役，服务器装了太多莫名其妙的插件的话，不保证不会出 bug。目前已知插件药抗下会比较容易出现人数统计的 bug。
 
 脚本与插件一样都是运行在服务端的，本地客户端作为房主开房也可以用，并且作用于房间内所有玩家，而自己进入别人的房间是没有用的。
 
 # 使用说明
 
-## 安装脚本
+## 安装
 
-以下两种方式任意选一安装即可，不需要修改脚本代码建议创意工坊订阅本脚本。
+[进入创意工坊](https://steamcommunity.com/sharedfiles/filedetails/?id=2587952986)，点击订阅即可，本仓库的代码与创意工坊同步更新。
 
-如果需要安装辅助插件，请点击右侧的发布项目下载 LinGe_VScripts.zip，然后将 addons 下的文件解压到 left4dead2/addons 目录下，再在游戏启动项中加入 -insecure，之后启动游戏即可。
-
-### 创意工坊订阅
-
-[点击进入创意工坊](https://steamcommunity.com/sharedfiles/filedetails/?id=2587952986)
-
-### 脚本文件
-
-将以下列出的所需文件复制到 left4dead2/scripts/vscripts 目录下：
-
-LinGe 目录下一共有 4 个 .nut 脚本文件：
-
-- Base.nut 必须安装。脚本的基础模块。  
-- HUD.nut 可选安装。HUD 模块，显示击杀、时间、玩家人数等等。
-- MoreSI.nut 可选安装。多特控制模块。
--  Server.nut 可选安装。一些杂项功能。
-
-除 LinGe 目录以外，还有如下文件是必须安装的：
-
-- director_base_addon.nut
-- scriptedmode_addon.nut
-- VSLib.nut 和 VSLib 文件夹
+HUD 显示服务器时间需要安装辅助插件，如果没有安装插件则将显示本回合用时。如果需要安装辅助插件，请点击右侧的发布项目下载 LinGe_VScripts.zip，然后将 addons 下的文件解压到 left4dead2/addons 目录下，再在游戏启动项中加入 -insecure，之后启动游戏即可。
 
 ## 设置管理员
 
