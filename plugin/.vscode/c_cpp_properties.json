@@ -1,0 +1,30 @@
+{
+    "env" : {
+        "HL2SDKL4D2": "../../L4D2_Dev/hl2sdk-l4d2"
+    },
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${env.HL2SDKL4D2}/public",
+                "${env.HL2SDKL4D2}/public/tier0",
+                "${env.HL2SDKL4D2}/public/tier1",
+                "${env.HL2SDKL4D2}/public/tier2",
+                "${env.HL2SDKL4D2}/public/tier3",
+                "${env.HL2SDKL4D2}/game",
+                "${env.HL2SDKL4D2}/game/shared",
+                "${env.HL2SDKL4D2}/game/server",
+                "${env.HL2SDKL4D2}/game/client"
+            ],
+            "defines": [
+                "_LINUX"
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu11",
+            "cppStandard": "gnu++11",
+            "intelliSenseMode": "linux-gcc-x86"
+        }
+    ],
+    "version": 4
+}
