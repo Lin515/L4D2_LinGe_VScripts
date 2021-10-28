@@ -1,6 +1,4 @@
-test.nut
-/.vscode
-/LinGe_VScripts.CUEION-PC.Cueio.pui
+/release
 /plugin/libtier0_srv.so
 /plugin/libvstdlib_srv.so
 /plugin/LinGe_VScripts
