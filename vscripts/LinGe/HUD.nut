@@ -9,7 +9,7 @@ printl("[LinGe] HUD v" + HUDVER +" 正在载入");
 ::LinGe.HUD.Config <- {
 	isShowHUD = true,
 	isShowTime = true,
-	versusNoPlayerInfo = true, // 对抗模式是否不显示人数统计 因为对抗模式下多次出现统计问题，可能是药抗插件的关系
+	versusNoPlayerInfo = false,
 	versusNoRank = true, // 对抗模式是否不显示击杀排行
 	teamHurtInfo = 2, // 友伤信即时提示 0:关闭 1:公开处刑 2:仅攻击者和被攻击者可见
 	rank = 3, // 最多显示8人 设置为<=0则关闭排行显示
