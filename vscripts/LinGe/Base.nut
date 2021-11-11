@@ -18,9 +18,12 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 // 主要用于调试
 ::LinGe.DebugPrintTable <- function (table)
 {
-	foreach (key, val in table)
-		print(key + "=" + val + " ; ");
-	print("\n");
+	if (::LinGe.Debug)
+	{
+		foreach (key, val in table)
+			print(key + "=" + val + " ; ");
+		print("\n");
+	}
 }
 
 // 尝试将一个字符串转换为int类型 eValue为出现异常时返回的值
