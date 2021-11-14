@@ -6,7 +6,7 @@
 // 以及VSLib与admin_system的脚本源码
 printl("[LinGe] 脚本功能集正在载入");
 
-const BASEVER = "1.6";
+const BASEVER = "1.7";
 printl("[LinGe] Base v" + BASEVER +" 正在载入");
 ::LinGe <- {};
 ::LinGe.Debug <- false;
@@ -856,7 +856,7 @@ if (null == ::LinGe.Admin.adminslist)
 //----------------------------Base-----START--------------------------------
 ::LinGe.Base <- {};
 ::LinGe.Base.Config <- {
-	isShowTeamChange = true,
+	isShowTeamChange = false,
 	recordPlayerInfo = false
 };
 ::LinGe.Config.Add("Base", ::LinGe.Base.Config);

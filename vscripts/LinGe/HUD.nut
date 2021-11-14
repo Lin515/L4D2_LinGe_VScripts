@@ -2,7 +2,7 @@
 // !hud ：	开关hud显示
 // !rank n：	设置排行榜人数为n人，为0则不显示排行榜
 // !hudstyle n ： 设置玩家显示数风格为n (0:自动 1：战役风格（活跃：x 摸鱼：x 空余：x） 2：对抗风格(生还：x VS 特感：x)
-const HUDVER = "1.5";
+const HUDVER = "1.6";
 printl("[LinGe] HUD v" + HUDVER +" 正在载入");
 ::LinGe.HUD <- {};
 
