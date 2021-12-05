@@ -1,15 +1,15 @@
 if ( !::LinGe.isVersus ) {
-const MORESIVER = "1.6";
+const MORESIVER = "1.7";
 printl("[LinGe] 简易多特控制 v" + MORESIVER +" 正在载入");
 ::LinGe.MoreSI <- {};
 
 local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"];
 ::LinGe.MoreSI.Config <- {
 	enabled = false, // 多特控制总开关
-	simin = 4, // 最小特感数量
-	sibase = -1, // 基础特感数量 若设定为 < 0 则单独关闭特感数量控制
-	siauto = 0, // 每1名玩家增加多少特感 在基础特感数量上增加 为0则不自动增加
-	sitime = -1, // 特感刷新间隔 若设定为 < 0 则单独关闭特感刷新时间控制
+	simin = 0, // 最小特感数量
+	sibase = 8, // 基础特感数量 若设定为 < 0 则单独关闭特感数量控制
+	siauto = 0, // 每1名生还者增加多少特感。在基础特感数量上增加，为0则不自动增加
+	sitime = 15, // 特感刷新间隔 若设定为 < 0 则单独关闭特感刷新时间控制
 	sionly = [], // 只允许生成哪些特感，若数组为空则不限制
 	noci = false // 是否清除小僵尸
 };
