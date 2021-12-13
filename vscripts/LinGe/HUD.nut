@@ -2,7 +2,7 @@
 // !hud ：	开关hud显示
 // !rank n：	设置排行榜人数为n人，为0则不显示排行榜
 // !hudstyle n ： 设置玩家显示数风格为n (0:自动 1：战役风格（活跃：x 摸鱼：x 空余：x） 2：对抗风格(生还：x VS 特感：x)
-const HUDVER = "1.6";
+const HUDVER = "1.7";
 printl("[LinGe] HUD v" + HUDVER +" 正在载入");
 ::LinGe.HUD <- {};
 
@@ -164,7 +164,7 @@ for (local i=1; i<9; i++)
 // team=1：旁观者 team=2：生还者 team=3：特感
 ::LinGe.HUD.human_team <- function (params)
 {
-	// 如果是离开或加入生还者就将其数据清空
+	// 如果是离开或加入特感方就将其数据清空
 	local entityIndex = params.entityIndex;
 	if (params.disconnect || 3 == params.team )
 	{
@@ -439,7 +439,8 @@ for (local i=1; i<9; i++)
 
 	// 将生还者实体索引数组按特感击杀数量由大到小进行排序
 	// 如果特感击杀数量相等，则按丧尸击杀数
-	survivorIdx.sort(KillDataCompare);
+	// survivorIdx.sort(KillDataCompare); // 社区玩家更新了什么j8，搞得sort函数都不能用了，一用就闪退 2021-12-13
+	BubbleSort(survivorIdx);
 	for (local i=0; i<Config.rank; i++)
 	{
 		rank = i + 1;
@@ -469,3 +470,22 @@ for (local i=1; i<9; i++)
 	else
 		return 1;
 }.bindenv(::LinGe.HUD);
+
+// 比较击杀数 降序排序 冒泡排序
+::LinGe.HUD.BubbleSort <- function (survivorIdx)
+{
+	local temp;
+	local len = survivorIdx.len();
+	for (local i=0; i<len-1; i++)
+	{
+		for (local j=0; j<len-1-i; j++)
+		{
+			if (KillDataCompare(survivorIdx[j], survivorIdx[j+1]) == 1)
+			{
+				temp = survivorIdx[j];
+				survivorIdx[j] = survivorIdx[j+1];
+				survivorIdx[j+1] = temp;
+			}
+		}
+	}
+}
