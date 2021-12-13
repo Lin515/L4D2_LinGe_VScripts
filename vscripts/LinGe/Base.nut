@@ -6,7 +6,7 @@
 // 以及VSLib与admin_system的脚本源码
 printl("[LinGe] 脚本功能集正在载入");
 
-const BASEVER = "1.7";
+const BASEVER = "1.8";
 printl("[LinGe] Base v" + BASEVER +" 正在载入");
 ::LinGe <- {};
 ::LinGe.Debug <- false;
@@ -1004,19 +1004,10 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 	local idx = ::pyinfo.survivorIdx.find(params.entityIndex);
 	// 如果是离开或者加入特感就将其从生还者实体索引数组删除
 	// 如果是加入生还者就将其索引加入
-	if ( (params.disconnect || 3 == params.team)
-	&& null != idx )
+	if ( (params.disconnect || 3 == params.team) && null != idx )
 		::pyinfo.survivorIdx.remove(idx);
-	else if ( (2 == params.team)
-	&& null == idx)
+	else if ( (2 == params.team) && null == idx)
 		::pyinfo.survivorIdx.append(params.entityIndex);
-
-	// 对抗模式下经常出现队伍人数错误 不知道是否是药抗插件的问题
-	if (::LinGe.Debug && ::LinGe.isVersus)
-	{
-		printl(params.name + ": " + params.oldteam + " -> " + params.team);
-		printl("now:ob=" + ::pyinfo.ob + ", survivor=" + ::pyinfo.survivor + ", special=" + ::pyinfo.special);
-	}
 
 	// 触发真实玩家变更事件
 	::LinEventTrigger("human_team", params, 0.1); // 延时0.1s触发
