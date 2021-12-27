@@ -1,4 +1,4 @@
-const SERVERVER = "1.2";
+const SERVERVER = "1.3";
 printl("[LinGe] Server v" + SERVERVER +" 正在载入");
 ::LinGe.Server <- {};
 
@@ -42,12 +42,12 @@ if ("coop" == g_BaseMode) {
 		local vplayer = ::VSLib.Player(player);
 		if (!vplayer.IsPlayerEntityValid())
 			return;
-		if (!vplayer.LinGe.IsAlive() || vplayer.IsDead())
+		if (!vplayer.IsAlive() || vplayer.IsDead())
 			return;
 
 		local isIncapacitated = vplayer.IsIncapacitated();
 		vplayer.Kill();
-		if (!vplayer.LinGe.IsAlive() || vplayer.IsDead()) // 可能不准
+		if (!vplayer.IsAlive() || vplayer.IsDead()) // 可能不准
 		{
 			if (isIncapacitated)
 				Say(player, "\x03我不想变成魔女，这个世界还有许多我想守护的东西", false);
