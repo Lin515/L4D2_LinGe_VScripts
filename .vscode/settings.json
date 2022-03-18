@@ -1,0 +1,5 @@
+{
+	"cmake.sourceDirectory": "${workspaceFolder}/plugin",
+	"C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+	"cmake.buildDirectory": "${workspaceFolder}/plugin/${env.USER}-build"
+}

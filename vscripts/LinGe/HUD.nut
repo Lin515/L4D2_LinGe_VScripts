@@ -31,6 +31,7 @@ printl("[LinGe] HUD v" + HUDVER +" 正在载入");
 ::LinGe.Cache.HUD_Config <- ::LinGe.HUD.Config;
 
 ::LinGe.HUD.killData <- []; // 击杀数据数组 包括特感击杀和丧尸击杀数
+::LinGe.HUD.teamHurtData <- []; // 累计友伤数据 包括黑与被黑
 
 const HUD_SLOT_HOSTNAME = 10;
 const HUD_SLOT_TIME = 11;
@@ -140,6 +141,7 @@ for (local i=1; i<9; i++)
 	for (local i=0; i<=32; i++)
 	{
 		killData.append( { si=0, ci=0 } ); // si=特感 ci=小丧尸
+		teamHurtData.append( { atk=0, vct=0 } ); // atk=对别人的友伤 vct=自己受到的友伤
 	}
 
 	// 如果linge_time变量不存在则显示回合时间
@@ -166,10 +168,12 @@ for (local i=1; i<9; i++)
 {
 	// 如果是离开或加入特感方就将其数据清空
 	local entityIndex = params.entityIndex;
-	if (params.disconnect || 3 == params.team )
+	if (params.disconnect || 3 == params.team)
 	{
 		killData[entityIndex].si = 0;
 		killData[entityIndex].ci = 0;
+		teamHurtData[entityIndex].atk = 0;
+		teamHurtData[entityIndex].vct = 0;
 	}
 	UpdatePlayerHUD();
 	UpdateRankHUD();
@@ -230,6 +234,13 @@ for (local i=1; i<9; i++)
 		tempTeamHurt[key].dmg += params.dmg_health;
 		// 友伤发生后，0.5秒内同一人若未再对同一人造成友伤，则输出其造成的伤害
 		VSLib.Timers.AddTimerByName(key, 0.5, false, Timer_PrintHurt, key);
+
+		// 若不是对自己造成的伤害，则计入累计统计
+		if (attacker != victim)
+		{
+			teamHurtData[attacker.GetEntityIndex()].atk += params.dmg_health;
+			teamHurtData[victim.GetEntityIndex()].vct += params.dmg_health;
+		}
 	}
 }
 ::LinEventHook("OnGameEvent_player_hurt", ::LinGe.HUD.OnGameEvent_player_hurt, ::LinGe.HUD);
