@@ -1,6 +1,5 @@
 if ( !::LinGe.isVersus ) {
-const MORESIVER = "1.7";
-printl("[LinGe] 简易多特控制 v" + MORESIVER +" 正在载入");
+printl("[LinGe] 简易多特控制 正在载入");
 ::LinGe.MoreSI <- {};
 
 local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"];

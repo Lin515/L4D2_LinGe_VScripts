@@ -6,8 +6,7 @@
 // 以及VSLib与admin_system的脚本源码
 printl("[LinGe] 脚本功能集正在载入");
 
-const BASEVER = "1.8";
-printl("[LinGe] Base v" + BASEVER +" 正在载入");
+printl("[LinGe] Base 正在载入");
 ::LinGe <- {};
 ::LinGe.Debug <- false;
 
@@ -16,7 +15,13 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 
 // ---------------------------全局函数START-------------------------------------------
 // 主要用于调试
-::LinGe.DebugPrintTable <- function (table)
+::LinGe.DebugPrintl <- function (str)
+{
+	if (::LinGe.Debug)
+		printl(str);
+}
+
+::LinGe.DebugPrintlTable <- function (table)
 {
 	if (::LinGe.Debug)
 	{
@@ -691,7 +696,7 @@ if (null == ::LinGe.Admin.adminslist)
 // 消息指令触发 通过 player_say
 ::LinGe.Admin.OnGameEvent_player_say <- function (params)
 {
-	local args = split(params.text, " ");
+	local args = split(params.text.tolower(), " ");
 	if (args[0].len() < 2)
 		return;
 	local player = GetPlayerFromUserID(params.userid);
@@ -705,8 +710,6 @@ if (null == ::LinGe.Admin.adminslist)
 		return;
 
 	args[0] = args[0].slice(1); // 设置 args 第一个元素为指令名
-	if (!cmdTable.rawin(args[0]))
-		args[0] = args[0].tolower();
 	if (cmdTable.rawin(args[0]))
 		CmdExec(args[0], player, args);
 }
@@ -875,7 +878,7 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 	survivor = 0, // 生还者玩家数量
 	special = 0, // 特感玩家数量
 	ob = 0, // 旁观者玩家数量
-	survivorIdx = [] // 生还者玩家实体索引（实际上还包括了旁观者的）
+	survivorIdx = [] // 生还者实体索引（实际上还包括了旁观者的）
 };
 ::pyinfo <- ::LinGe.Base.info.weakref();
 
@@ -960,47 +963,6 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 	params.name <- params.player.GetPlayerName();
 	params.entityIndex <- params.player.GetEntityIndex();
 
-	// 使用插件等方式加入bot时，params.isbot不准确
-	// 应获取其SteamID进行判断
-	if ("BOT" == params.steamid)
-		return;
-
-	// 更新玩家最大人数
-	UpdateMaxplayers();
-	// 更新玩家数据信息
-	switch (params.oldteam)
-	{
-	case 0:
-		break;
-	case 1:
-		::pyinfo.ob--;
-		break;
-	case 2:
-		::pyinfo.survivor--;
-		break;
-	case 3:
-		::pyinfo.special--;
-		break;
-	default:
-		throw "未知情况发生";
-	}
-	switch (params.team)
-	{
-	case 0:
-		break;
-	case 1:
-		::pyinfo.ob++;
-		break;
-	case 2:
-		::pyinfo.survivor++; 
-		break;
-	case 3:
-		::pyinfo.special++; 
-		break;
-	default:
-		throw "未知情况发生";
-	}
-	
 	local idx = ::pyinfo.survivorIdx.find(params.entityIndex);
 	// 如果是离开或者加入特感就将其从生还者实体索引数组删除
 	// 如果是加入生还者就将其索引加入
@@ -1009,8 +971,48 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 	else if ( (2 == params.team) && null == idx)
 		::pyinfo.survivorIdx.append(params.entityIndex);
 
-	// 触发真实玩家变更事件
-	::LinEventTrigger("human_team", params, 0.1); // 延时0.1s触发
+	// 当不是BOT时，对当前玩家人数进行更新
+	// 使用插件等方式加入bot时，params.isbot不准确 应获取其SteamID进行判断
+	if ("BOT" != params.steamid)
+	{
+		// 更新玩家最大人数
+		UpdateMaxplayers();
+		// 更新玩家数据信息
+		switch (params.oldteam)
+		{
+		case 0:
+			break;
+		case 1:
+			::pyinfo.ob--;
+			break;
+		case 2:
+			::pyinfo.survivor--;
+			break;
+		case 3:
+			::pyinfo.special--;
+			break;
+		default:
+			throw "未知情况发生";
+		}
+		switch (params.team)
+		{
+		case 0:
+			break;
+		case 1:
+			::pyinfo.ob++;
+			break;
+		case 2:
+			::pyinfo.survivor++; 
+			break;
+		case 3:
+			::pyinfo.special++; 
+			break;
+		default:
+			throw "未知情况发生";
+		}
+		// 触发真实玩家变更事件
+		::LinEventTrigger("human_team", params, 0.1); // 延时0.1s触发
+	}
 }
 ::LinEventHook("OnGameEvent_player_team", ::LinGe.Base.OnGameEvent_player_team, ::LinGe.Base);
 
@@ -1067,21 +1069,24 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 		// 判断搜索到的实体有效性
 		if ( player.IsValid() )
 		{
-			// 判断阵营
-			if ("BOT" == player.GetNetworkIDString())
-				continue;
-			switch (LinGe.GetPlayerTeam(player))
-			{
-			case 1:
-				table.ob++;
-				break;
-			case 2:
-				table.survivor++;
+			local team = ::LinGe.GetPlayerTeam(player)
+			if (2 == team)
 				table.survivorIdx.append(player.GetEntityIndex());
-				break;
-			case 3:
-				table.special++;
-				break;
+			if ("BOT" != player.GetNetworkIDString())
+			{
+				// 如果不是BOT，则还需对玩家人数进行修正
+				switch (team)
+				{
+				case 1:
+					table.ob++;
+					break;
+				case 2:
+					table.survivor++;
+					break;
+				case 3:
+					table.special++;
+					break;
+				}
 			}
 		}
 	}

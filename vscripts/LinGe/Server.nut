@@ -1,5 +1,4 @@
-const SERVERVER = "1.3";
-printl("[LinGe] Server v" + SERVERVER +" 正在载入");
+printl("[LinGe] Server 正在载入");
 ::LinGe.Server <- {};
 
 // 服务器控制 附加功能脚本
@@ -57,80 +56,5 @@ if ("coop" == g_BaseMode) {
 	}
 }
 ::LinCmdAdd("zs", ::LinGe.Server.Cmd_zs, ::LinGe.Server, false);
-
-local nowTank = 0;
-local oldUpdateFrequency = Convars.GetFloat("nb_update_frequency");
-local oldMinInterpRatio = Convars.GetFloat("sv_client_min_interp_ratio").tointeger();
-::LinGe.Server.OnGameEvent_tank_spawn <- function (params)
-{
-	nowTank++;
-	//if (SearchForTank() == 1)
-	if (nowTank == 1)
-	{
-		::VSLib.Timers.AddTimerByName("Timer_TankActivation", 1.0, true, Timer_TankActivation);
-	}
-}
-::LinGe.Server.OnGameEvent_tank_killed <- function (params)
-{
-	nowTank--;
-	//if (Config.tankUpdateFrequency >= 0 && SearchForTank() == 0)
-	if (nowTank == 0)
-	{
-		// 无Tank时去除定时器 还原设置
-		::VSLib.Timers.RemoveTimerByName("Timer_TankActivation");
-		if (Convars.GetFloat("nb_update_frequency") != oldUpdateFrequency )
-			Convars.SetValue("nb_update_frequency", oldUpdateFrequency);
-		if (Config.tankMinInterpRatio > -1
-		&& Convars.GetFloat("sv_client_min_interp_ratio").tointeger() != oldMinInterpRatio )
-			Convars.SetValue("sv_client_min_interp_ratio", oldMinInterpRatio);
-	}
-}
-if (::LinGe.Server.Config.tankUpdateFrequency >= 0)
-{
-	::LinEventHook("OnGameEvent_tank_spawn", ::LinGe.Server.OnGameEvent_tank_spawn, ::LinGe.Server);
-	::LinEventHook("OnGameEvent_tank_killed", ::LinGe.Server.OnGameEvent_tank_killed, ::LinGe.Server);
-}
-
-// 当前是否有Tank被激活仇恨
-::LinGe.Server.Timer_TankActivation <- function (params)
-{
-	if (Director.IsTankInPlay())
-	{
-		if (Convars.GetFloat("nb_update_frequency") != Config.tankUpdateFrequency )
-			Convars.SetValue("nb_update_frequency", Config.tankUpdateFrequency);
-		if ( Config.tankMinInterpRatio > -1
-		&& Convars.GetFloat("sv_client_min_interp_ratio").tointeger() != Config.tankMinInterpRatio )
-			Convars.SetValue("sv_client_min_interp_ratio", Config.tankMinInterpRatio);
-	}
-	else
-	{
-		if (Convars.GetFloat("nb_update_frequency") != oldUpdateFrequency )
-			Convars.SetValue("nb_update_frequency", oldUpdateFrequency);
-		if (Config.tankMinInterpRatio > -1
-		&& Convars.GetFloat("sv_client_min_interp_ratio").tointeger() != oldMinInterpRatio )
-			Convars.SetValue("sv_client_min_interp_ratio", oldMinInterpRatio);
-	}
-}.bindenv(::LinGe.Server);
-
-// -----------------------功能函数START------------------------------------------
-
-// 查找存活tank数量
-::LinGe.Server.SearchForTank <- function()
-{
-	local player = null; // 玩家实例
-	local num = 0;
-
-	while ( (player = Entities.FindByClassname(player, "player")) != null )
-	{
-		// 判断搜索到的实体有效性
-		if ( player.IsValid() )
-		{
-			// 判断阵营和存活
-			if (8==player.GetZombieType()&& !player.IsDead())
-				num++;
-		}
-	}
-	return num;
-}
 
 } // if ("coop" == g_BaseMode) {
