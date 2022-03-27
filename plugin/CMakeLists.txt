@@ -20,6 +20,7 @@ if(WIN32)
 		tier2
 		tier3
 		mathlib
+		legacy_stdio_definitions # vc++2015及以上需链接此库
 	)
 	add_compile_options(/wd4819) # 禁止字符集警告
 	# 静态链接到CRT库
