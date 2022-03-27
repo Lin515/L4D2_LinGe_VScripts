@@ -3,6 +3,4 @@
 !/release/plugin.bat
 !/release/vpk.bat
 !/release/addoninfo.txt
-/plugin/libtier0_srv.so
-/plugin/libvstdlib_srv.so
 /plugin/*-build
