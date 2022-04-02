@@ -217,7 +217,7 @@ for (local i=1; i<9; i++)
 			if (vctHp + dmg > 0)
 			{
 				isDead = true;
-				dmg += vctHp; // 修正溢出的伤害
+				// dmg += vctHp; // 该伤害无法正确修正
 			}
 			else
 				return;
@@ -682,7 +682,7 @@ local killTank = 0;
 		else
 		{
 			ClientPrint(null, 3,
-				format("\x04队友鲨手:\x03%s\x04(\x03%d\x04) 都欺负我:\x03%s\x04(\x03%d\x04)", 
+				format("\x04队友鲨手:\x03%s\x04(\x03%d\x04) 都欺负我:\x03%s\x04(\x03%d\x04)",
 					atkMax.name, atkMax.hurt, vctMax.name, vctMax.hurt));
 		}
 	}
