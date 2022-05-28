@@ -582,15 +582,19 @@ local killTank = 0;
 ::LinEventHook("OnGameEvent_tank_spawn", ::LinGe.HUD.OnGameEvent_tank_spawn, ::LinGe.HUD);
 ::LinEventHook("OnGameEvent_tank_killed", ::LinGe.HUD.OnGameEvent_tank_killed, ::LinGe.HUD);
 
-// 回合结束 输出本局伤害统计
 ::LinGe.HUD.PrintTankHurtData <- function ()
 {
 	local player = Config.hurt.hurtRank;
 	local idx = clone ::pyinfo.survivorIdx;
 	local name = "", len = idx.len();
+
 	if (player > 0 && len > 0)
 	{
 		BubbleSort(idx, tankHurtCompare);
+		// 如果第一位的伤害也为0，则本次未对该Tank造成伤害，则不输出Tank伤害统计
+		// 终局时无线刷Tank 经常会出现这种0伤害的情况
+		if (tempTankHurt[idx[0]] == 0)
+			return;
 		ClientPrint(null, 3, "\x04本次击杀了共\x03 " + killTank +"\x04 只Tank，伤害贡献如下");
 		for (local i=0; i<player && i<len; i++)
 		{
