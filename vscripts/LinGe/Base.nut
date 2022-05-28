@@ -626,7 +626,7 @@ local FILE_CONFIG = "LinGe/Config_" + ::LinGe.hostport;
 ::LinGe.Admin <- {};
 ::LinGe.Admin.Config <- {
 	enabled = true,
-	takeOverAdminSystem = true, // 是否接管adminsystem的权限判断
+	takeOverAdminSystem = false, // 是否接管adminsystem的权限判断
 	adminsFile = "linge/admins_simple.ini"
 };
 ::LinGe.Config.Add("Admin", ::LinGe.Admin.Config);
@@ -1002,10 +1002,10 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 			::pyinfo.ob++;
 			break;
 		case 2:
-			::pyinfo.survivor++; 
+			::pyinfo.survivor++;
 			break;
 		case 3:
-			::pyinfo.special++; 
+			::pyinfo.special++;
 			break;
 		default:
 			throw "未知情况发生";
