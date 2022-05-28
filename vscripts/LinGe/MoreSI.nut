@@ -320,7 +320,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 {
 	if (!Config.enabled)
 	{
-		ClientPrint(null, 3, "\x04多特控制：总开关\x03 关闭");
+		ClientPrint(player, 3, "\x04多特控制：总开关\x03 关闭");
 		return;
 	}
 
@@ -354,7 +354,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 {
 	if (!Config.enabled)
 	{
-		ClientPrint(null, 3, "\x04多特控制：总开关\x03 关闭");
+		ClientPrint(player, 3, "\x04多特控制：总开关\x03 关闭");
 		return;
 	}
 
@@ -388,7 +388,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 {
 	if (!Config.enabled)
 	{
-		ClientPrint(null, 3, "\x04多特控制：总开关\x03 关闭");
+		ClientPrint(player, 3, "\x04多特控制：总开关\x03 关闭");
 		return;
 	}
 
@@ -414,7 +414,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 {
 	if (!Config.enabled)
 	{
-		ClientPrint(null, 3, "\x04多特控制：总开关\x03 关闭");
+		ClientPrint(player, 3, "\x04多特控制：总开关\x03 关闭");
 		return;
 	}
 
@@ -430,12 +430,12 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 		foreach (val in Config.sionly)
 			list += val + " ";
 		ClientPrint(null, 3, "\x04多特控制：限制只生成特感 \x03" + list);
-//		ClientPrint(null, 3, "\x04关闭方法：!sionly\x03 任意字符");
+//		ClientPrint(player, 3, "\x04关闭方法：!sionly\x03 任意字符");
 	}
 	else
 	{
 		ClientPrint(null, 3, "\x04多特控制：限制特感生成 \x03关闭");
-//		ClientPrint(null, 3, "\x04开启方法：!sionly\x03 Boomer,Spitter,Smoker,Hunter,Charger,Jockey");
+//		ClientPrint(player, 3, "\x04开启方法：!sionly\x03 Boomer,Spitter,Smoker,Hunter,Charger,Jockey");
 	}
 }
 ::LinCmdAdd("sionly", ::LinGe.MoreSI.Cmd_sionly, ::LinGe.MoreSI);
@@ -445,7 +445,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 {
 	if (!Config.enabled)
 	{
-		ClientPrint(null, 3, "\x04多特控制：总开关\x03 关闭");
+		ClientPrint(player, 3, "\x04多特控制：总开关\x03 关闭");
 		return;
 	}
 

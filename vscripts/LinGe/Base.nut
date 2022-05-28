@@ -1051,7 +1051,7 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 	{
 		Config.isShowTeamChange = !Config.isShowTeamChange;
 		local text = Config.isShowTeamChange ? "开启" : "关闭";
-		ClientPrint(null, 3, "\x04服务器已" + text + "队伍更换提示");
+		ClientPrint(player, 3, "\x04服务器已" + text + "队伍更换提示");
 	}
 }
 ::LinCmdAdd("teaminfo", ::LinGe.Base.Cmd_teaminfo, ::LinGe.Base);
