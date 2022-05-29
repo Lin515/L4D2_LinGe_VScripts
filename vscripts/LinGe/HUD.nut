@@ -13,6 +13,9 @@ printl("[LinGe] HUD 正在载入");
 	hurt = {
 		versusNoHUDRank = true, // 对抗模式是否不显示HUD击杀排行
 		HUDRank = 3, // HUD排行榜最多显示多少人，范围0~8 设置为0则关闭排行显示
+		rankTitle = "特感/丧尸击杀：",
+		rankStyle = "{ksi}/{kci}",
+		printStyle = "对特感:{si}({ksi}个) 黑:{atk} 被黑:{vct}",
 		teamHurtInfo = 2, // 友伤即时提示 0:关闭 1:公开处刑 2:仅攻击者和被攻击者可见
 		autoPrint = 0, // 每间隔多少s在聊天窗输出一次数据统计，若为0则只在本局结束时输出，若<0则永远不输出
 		hurtRank = 4, // 聊天窗输出时除了最高友伤、最高被黑 剩下显示最多多少人的数据
@@ -32,14 +35,12 @@ printl("[LinGe] HUD 正在载入");
 ::LinGe.Config.Add("HUD", ::LinGe.HUD.Config);
 ::LinGe.Cache.HUD_Config <- ::LinGe.HUD.Config;
 
-::LinGe.HUD.killData <- []; // 击杀数据数组 包括特感击杀和丧尸击杀数
-::LinGe.HUD.hurtData <- []; // 累计伤害数据 包括对特感、黑队友、被黑
-::LinGe.HUD.tempTankHurt <- []; // 对Tank伤害临时记录
+::LinGe.HUD.hurtData <- []; // 伤害与击杀数据
 
 const HUD_SLOT_HOSTNAME = 10;
 const HUD_SLOT_TIME = 11;
 const HUD_SLOT_PLAYERS = 12;
-const HUD_SLOT_RANK = 1; // 第一个显示 特感/丧尸击杀： 后续显示玩家数据
+const HUD_SLOT_RANK = 1; // 第一个显示标题 后续显示玩家数据
 // 服务器每1s内会多次根据HUD_table更新屏幕上的HUD
 // 脚本只需将HUD_table中的数据进行更新 而无需反复执行HUDSetLayout和HUDPlace
 ::LinGe.HUD.HUD_table <- {
@@ -61,9 +62,9 @@ const HUD_SLOT_RANK = 1; // 第一个显示 特感/丧尸击杀： 后续显示�
 			// 无边框 左对齐
 			flags = HUD_FLAG_NOBG | HUD_FLAG_ALIGN_LEFT
 		},
-		rank0 = { // rank0显示标题 特感/丧尸击杀：
+		rank0 = { // rank0显示标题
 			slot = HUD_SLOT_RANK,
-			dataval = "特感/丧尸击杀：",
+			dataval = ::LinGe.HUD.Config.hurt.rankTitle,
 			flags = HUD_FLAG_NOBG | HUD_FLAG_ALIGN_LEFT | HUD_FLAG_TEAM_SURVIVORS
 		}
 	}
@@ -111,8 +112,13 @@ for (local i=1; i<9; i++)
 	{
 		if (Config.hurt.HUDRank > 8)
 			Config.hurt.HUDRank = 8;
-		else if (0 == Config.hurt.HUDRank)
+		else if (Config.hurt.HUDRank <= 0)
 			Config.hurt.HUDRank = -1;
+		if (Config.hurt.HUDRank > 0)
+			::VSLib.Timers.AddTimerByName("UpdateRankHUD", 1.0, true, ::LinGe.HUD.UpdateRankHUD);
+		else
+			::VSLib.Timers.RemoveTimerByName("UpdateRankHUD");
+
 		for (i=0; i<=Config.hurt.HUDRank; i++) // 去掉所有排行榜数据HUD的隐藏属性
 			HUD_table.Fields["rank"+i].flags = HUD_table.Fields["rank"+i].flags & (~HUD_FLAG_NOTVISIBLE);
 		// 隐藏 rank>Config.hurt.HUDRank 的HUD
@@ -138,9 +144,9 @@ for (local i=1; i<9; i++)
 	// 初始化数组
 	for (local i=0; i<=32; i++)
 	{
-		killData.append( { si=0, ci=0 } ); // si=特感 ci=小丧尸
-		hurtData.append( { si=0, atk=0, vct=0 } ); // si=对特感数据 atk=对别人的友伤 vct=自己受到的友伤
-		tempTankHurt.append(0);
+		// ksi=击杀的特感数量 kci=击杀的小丧失数量
+		// si=对特感伤害 atk=对别人的友伤 vct=自己受到的友伤
+		hurtData.append( { ksi=0, kci=0, si=0, atk=0, vct=0, tank=0 } );
 		// 对特感数据默认不统计对特感的火烧伤害与对Tank的伤害 对Tank伤害会单独列出
 	}
 
@@ -171,12 +177,12 @@ for (local i=1; i<9; i++)
 	local entityIndex = params.entityIndex;
 	if (params.disconnect || 3 == params.team)
 	{
-		killData[entityIndex].si = 0;
-		killData[entityIndex].ci = 0;
+		hurtData[entityIndex].ksi = 0;
+		hurtData[entityIndex].kci = 0;
 		hurtData[entityIndex].si = 0;
 		hurtData[entityIndex].atk = 0;
 		hurtData[entityIndex].vct = 0;
-		tempTankHurt[entityIndex] = 0;
+		hurtData[entityIndex].tank = 0;
 	}
 	UpdatePlayerHUD();
 	UpdateRankHUD();
@@ -189,6 +195,8 @@ for (local i=1; i<9; i++)
 ::LinGe.HUD.tempTeamHurt <- {}; // 友伤临时数据记录
 ::LinGe.HUD.OnGameEvent_player_hurt <- function (params)
 {
+	::LinGe.DebugPrintl("OnGameEvent_player_hurt");
+	::LinGe.DebugPrintlTable(params);
 	if (!params.rawin("dmg_health"))
 		return;
 	if (params.dmg_health < 1)
@@ -209,28 +217,19 @@ for (local i=1; i<9; i++)
     // 如果被攻击者是生还者则统计友伤数据
 	if (victim.IsSurvivor())
 	{
-		local isDead = false, isIncap = false; // 是否为本次伤害致其死亡或者倒地
 		if (victim.IsDying() || victim.IsDead())
 			return;
 	    else if (vctHp < 0) // 致死伤害事件发生时，victim.IsDead()还不会为真，但血量会<0
 	    {
 			// 如果是本次伤害致其死亡，则 生命值 + 伤害值 > 0
-			if (vctHp + dmg > 0)
-			{
-				isDead = true;
-				// dmg += vctHp; // 该伤害无法正确修正
-			}
-			else
+			if (vctHp + dmg <= 0)
 				return;
 		}
 	    else if (victim.IsIncapacitated())
 	    {
 	    	// 如果是本次伤害致其倒地，则其当前血量+伤害量=300
 			// 如果不是，则说明攻击时已经倒地，则不统计本次友伤
-			// 致其倒地的友伤溢出无法修正
-	    	if (vctHp + dmg == 300)
-				isIncap = true;
-			else
+	    	if (vctHp + dmg != 300)
 				return;
 	    }
 
@@ -250,8 +249,6 @@ for (local i=1; i<9; i++)
 				tempTeamHurt[key] <- { dmg=0, attacker=attacker, victim=victim, isDead=false, isIncap=false };
 			}
 			tempTeamHurt[key].dmg += dmg;
-			tempTeamHurt[key].isDead = isDead;
-			tempTeamHurt[key].isIncap = isIncap;
 			// 友伤发生后，0.5秒内同一人若未再对同一人造成友伤，则输出其造成的伤害
 			VSLib.Timers.AddTimerByName(key, 0.5, false, Timer_PrintTeamHurt, key);
 		}
@@ -263,7 +260,7 @@ for (local i=1; i<9; i++)
 		{
 			if (5000 == dmg) // 击杀Tank时会产生5000伤害事件，不知道为什么设计了这样的机制
 				return;
-			tempTankHurt[attacker.GetEntityIndex()] += dmg;
+			hurtData[attacker.GetEntityIndex()].tank += dmg;
 		}
 		else // 不是生还者且不是Tank，则为普通特感(此事件下不可能为witch)
 		{
@@ -372,15 +369,14 @@ for (local i=1; i<9; i++)
 		// 自杀时伤害类型为0
 		if (params.type == 0)
 			return;
-		if (Config.playerState > 0 && !IsPlayerABot(dierEntity))
-		// if (Config.playerState > 0)
+		if (Config.playerState > 0 && (!IsPlayerABot(dierEntity)||::LinGe.Debug))
 		{
-			VSLib.Timers.AddTimerByName(dier, 0.1, false, Timer_PrintPlayerState, dierEntity);
+			VSLib.Timers.AddTimerByName(dier, 0.2, false, Timer_PrintPlayerState, dierEntity);
 		}
 		// 如果是友伤致其死亡
 		if (attackerEntity && attackerEntity.IsSurvivor())
 		{
-			local key = params.attacker + "_" + params.dier;
+			local key = params.attacker + "_" + dier;
 			if (tempTeamHurt.rawin(key))
 				tempTeamHurt[key].isDead = true;
 		}
@@ -390,10 +386,10 @@ for (local i=1; i<9; i++)
 		if (attackerEntity && attackerEntity.IsSurvivor() && !IsPlayerABot(attackerEntity)) // 暂不记录bot的击杀数据
 		{
 			if (params.victimname == "Infected")
-				killData[attackerEntity.GetEntityIndex()].ci++;
+				hurtData[attackerEntity.GetEntityIndex()].kci++;
 			else
-				killData[attackerEntity.GetEntityIndex()].si++;
-			UpdateRankHUD();
+				hurtData[attackerEntity.GetEntityIndex()].ksi++;
+			// UpdateRankHUD();
 		}
 	}
 }
@@ -406,11 +402,12 @@ for (local i=1; i<9; i++)
 		return;
 
 	local player = GetPlayerFromUserID(params.userid);
-	local attackerEntity = GetPlayerFromUserID(params.attacker);
+	local attackerEntity = null;
+	if (params.rawin("attacker")) // 如果是小丧尸或Witch等使玩家倒地，则无attacker
+		attackerEntity = GetPlayerFromUserID(params.attacker);
 	if (player.IsSurvivor())
 	{
-		if (Config.playerState > 0 && !IsPlayerABot(player))
-		// if (Config.playerState)
+		if (Config.playerState > 0 && (!IsPlayerABot(player)||::LinGe.Debug))
 		{
 			VSLib.Timers.AddTimerByName(params.userid, 0.1, false, Timer_PrintPlayerState, player);
 		}
@@ -432,7 +429,7 @@ for (local i=1; i<9; i++)
 		if (Config.playerState == 1)
 			ClientPrint(null, 3, "\x03" + player.GetPlayerName() + "\x04 倒地了，谁来帮帮他");
 		else if (Config.playerState == 2)
-			Say(player, "\x03我重伤倒地，但还没死", false);
+			Say(player, "\x03啊，我重伤倒地", false);
 	}
 	else
 	{
@@ -628,8 +625,10 @@ for (local i=1; i<9; i++)
 	HUD_table.Fields.players.dataval = playerText;
 }
 
-::LinGe.HUD.UpdateRankHUD <- function ()
+::LinGe.HUD.UpdateRankHUD <- function (params=null)
 {
+	if (Config.hurt.HUDRank < 1)
+		return;
 	if (::LinGe.isVersus && Config.hurt.versusNoHUDRank)
 		return;
 
@@ -639,8 +638,7 @@ for (local i=1; i<9; i++)
 
 	// 将生还者实体索引数组按特感击杀数量由大到小进行排序
 	// 如果特感击杀数量相等，则按丧尸击杀数
-	// survivorIdx.sort(KillDataCompare); // 社区玩家更新了什么j8，搞得sort函数都不能用了，一用就闪退 2021-12-13
-	BubbleSort(survivorIdx, KillDataCompare);
+	hurtDataSort(survivorIdx, ["ksi", "kci"]);
 	local rank = 1, name = "";
 	for (local i=0; i<len && rank<=Config.hurt.HUDRank; i++)
 	{
@@ -649,14 +647,14 @@ for (local i=1; i<9; i++)
 		{
 			name = player.GetPlayerName();
 			HUD_table.Fields["rank" + rank].dataval = format("[%d] %d/%d <- %s",
-				rank, killData[survivorIdx[i]].si, killData[survivorIdx[i]].ci, name);
+				rank, hurtData[survivorIdx[i]].ksi, hurtData[survivorIdx[i]].kci, name);
 			rank++;
 		}
 	}
 	// 清空可能存在的多余的显示
 	for (local i=rank+1; i<=Config.hurt.HUDRank; i++)
 		HUD_table.Fields["rank" + i].dataval = "";
-}
+}.bindenv(::LinGe.HUD);
 
 // Tank 事件控制
 // 在Tank全部死亡时输出并清空本次克局伤害统计
@@ -675,7 +673,7 @@ local killTank = 0;
 		PrintTankHurtData();
 		killTank = 0;
 		for (local i=1; i<=32; i++)
-			tempTankHurt[i] = 0;
+			hurtData[i].tank = 0;
 	}
 }
 ::LinEventHook("OnGameEvent_tank_spawn", ::LinGe.HUD.OnGameEvent_tank_spawn, ::LinGe.HUD);
@@ -689,17 +687,17 @@ local killTank = 0;
 
 	if (player > 0 && len > 0)
 	{
-		BubbleSort(idx, tankHurtCompare);
+		hurtDataSort(idx, ["tank"]);
 		// 如果第一位的伤害也为0，则本次未对该Tank造成伤害，则不输出Tank伤害统计
 		// 终局时无线刷Tank 经常会出现这种0伤害的情况
-		if (tempTankHurt[idx[0]] == 0)
+		if (hurtData[idx[0]].tank == 0)
 			return;
 		ClientPrint(null, 3, "\x04本次击杀了共\x03 " + killTank +"\x04 只Tank，伤害贡献如下");
 		for (local i=0; i<player && i<len; i++)
 		{
 			name = PlayerInstanceFromIndex(idx[i]).GetPlayerName();
 			ClientPrint(null, 3, format("\x04[%d] \x03%-4d\x04 <- \x03%s",
-				i+1, tempTankHurt[idx[i]], name));
+				i+1, hurtData[idx[i]].tank, name));
 		}
 	}
 }
@@ -753,17 +751,17 @@ local killTank = 0;
 		hurtSum /= 100.0; // 方便后续计算百分比
 		if (player > 0)
 		{
-			BubbleSort(survivorIdx, HurtDataSiCompare);
+			hurtDataSort(survivorIdx, ["si", "ksi"]);
 			// 按照对特感伤害，依次输出伤害数据
 			for (local i=0; i<player && i<len; i++)
 			{
 				local temp = hurtData[survivorIdx[i]];
-				local percent = 0;
-				if (0.0 != hurtSum)
-					percent = (temp.si / hurtSum).tointeger();
+				// local percent = 0;
+				// if (0.0 != hurtSum)
+				// 	percent = (temp.si / hurtSum).tointeger();
 				name = PlayerInstanceFromIndex(survivorIdx[i]).GetPlayerName();
-				ClientPrint(null, 3, format("\x04对特感:\x03%4d\x04(\x03%d%%\x04) 黑:\x03%-3d\x04 被黑:\x03%-3d\x04 <- \x03%s"
-					, temp.si, percent, temp.atk, temp.vct, name));
+				ClientPrint(null, 3, format("\x04对特感:\x03%d\x04(\x03%d\x04个) 黑:\x03%d\x04 被黑:\x03%d\x04 <- \x03%s"
+					, temp.si, temp.ksi, temp.atk, temp.vct, name));
 			}
 		}
 
@@ -792,7 +790,7 @@ local killTank = 0;
 }.bindenv(::LinGe.HUD);
 
 // 冒泡排序 默认降序排序
-::LinGe.HUD.BubbleSort <- function (survivorIdx, CompareFunc, desc=true)
+::LinGe.HUD.hurtDataSort <- function (survivorIdx, key=null, desc=true)
 {
 	local temp;
 	local len = survivorIdx.len();
@@ -803,7 +801,7 @@ local killTank = 0;
 	{
 		for (local j=0; j<len-1-i; j++)
 		{
-			if (CompareFunc(survivorIdx[j], survivorIdx[j+1]) == result)
+			if (hurtDataCompare(survivorIdx[j], survivorIdx[j+1], key) == result)
 			{
 				temp = survivorIdx[j];
 				survivorIdx[j] = survivorIdx[j+1];
@@ -813,62 +811,20 @@ local killTank = 0;
 	}
 }
 
-// 比较击杀数
-::LinGe.HUD.KillDataCompare <- function (idx1, idx2)
+::LinGe.HUD.hurtDataCompare <- function (idx1, idx2, key)
 {
-	if (killData[idx1].si > killData[idx2].si)
+	if (hurtData[idx1][key[0]] > hurtData[idx2][key[0]])
 		return -1;
-	else if ( (killData[idx1].si == killData[idx2].si)
-		&& (killData[idx1].ci > killData[idx2].ci) )
-		return -1;
-	else if ( (killData[idx1].si == killData[idx2].si)
-		&& (killData[idx1].ci == killData[idx2].ci) )
-		return 0;
+	else if (hurtData[idx1][key[0]] == hurtData[idx2][key[0]])
+	{
+		if (key.len() > 1)
+		{
+			key.remove(0);
+			return hurtDataCompare(idx1, idx2, key);
+		}
+		else
+			return 0;
+	}
 	else
 		return 1;
-}.bindenv(::LinGe.HUD);
-
-// 比较对Tank伤害数据
-::LinGe.HUD.tankHurtCompare <- function (idx1, idx2)
-{
-	if (tempTankHurt[idx1] > tempTankHurt[idx2])
-		return -1;
-	else if (tempTankHurt[idx1] == tempTankHurt[idx2])
-		return 0;
-	else
-		return 1;
-}.bindenv(::LinGe.HUD);
-
-// 以下函数为备用
-// 比较对特感伤害数据
-::LinGe.HUD.HurtDataSiCompare <- function (idx1, idx2)
-{
-	if (hurtData[idx1].si > hurtData[idx2].si)
-		return -1;
-	else if (hurtData[idx1].si == hurtData[idx2].si)
-		return 0;
-	else
-		return 1;
-}.bindenv(::LinGe.HUD);
-
-// 比较对别人友伤数据
-::LinGe.HUD.HurtDataAtkCompare <- function (idx1, idx2)
-{
-	if (hurtData[idx1].atk > hurtData[idx2].atk)
-		return -1;
-	else if (hurtData[idx1].atk == hurtData[idx2].atk)
-		return 0;
-	else
-		return 1;
-}.bindenv(::LinGe.HUD);
-
-// 比较受到友伤数据
-::LinGe.HUD.HurtDataVctCompare <- function (idx1, idx2)
-{
-	if (hurtData[idx1].vct > hurtData[idx2].vct)
-		return -1;
-	else if (hurtData[idx1].vct == hurtData[idx2].vct)
-		return 0;
-	else
-		return 1;
-}.bindenv(::LinGe.HUD);
+}
