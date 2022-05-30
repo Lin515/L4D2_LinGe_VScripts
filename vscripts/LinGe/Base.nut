@@ -23,12 +23,13 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 
 ::LinGe.DebugPrintlTable <- function (table)
 {
-	if (::LinGe.Debug)
-	{
-		foreach (key, val in table)
-			print(key + "=" + val + " ; ");
-		print("\n");
-	}
+	if (!::LinGe.Debug)
+		return;
+	if (typeof table != "table" && typeof table != "array")
+		return;
+	foreach (key, val in table)
+		print(key + "=" + val + " ; ");
+	print("\n");
 }
 
 // 尝试将一个字符串转换为int类型 eValue为出现异常时返回的值
@@ -136,6 +137,11 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 		return "BOT"==entity.GetNetworkIDString();
 }
 
+::LinGe.IsIncapacitated <- function (ent)
+{
+	return NetProps.GetPropInt(ent, "m_isIncapacitated") != 0;
+}
+
 // 从网络属性判断一个实体是否存活
 ::LinGe.IsAlive <- function (ent)
 {
@@ -206,6 +212,11 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 		}
 	}
 	return false;
+}
+
+::LinGe.GetMaxHealth <- function (entity)
+{
+	return NetProps.GetPropInt(victim, "m_iMaxHealth");
 }
 
 ::LinGe.GetPlayerTeam <- function (player)
@@ -811,6 +822,16 @@ if (null == ::LinGe.Admin.adminslist)
 }
 ::LinCmdAdd("saveconfig", ::LinGe.Admin.Cmd_saveconfig, ::LinGe.Admin);
 ::LinCmdAdd("save", ::LinGe.Admin.Cmd_saveconfig, ::LinGe.Admin, "保存所有配置到配置文件");
+
+::LinGe.Admin.Cmd_lshelp <- function (player, args)
+{
+	foreach (key, val in cmdTable)
+	{
+		if (val.remarks != "")
+			ClientPrint(player, 3, format("\x05!%s \x03%s", key, val.remarks));
+	}
+}
+::LinCmdAdd("lshelp", ::LinGe.Admin.Cmd_lshelp, ::LinGe.Admin, "", false);
 //----------------------------Admin-----END---------------------------------
 
 //------------------------------LinGe.Cache---------------------------------------
@@ -1046,16 +1067,6 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 	ClientPrint(null, 3, text);
 }
 ::LinEventHook("human_team", LinGe.Base.human_team, LinGe.Base);
-
-::LinGe.Base.Cmd_lshelp <- function (player, args)
-{
-	foreach (key, val in cmdTable)
-	{
-		if (val.remarks != "")
-			ClientPrint(player, 3, format("\x05!%s \x03%s", key, val.remarks));
-	}
-}
-::LinCmdAdd("lshelp", ::LinGe.Base.Cmd_lshelp, ::LinGe.Base, "", false);
 
 ::LinGe.Base.Cmd_teaminfo <- function (player, args)
 {

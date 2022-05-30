@@ -14,7 +14,7 @@ printl("[LinGe] HUD 正在载入");
 		teamHurtInfo = 2, // 友伤即时提示 0:关闭 1:公开处刑 2:仅攻击者和被攻击者可见
 		autoPrint = 0, // 每间隔多少s在聊天窗输出一次数据统计，若为0则只在本局结束时输出，若<0则永远不输出
 		chatRank = 4, // 聊天窗输出时除了最高友伤、最高被黑 剩下显示最多多少人的数据
-		chatStyle = "对特感:{si}({ksi}个) 黑:{atk} 被黑:{vct}"
+		chatStyle = "特:{ksi}({si}伤害) 尸:{kci} 黑:{atk} 被黑:{vct}"
 	},
 	textHeight = 0.025, // 一行文字通用高度
 	position = {
@@ -34,6 +34,7 @@ printl("[LinGe] HUD 正在载入");
 ::LinGe.HUD.hurtData <- []; // 伤害与击杀数据
 
 // 预处理文本处理函数
+::LinGe.HUD.Pre <- {};
 ::LinGe.HUD.Pre.ex <- regexp("{(ksi|kci|si|atk|vct)}");
 ::LinGe.HUD.Pre.GetKeyAndReplace <- function (oldStr, tr)
 {
@@ -56,18 +57,18 @@ printl("[LinGe] HUD 正在载入");
 	return funcStr;
 }
 
-::LinGe.HUD.CompileFunc <- function ()
+::LinGe.HUD.Pre.CompileFunc <- function ()
 {
 	// 预处理HUD排行榜相关
-	local result = Pre.GetKeyAndReplace(Config.hurt.rankStyle, "%d");
-	::LinGe.HUD.Pre.HUDKey <- result.key;
-	::LinGe.HUD.Pre.HUDFunc <- compilestring(Pre.BuildFuncStr(result))();
+	local result = GetKeyAndReplace(::LinGe.HUD.Config.hurt.rankStyle, "%d");
+	::LinGe.HUD.Pre.HUDKey <- result.key; // key列表需要保存下来，用于排序
+	::LinGe.HUD.Pre.HUDFunc <- compilestring(BuildFuncStr(result))().bindenv(::LinGe.HUD);
 	// 预处理聊天窗排行榜相关
-	result = Pre.GetKeyAndReplace(Config.hurt.chatStyle, "\\x03%d\\x04");
+	result = GetKeyAndReplace(::LinGe.HUD.Config.hurt.chatStyle, "\\x03%d\\x04");
 	::LinGe.HUD.Pre.ChatKey <- result.key;
-	::LinGe.HUD.Pre.ChatFunc = compilestring(Pre.BuildFuncStr(result))();
+	::LinGe.HUD.Pre.ChatFunc <- compilestring(BuildFuncStr(result))().bindenv(::LinGe.HUD);
 }
-::LinGe.HUD.CompileFunc();
+::LinGe.HUD.Pre.CompileFunc();
 
 const HUD_SLOT_HOSTNAME = 10;
 const HUD_SLOT_TIME = 11;
@@ -461,7 +462,7 @@ for (local i=1; i<9; i++)
 		else if (Config.playerState == 2)
 			Say(player, "\x03啊，我重伤倒地", false);
 	}
-	else
+	else if (!::LinGe.IsAlive(player))
 	{
 		if (Config.playerState == 1)
 			ClientPrint(null, 3, "\x03" + player.GetPlayerName() + "\x04 牺牲了");
@@ -755,7 +756,7 @@ local killTank = 0;
 	{
 		local atkMax = { name="", hurt=0 };
 		local vctMax = clone atkMax;
-		// 遍历找出黑枪最多和被黑最多 并计算出对特感伤害总和
+		// 遍历找出黑枪最多和被黑最多
 		for (local i=0; i<len; i++)
 		{
 			local temp = hurtData[survivorIdx[i]];
@@ -816,7 +817,7 @@ local killTank = 0;
 	{
 		for (local j=0; j<len-1-i; j++)
 		{
-			if (hurtDataCompare(survivorIdx[j], survivorIdx[j+1], key) == result)
+			if (hurtDataCompare(survivorIdx[j], survivorIdx[j+1], key, 0) == result)
 			{
 				temp = survivorIdx[j];
 				survivorIdx[j] = survivorIdx[j+1];
@@ -826,17 +827,14 @@ local killTank = 0;
 	}
 }
 
-::LinGe.HUD.hurtDataCompare <- function (idx1, idx2, key)
+::LinGe.HUD.hurtDataCompare <- function (idx1, idx2, key, keyIdx)
 {
-	if (hurtData[idx1][key[0]] > hurtData[idx2][key[0]])
+	if (hurtData[idx1][key[keyIdx]] > hurtData[idx2][key[keyIdx]])
 		return -1;
-	else if (hurtData[idx1][key[0]] == hurtData[idx2][key[0]])
+	else if (hurtData[idx1][key[keyIdx]] == hurtData[idx2][key[keyIdx]])
 	{
-		if (key.len() > 1)
-		{
-			key.remove(0);
-			return hurtDataCompare(idx1, idx2, key);
-		}
+		if (keyIdx+1 < key.len()) // 如果还有可比较的值就继续比较
+			return hurtDataCompare(idx1, idx2, key, keyIdx+1);
 		else
 			return 0;
 	}
