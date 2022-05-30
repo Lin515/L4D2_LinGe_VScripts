@@ -1,7 +1,3 @@
-// HUD聊天窗指令：
-// !hud ：	开关hud显示
-// !rank n：	设置排行榜人数为n人，为0则不显示排行榜
-// !hudstyle n ： 设置玩家显示数风格为n (0:自动 1：战役风格（活跃：x 摸鱼：x 空余：x） 2：对抗风格(生还：x VS 特感：x)
 printl("[LinGe] HUD 正在载入");
 ::LinGe.HUD <- {};
 
@@ -15,10 +11,10 @@ printl("[LinGe] HUD 正在载入");
 		HUDRank = 3, // HUD排行榜最多显示多少人，范围0~8 设置为0则关闭排行显示
 		rankTitle = "特感/丧尸击杀：",
 		rankStyle = "{ksi}/{kci}",
-		printStyle = "对特感:{si}({ksi}个) 黑:{atk} 被黑:{vct}",
 		teamHurtInfo = 2, // 友伤即时提示 0:关闭 1:公开处刑 2:仅攻击者和被攻击者可见
 		autoPrint = 0, // 每间隔多少s在聊天窗输出一次数据统计，若为0则只在本局结束时输出，若<0则永远不输出
-		hurtRank = 4, // 聊天窗输出时除了最高友伤、最高被黑 剩下显示最多多少人的数据
+		chatRank = 4, // 聊天窗输出时除了最高友伤、最高被黑 剩下显示最多多少人的数据
+		chatStyle = "对特感:{si}({ksi}个) 黑:{atk} 被黑:{vct}"
 	},
 	textHeight = 0.025, // 一行文字通用高度
 	position = {
@@ -36,6 +32,42 @@ printl("[LinGe] HUD 正在载入");
 ::LinGe.Cache.HUD_Config <- ::LinGe.HUD.Config;
 
 ::LinGe.HUD.hurtData <- []; // 伤害与击杀数据
+
+// 预处理文本处理函数
+::LinGe.HUD.Pre.ex <- regexp("{(ksi|kci|si|atk|vct)}");
+::LinGe.HUD.Pre.GetKeyAndReplace <- function (oldStr, tr)
+{
+	local ret = { key=[], str=oldStr};
+	local res = ex.capture(oldStr); // index=0 带{}的完整匹配 index=1 不带{}的分组1
+	if (res != null)
+	{
+		ret = GetKeyAndReplace(oldStr.slice(0, res[0].begin) + tr + oldStr.slice(res[0].end), tr);
+		ret.key.insert(0, oldStr.slice(res[1].begin, res[1].end));
+	}
+	return ret;
+}
+
+::LinGe.HUD.Pre.BuildFuncStr <- function (formatAndKey)
+{
+	local funcStr = "return function (idx) { return format(\"" + formatAndKey.str + "\"";
+	foreach (val in formatAndKey.key)
+		funcStr += ", hurtData[idx]." + val;
+	funcStr += "); }";
+	return funcStr;
+}
+
+::LinGe.HUD.CompileFunc <- function ()
+{
+	// 预处理HUD排行榜相关
+	local result = Pre.GetKeyAndReplace(Config.hurt.rankStyle, "%d");
+	::LinGe.HUD.Pre.HUDKey <- result.key;
+	::LinGe.HUD.Pre.HUDFunc <- compilestring(Pre.BuildFuncStr(result))();
+	// 预处理聊天窗排行榜相关
+	result = Pre.GetKeyAndReplace(Config.hurt.chatStyle, "\\x03%d\\x04");
+	::LinGe.HUD.Pre.ChatKey <- result.key;
+	::LinGe.HUD.Pre.ChatFunc = compilestring(Pre.BuildFuncStr(result))();
+}
+::LinGe.HUD.CompileFunc();
 
 const HUD_SLOT_HOSTNAME = 10;
 const HUD_SLOT_TIME = 11;
@@ -538,7 +570,7 @@ for (local i=1; i<9; i++)
 		else if ("player" == args[1])
 		{
 			local player = ::LinGe.TryStringToInt(args[2]);
-			Config.hurt.hurtRank = player;
+			Config.hurt.chatRank = player;
 			if (player > 0)
 				ClientPrint(player, 3, "\x04伤害统计播报将显示最多 \x03" + player + "\x04 人");
 			else
@@ -638,16 +670,16 @@ for (local i=1; i<9; i++)
 
 	// 将生还者实体索引数组按特感击杀数量由大到小进行排序
 	// 如果特感击杀数量相等，则按丧尸击杀数
-	hurtDataSort(survivorIdx, ["ksi", "kci"]);
+	hurtDataSort(survivorIdx, Pre.HUDKey);
 	local rank = 1, name = "";
 	for (local i=0; i<len && rank<=Config.hurt.HUDRank; i++)
 	{
 		local player = PlayerInstanceFromIndex(survivorIdx[i]);
-		if (player.GetNetworkIDString() != "BOT") // HUD排行榜不显示BOT数据
+		if (!IsPlayerABot(player)) // HUD排行榜不显示BOT数据
 		{
 			name = player.GetPlayerName();
-			HUD_table.Fields["rank" + rank].dataval = format("[%d] %d/%d <- %s",
-				rank, hurtData[survivorIdx[i]].ksi, hurtData[survivorIdx[i]].kci, name);
+			HUD_table.Fields["rank" + rank].dataval = format("[%d] %s <- %s",
+				rank, Pre.HUDFunc(survivorIdx[i]), name);
 			rank++;
 		}
 	}
@@ -681,7 +713,7 @@ local killTank = 0;
 
 ::LinGe.HUD.PrintTankHurtData <- function ()
 {
-	local player = Config.hurt.hurtRank;
+	local player = Config.hurt.chatRank;
 	local idx = clone ::pyinfo.survivorIdx;
 	local name = "", len = idx.len();
 
@@ -724,14 +756,13 @@ local killTank = 0;
 // params是预留参数位置 为方便关联事件和定时器
 ::LinGe.HUD.PrintHurtData <- function (params=0)
 {
-	local player = Config.hurt.hurtRank;
+	local player = Config.hurt.chatRank;
 	local survivorIdx = clone ::pyinfo.survivorIdx;
 	local name = "", len = survivorIdx.len();
 	if (len > 0)
 	{
 		local atkMax = { name="", hurt=0 };
 		local vctMax = clone atkMax;
-		local hurtSum = 0;
 		// 遍历找出黑枪最多和被黑最多 并计算出对特感伤害总和
 		for (local i=0; i<len; i++)
 		{
@@ -746,22 +777,16 @@ local killTank = 0;
 				vctMax.hurt = temp.vct;
 				vctMax.name = PlayerInstanceFromIndex(survivorIdx[i]).GetPlayerName();
 			}
-			hurtSum += temp.si;
 		}
-		hurtSum /= 100.0; // 方便后续计算百分比
 		if (player > 0)
 		{
-			hurtDataSort(survivorIdx, ["si", "ksi"]);
+			hurtDataSort(survivorIdx, Pre.ChatKey);
 			// 按照对特感伤害，依次输出伤害数据
 			for (local i=0; i<player && i<len; i++)
 			{
-				local temp = hurtData[survivorIdx[i]];
-				// local percent = 0;
-				// if (0.0 != hurtSum)
-				// 	percent = (temp.si / hurtSum).tointeger();
 				name = PlayerInstanceFromIndex(survivorIdx[i]).GetPlayerName();
-				ClientPrint(null, 3, format("\x04对特感:\x03%d\x04(\x03%d\x04个) 黑:\x03%d\x04 被黑:\x03%d\x04 <- \x03%s"
-					, temp.si, temp.ksi, temp.atk, temp.vct, name));
+				ClientPrint(null, 3, format("\x04%s <- \x03%s"
+					, Pre.ChatFunc(survivorIdx[i]), name));
 			}
 		}
 
@@ -790,13 +815,11 @@ local killTank = 0;
 }.bindenv(::LinGe.HUD);
 
 // 冒泡排序 默认降序排序
-::LinGe.HUD.hurtDataSort <- function (survivorIdx, key=null, desc=true)
+::LinGe.HUD.hurtDataSort <- function (survivorIdx, key, desc=true)
 {
 	local temp;
 	local len = survivorIdx.len();
-	local result = 1;
-	if (!desc)
-		result = -1;
+	local result = desc ? 1 : -1;
 	for (local i=0; i<len-1; i++)
 	{
 		for (local j=0; j<len-1-i; j++)
