@@ -481,6 +481,41 @@ local FILE_CONFIG = "LinGe/Config_" + ::LinGe.hostport;
 ::ACTION_RESETPARAMS <- 1;
 ::ACTION_STOP <- 2;
 
+::LinGe.Events.TriggerFunc <- function (params)
+{
+	local action = ACTION_CONTINUE;
+	local _params = null==params ? null : clone params;
+	local len = callback.len();
+	local val = null;
+	::LinGe.DebugPrintlTable(params);
+	for (local i=0; i<len; i++)
+	{
+		val = callback[i];
+		if (null == val.func)
+			continue;
+		else
+		{
+			if (val.callOf != null)
+				action = val.func.call(val.callOf, _params);
+			else
+				action = val.func(_params);
+			switch (action)
+			{
+			case null: // 若没有使用return返回数值 则为null
+				break;
+			case ACTION_CONTINUE:
+				break;
+			case ACTION_RESETPARAMS:
+				_params = null==params ? null : clone params;
+				break;
+			case ACTION_STOP:
+				return;
+			default:
+				throw "事件函数返回了非法的ACTION";
+			}
+		}
+	}
+}
 // 绑定函数到事件 允许同一事件重复绑定同一函数
 // event 为事件名 若以 OnGameEvent_ 开头则视为游戏事件
 // callOf为函数执行时所在表，为null则不指定表
@@ -496,41 +531,7 @@ local FILE_CONFIG = "LinGe/Config_" + ::LinGe.hostport;
 	if (!trigger.rawin(event))
 	{
 		trigger.rawset(event, { callback=[] });
-		trigger[event][event] <- function (params)
-		{
-			local action = ACTION_CONTINUE;
-			local _params = null==params ? null : clone params;
-			local len = callback.len();
-			local val = null;
-			::LinGe.DebugPrintlTable(params);
-			for (local i=0; i<len; i++)
-			{
-				val = callback[i];
-				if (null == val.func)
-					continue;
-				else
-				{
-					if (val.callOf != null)
-						action = val.func.call(val.callOf, _params);
-					else
-						action = val.func(_params);
-					switch (action)
-					{
-					case null: // 若没有使用return返回数值 则为null
-						break;
-					case ACTION_CONTINUE:
-						break;
-					case ACTION_RESETPARAMS:
-						_params = null==params ? null : clone params;
-						break;
-					case ACTION_STOP:
-						return;
-					default:
-						throw "事件函数返回了非法的ACTION";
-					}
-				}
-			}
-		}.bindenv(trigger[event]);
+		trigger[event][event] <- TriggerFunc.bindenv(trigger[event]);
 		// trigger触发表中每个元素的key=事件名（用于查找），而每个元素的值都是一个table
 		// 这个table中有一个事件函数，以事件名命名（用于注册与调用），以及一个key为callback的回调函数数组
 		// 事件函数的所完成的就是依次调用同table下callback中所有函数
