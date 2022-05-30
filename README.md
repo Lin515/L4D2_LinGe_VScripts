@@ -161,7 +161,7 @@ HUD 模块可以在所有人的屏幕上显示特感击杀排行、时间、服�
 	你可以更改为其它文件，比如使用 Admin System 的管理员文件：  
 	adminsFile = "admin system/admins.txt"
 - takeOverAdminSystem  
-	是否接管 Admin System 的权限判断，默认开启。  
+	是否接管 Admin System 的权限判断，默认关闭。  
 	如果你安装了 Admin System，且管理员列表并不是使用它的文件，就可以开启这个功能以让其也共享管理员列表。
 
 ### HUD
