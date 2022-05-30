@@ -3,8 +3,6 @@ printl("[LinGe] Server 正在载入");
 
 // 服务器控制 附加功能脚本
 ::LinGe.Server.Config <- {
-	tankUpdateFrequency = -1, // Tank生成时是否自动调整刷新率 为-1则不调整 对抗模式不生效
-	tankMinInterpRatio = -1, // Tank生成时是否强制调整lerp 为-1则不调整 （刷新率开启时此参数才有效）
 };
 ::LinGe.Config.Add("Server", ::LinGe.Server.Config);
 ::LinGe.Cache.Server_Config <- ::LinGe.Server.Config;
