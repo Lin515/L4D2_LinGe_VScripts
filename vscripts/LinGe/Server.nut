@@ -50,7 +50,7 @@ if ("coop" == g_BaseMode && ::LinGe.Server.Config.zs.enabled) {
 
 		local isIncapacitated = vplayer.IsIncapacitated();
 		vplayer.Kill();
-		if (Config.zs.hint > 0) // 如果开启了自杀后提示
+		if (Config.zs.hint) // 如果开启了自杀后提示
 		{
 			if (!vplayer.IsAlive() || vplayer.IsDead()) // 可能不准
 			{

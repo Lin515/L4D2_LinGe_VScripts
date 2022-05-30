@@ -5,7 +5,13 @@ printl("[LinGe] HUD 正在载入");
 	isShowHUD = true,
 	isShowTime = true,
 	style = 0,
-	playerState = 2,
+	playerState = {
+		enabled = 2,
+		incap = "啊，我重伤倒地",
+		dead = "再见了大家，我会想念你们的",
+		hanging = "快救救我，我快掉下去了！",
+		dying = "我快寄了，有谁能给我一个医疗包吗"
+	},
 	hurt = {
 		versusNoHUDRank = true, // 对抗模式是否不显示HUD击杀排行
 		HUDRank = 3, // HUD排行榜最多显示多少人，范围0~8 设置为0则关闭排行显示
@@ -400,7 +406,7 @@ for (local i=1; i<9; i++)
 		// 自杀时伤害类型为0
 		if (params.type == 0)
 			return;
-		if (Config.playerState > 0 && (!IsPlayerABot(dierEntity)||::LinGe.Debug))
+		if (Config.playerState.enabled > 0 && (!IsPlayerABot(dierEntity)||::LinGe.Debug))
 		{
 			VSLib.Timers.AddTimerByName(dier, 0.2, false, Timer_PrintPlayerState, dierEntity);
 		}
@@ -414,7 +420,7 @@ for (local i=1; i<9; i++)
 	}
 	else
 	{
-		if (attackerEntity && attackerEntity.IsSurvivor() && !IsPlayerABot(attackerEntity)) // 暂不记录bot的击杀数据
+		if (attackerEntity && attackerEntity.IsSurvivor())
 		{
 			if (params.victimname == "Infected")
 				hurtData[attackerEntity.GetEntityIndex()].kci++;
@@ -438,7 +444,7 @@ for (local i=1; i<9; i++)
 		attackerEntity = GetPlayerFromUserID(params.attacker);
 	if (player.IsSurvivor())
 	{
-		if (Config.playerState > 0 && (!IsPlayerABot(player)||::LinGe.Debug))
+		if (Config.playerState.enabled > 0 && (!IsPlayerABot(player)||::LinGe.Debug))
 		{
 			VSLib.Timers.AddTimerByName(params.userid, 0.1, false, Timer_PrintPlayerState, player);
 		}
@@ -457,19 +463,54 @@ for (local i=1; i<9; i++)
 {
 	if (player.IsIncapacitated())
 	{
-		if (Config.playerState == 1)
+		if (Config.playerState.enabled == 1)
 			ClientPrint(null, 3, "\x03" + player.GetPlayerName() + "\x04 倒地了，谁来帮帮他");
-		else if (Config.playerState == 2)
-			Say(player, "\x03啊，我重伤倒地", false);
+		else if (Config.playerState.enabled == 2)
+			Say(player, "\x03" + Config.playerState.incap, false);
 	}
 	else if (!::LinGe.IsAlive(player))
 	{
-		if (Config.playerState == 1)
+		if (Config.playerState.enabled == 1)
 			ClientPrint(null, 3, "\x03" + player.GetPlayerName() + "\x04 牺牲了");
-		else if (Config.playerState == 2)
-			Say(player, "\x03再见了大家，我会想念你们的", false);
+		else if (Config.playerState.enabled == 2)
+			Say(player, "\x03" + Config.playerState.dead, false);
 	}
 }.bindenv(::LinGe.HUD);
+
+::LinGe.HUD.OnGameEvent_player_ledge_grab <- function (params)
+{
+	if (!params.rawin("userid"))
+		return;
+	local player = GetPlayerFromUserID(params.userid);
+	if (player.IsHangingFromLedge())
+	{
+		if (Config.playerState.enabled == 1)
+			ClientPrint(null, 3, "\x03" + player.GetPlayerName() + "\x04 笨比地挂边了");
+		else if (Config.playerState.enabled == 2)
+			Say(player, "\x03" + Config.playerState.hanging, false);
+	}
+}
+::LinEventHook("OnGameEvent_player_ledge_grab", ::LinGe.HUD.OnGameEvent_player_ledge_grab, ::LinGe.HUD);
+
+// 成功拉起队友
+::LinGe.HUD.OnGameEvent_revive_success <- function (params)
+{
+	if (!params.rawin("subject"))
+		return;
+	local player = GetPlayerFromUserID(params.subject);
+	if (!player.IsSurvivor())
+		return;
+	if (IsPlayerABot(player) && !::LinGe.Debug)
+		return;
+	if (::LinGe.GetReviveCount(player) >= 2)
+	{
+		if (Config.playerState.enabled == 1)
+			ClientPrint(null, 3, "\x03" + player.GetPlayerName() + "\x04 黑白了，有没有人可以治疗一下他呢");
+		else if (Config.playerState.enabled == 2)
+			Say(player, "\x03" + Config.playerState.dying, false);
+	}
+}
+::LinEventHook("OnGameEvent_revive_success", ::LinGe.HUD.OnGameEvent_revive_success, ::LinGe.HUD);
 
 ::LinGe.HUD.maxplayers_changed <- function (params)
 {
@@ -494,7 +535,7 @@ for (local i=1; i<9; i++)
 			return;
 		}
 		else
-			Config.playerState = style;
+			Config.playerState.enabled = style;
 		switch (style)
 		{
 		case 0:
@@ -668,7 +709,7 @@ for (local i=1; i<9; i++)
 	for (local i=0; i<len && rank<=Config.hurt.HUDRank; i++)
 	{
 		local player = PlayerInstanceFromIndex(survivorIdx[i]);
-		if (!IsPlayerABot(player)) // HUD排行榜不显示BOT数据
+		if (!IsPlayerABot(player) || ::LinGe.Debug) // HUD排行榜正常情况下不显示BOT数据
 		{
 			name = player.GetPlayerName();
 			HUD_table.Fields["rank" + rank].dataval = format("[%d] %s <- %s",

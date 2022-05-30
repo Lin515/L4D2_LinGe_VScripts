@@ -137,6 +137,11 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 		return "BOT"==entity.GetNetworkIDString();
 }
 
+::LinGe.GetReviveCount <- function (player)
+{
+	return NetProps.GetPropInt(player, "m_currentReviveCount");
+}
+
 ::LinGe.IsIncapacitated <- function (ent)
 {
 	return NetProps.GetPropInt(ent, "m_isIncapacitated") != 0;
@@ -832,6 +837,25 @@ if (null == ::LinGe.Admin.adminslist)
 	}
 }
 ::LinCmdAdd("lshelp", ::LinGe.Admin.Cmd_lshelp, ::LinGe.Admin, "", false);
+
+// 开启Debug模式
+::LinGe.Admin.Cmd_lsdebug <- function (player, args)
+{
+	if (args.len() == 2)
+	{
+		if (args[1] == "on")
+		{
+			::LinGe.Debug = true;
+			Convars.SetValue("display_game_events", 1);
+		}
+		else if (args[1] == "off")
+		{
+			::LinGe.Debug = false;
+			Convars.SetValue("display_game_events", 0);
+		}
+	}
+}
+::LinCmdAdd("lsdebug", ::LinGe.Admin.Cmd_lsdebug, ::LinGe.Admin);
 //----------------------------Admin-----END---------------------------------
 
 //------------------------------LinGe.Cache---------------------------------------
