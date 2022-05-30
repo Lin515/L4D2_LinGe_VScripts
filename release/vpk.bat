@@ -11,7 +11,6 @@ copy addoninfo.txt %nutdir%\addoninfo.txt
 
 :: 复制 nut 文件
 copy %main%\LinGe %nutdir%\scripts\vscripts\LinGe
-del %nutdir%\scripts\vscripts\LinGe\Server.nut
 copy %main%\VSLib %nutdir%\scripts\vscripts\VSLib
 copy %main%\VSLib.nut %nutdir%\scripts\vscripts\VSLib.nut
 copy %main%\director_base_addon.nut %nutdir%\scripts\vscripts\director_base_addon.nut
