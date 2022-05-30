@@ -514,7 +514,7 @@ for (local i=1; i<9; i++)
 	else
 		ClientPrint(player, 3, "\x04!playerstate 0:关闭倒地死亡提示 1:服务器提示 2:自言自语式");
 }
-::LinCmdAdd("playerstate", ::LinGe.HUD.Cmd_playerstate, ::LinGe.HUD);
+::LinCmdAdd("playerstate", ::LinGe.HUD.Cmd_playerstate, ::LinGe.HUD, "0:关闭倒地死亡提示 1:服务器提示 2:自言自语式");
 
 ::LinGe.HUD.Cmd_thi <- function (player, args)
 {
@@ -546,41 +546,45 @@ for (local i=1; i<9; i++)
 	else
 		ClientPrint(player, 3, "\x04!thi 0:关闭友伤提示 1:公开处刑 2:仅双方可见");
 }
-::LinCmdAdd("thi", ::LinGe.HUD.Cmd_thi, ::LinGe.HUD);
+::LinCmdAdd("thi", ::LinGe.HUD.Cmd_thi, ::LinGe.HUD, "0:关闭友伤提示 1:公开处刑 2:仅双方可见");
 
 ::LinGe.HUD.Cmd_hurtdata <- function (player, args)
 {
 	local len = args.len();
 	if (1 == len)
-		PrintHurtData();
+		PrintChatRank();
 	else if (3 == len)
 	{
-		if ("auto" == args[1])
+		if (!::LinGe.Admin.IsAdmin(player))
+		{
+			ClientPrint(player, 3, "\x04权限不足！");
+		}
+		else if ("auto" == args[1])
 		{
 			local time = ::LinGe.TryStringToFloat(args[2]);
 			Config.hurt.autoPrint = time;
 			ApplyAutoHurtPrint();
 			if (time > 0)
-				ClientPrint(player, 3, "\x04已设置每 \x03" + time + "\x04 秒播报一次特感伤害统计");
+				ClientPrint(player, 3, "\x04已设置每 \x03" + time + "\x04 秒播报一次聊天窗排行榜");
 			else if (0 == time)
-				ClientPrint(player, 3, "\x04已关闭定时特感伤害统计播报，回合结束时仍会播报");
+				ClientPrint(player, 3, "\x04已关闭定时聊天窗排行榜播报，回合结束时仍会播报");
 			else
-				ClientPrint(player, 3, "\x04已彻底关闭特感伤害统计播报");
+				ClientPrint(player, 3, "\x04已彻底关闭聊天窗排行榜播报");
 		}
 		else if ("player" == args[1])
 		{
 			local player = ::LinGe.TryStringToInt(args[2]);
 			Config.hurt.chatRank = player;
 			if (player > 0)
-				ClientPrint(player, 3, "\x04伤害统计播报将显示最多 \x03" + player + "\x04 人");
+				ClientPrint(player, 3, "\x04聊天窗排行榜将显示最多 \x03" + player + "\x04 人");
 			else
-				ClientPrint(player, 3, "\x04已彻底关闭特感与TANK伤害统计播报");
+				ClientPrint(player, 3, "\x04已彻底关闭聊天窗排行榜与TANK伤害统计播报");
 		}
 	}
 }
-::LinCmdAdd("hurtdata", ::LinGe.HUD.Cmd_hurtdata, ::LinGe.HUD);
-::LinCmdAdd("hurt", ::LinGe.HUD.Cmd_hurtdata, ::LinGe.HUD);
-::LinCmdAdd("hd", ::LinGe.HUD.Cmd_hurtdata, ::LinGe.HUD);
+::LinCmdAdd("hurtdata", ::LinGe.HUD.Cmd_hurtdata, ::LinGe.HUD, "", false);
+::LinCmdAdd("hurt", ::LinGe.HUD.Cmd_hurtdata, ::LinGe.HUD, "", false);
+::LinCmdAdd("hd", ::LinGe.HUD.Cmd_hurtdata, ::LinGe.HUD, "输出一次聊天窗排行榜或者调整自动播报配置", false);
 
 ::LinGe.HUD.Cmd_hud <- function (player, args)
 {
@@ -603,17 +607,7 @@ for (local i=1; i<9; i++)
 		}
 	}
 }
-::LinCmdAdd("hud", ::LinGe.HUD.Cmd_hud, ::LinGe.HUD);
-
-::LinGe.HUD.Cmd_hudstyle <- function (player, args)
-{
-	if (2 == args.len())
-	{
-		Config.style = ::LinGe.TryStringToInt(args[1]);
-		UpdatePlayerHUD();
-	}
-}
-::LinCmdAdd("hudstyle", ::LinGe.HUD.Cmd_hudstyle, ::LinGe.HUD);
+::LinCmdAdd("hud", ::LinGe.HUD.Cmd_hud, ::LinGe.HUD, "打开或关闭HUD");
 
 ::LinGe.HUD.Cmd_rank <- function (player, args)
 {
@@ -623,7 +617,7 @@ for (local i=1; i<9; i++)
 		ApplyConfigHUD();
 	}
 }
-::LinCmdAdd("rank", ::LinGe.HUD.Cmd_rank, ::LinGe.HUD);
+::LinCmdAdd("rank", ::LinGe.HUD.Cmd_rank, ::LinGe.HUD, "设置HUD排行榜最大显示人数");
 
 // 更新玩家信息HUD
 ::LinGe.HUD.UpdatePlayerHUD <- function ()
@@ -740,21 +734,21 @@ local killTank = 0;
 	if (Config.hurt.autoPrint <= 0)
 		::VSLib.Timers.RemoveTimerByName("Timer_AutoPrintHurt");
 	else
-		::VSLib.Timers.AddTimerByName("Timer_AutoPrintHurt", Config.hurt.autoPrint, true, PrintHurtData);
+		::VSLib.Timers.AddTimerByName("Timer_AutoPrintHurt", Config.hurt.autoPrint, true, PrintChatRank);
 
-	::LinEventUnHook("OnGameEvent_round_end", ::LinGe.HUD.PrintHurtData);
-	::LinEventUnHook("OnGameEvent_map_transition", ::LinGe.HUD.PrintHurtData);
+	::LinEventUnHook("OnGameEvent_round_end", ::LinGe.HUD.PrintChatRank);
+	::LinEventUnHook("OnGameEvent_map_transition", ::LinGe.HUD.PrintChatRank);
 	if (Config.hurt.autoPrint >= 0)
 	{
 		// 回合结束时输出本局伤害统计
-		::LinEventHook("OnGameEvent_round_end", ::LinGe.HUD.PrintHurtData);
-		::LinEventHook("OnGameEvent_map_transition", ::LinGe.HUD.PrintHurtData);
+		::LinEventHook("OnGameEvent_round_end", ::LinGe.HUD.PrintChatRank);
+		::LinEventHook("OnGameEvent_map_transition", ::LinGe.HUD.PrintChatRank);
 	}
 }
 
 // 向聊天窗公布当前的伤害数据统计
 // params是预留参数位置 为方便关联事件和定时器
-::LinGe.HUD.PrintHurtData <- function (params=0)
+::LinGe.HUD.PrintChatRank <- function (params=0)
 {
 	local player = Config.hurt.chatRank;
 	local survivorIdx = clone ::pyinfo.survivorIdx;

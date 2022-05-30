@@ -240,7 +240,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 {
 	ShowInfo();
 }
-::LinCmdAdd("si", ::LinGe.MoreSI.Cmd_si, ::LinGe.MoreSI, false);
+::LinCmdAdd("si", ::LinGe.MoreSI.Cmd_si, ::LinGe.MoreSI, "", false);
 
 // !sion 打开多特控制 同时可以用来一次设置多个值 sibase siauto sitime noci sionly(限制特感类型需用逗号分隔)
 // 不修改的数值输入 -2
@@ -298,7 +298,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	ExecConfig();
 	ShowInfo();
 }
-::LinCmdAdd("sion", ::LinGe.MoreSI.Cmd_sion, ::LinGe.MoreSI);
+::LinCmdAdd("sion", ::LinGe.MoreSI.Cmd_sion, ::LinGe.MoreSI, "打开多特控制");
 
 // !sioff 关闭多特控制
 ::LinGe.MoreSI.Cmd_sioff <- function (player, args)
@@ -313,7 +313,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 		ShowInfo();
 	}
 }
-::LinCmdAdd("sioff", ::LinGe.MoreSI.Cmd_sioff, ::LinGe.MoreSI);
+::LinCmdAdd("sioff", ::LinGe.MoreSI.Cmd_sioff, ::LinGe.MoreSI, "关闭多特控制");
 
 // !sibase 设置基础特感数量
 ::LinGe.MoreSI.Cmd_sibase <- function (player, args)
@@ -347,7 +347,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	else
 		ClientPrint(null, 3, "\x04多特控制：数量控制\x03 关闭");
 }
-::LinCmdAdd("sibase", ::LinGe.MoreSI.Cmd_sibase, ::LinGe.MoreSI);
+::LinCmdAdd("sibase", ::LinGe.MoreSI.Cmd_sibase, ::LinGe.MoreSI, "设置基础特感数量");
 
 // !siauto 设置自动增加特感数量
 ::LinGe.MoreSI.Cmd_siauto <- function (player, args)
@@ -381,7 +381,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	else
 		ClientPrint(null, 3, "\x04多特控制：自动增加特感\x03 关闭");
 }
-::LinCmdAdd("siauto", ::LinGe.MoreSI.Cmd_siauto, ::LinGe.MoreSI);
+::LinCmdAdd("siauto", ::LinGe.MoreSI.Cmd_siauto, ::LinGe.MoreSI, "设置每1名生还者加入所增加的特感数量");
 
 // !sitime 设置特感刷新时间
 ::LinGe.MoreSI.Cmd_sitime <- function (player, args)
@@ -406,7 +406,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	else
 		ClientPrint(null, 3, "\x04多特控制：特感刷新控制\x03 关闭");
 }
-::LinCmdAdd("sitime", ::LinGe.MoreSI.Cmd_sitime, ::LinGe.MoreSI);
+::LinCmdAdd("sitime", ::LinGe.MoreSI.Cmd_sitime, ::LinGe.MoreSI, "设置特感刷新时间");
 
 // !sionly 限制只生成某一种特感 只能是sitypelist中的一种
 // 用逗号分隔多种特感，例如 !sionly Hunter,Boomer
@@ -438,7 +438,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 //		ClientPrint(player, 3, "\x04开启方法：!sionly\x03 Boomer,Spitter,Smoker,Hunter,Charger,Jockey");
 	}
 }
-::LinCmdAdd("sionly", ::LinGe.MoreSI.Cmd_sionly, ::LinGe.MoreSI);
+::LinCmdAdd("sionly", ::LinGe.MoreSI.Cmd_sionly, ::LinGe.MoreSI, "限制只生成哪些特感，例:!sionly Hunter,Jockey");
 
 // !noci 是否设置无小僵尸
 ::LinGe.MoreSI.Cmd_noci <- function (player, args)
@@ -463,6 +463,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 		ClientPrint(null, 3, "\x04多特控制：无小僵尸 \x03关闭");
 }
 ::LinCmdAdd("noci", ::LinGe.MoreSI.Cmd_noci, ::LinGe.MoreSI);
+::LinCmdAdd("sinoci", ::LinGe.MoreSI.Cmd_noci, ::LinGe.MoreSI, "on/off 开启/关闭自动清除小僵尸");
 
 ::LinGe.MoreSI.Timer_AutoKillCI <- function (params)
 {

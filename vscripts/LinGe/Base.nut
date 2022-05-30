@@ -649,10 +649,10 @@ if (null == ::LinGe.Admin.adminslist)
 	callOf	回调函数执行所在的表
 	isAdminCmd 是否是管理员指令
 */
-::LinGe.Admin.CmdAdd <- function (command, func, callOf=null, isAdminCmd=true)
+::LinGe.Admin.CmdAdd <- function (command, func, callOf=null, remarks="", isAdminCmd=true)
 {
 	local _callOf = (callOf==null) ? null : callOf.weakref();
-	local table = { func=func.weakref(), callOf=_callOf, isAdminCmd=isAdminCmd };
+	local table = { func=func.weakref(), callOf=_callOf, remarks=remarks, isAdminCmd=isAdminCmd };
 	cmdTable.rawset(command, table);
 }.bindenv(::LinGe.Admin);
 
@@ -808,7 +808,7 @@ if (null == ::LinGe.Admin.adminslist)
 	ClientPrint(player, 3, "\x04配置文件: \x05 left4dead2/ems/" + FILE_CONFIG + ".tbl\n");
 }
 ::LinCmdAdd("saveconfig", ::LinGe.Admin.Cmd_saveconfig, ::LinGe.Admin);
-::LinCmdAdd("save", ::LinGe.Admin.Cmd_saveconfig, ::LinGe.Admin);
+::LinCmdAdd("save", ::LinGe.Admin.Cmd_saveconfig, ::LinGe.Admin, "保存所有配置到配置文件");
 //----------------------------Admin-----END---------------------------------
 
 //------------------------------LinGe.Cache---------------------------------------
@@ -1045,6 +1045,16 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 }
 ::LinEventHook("human_team", LinGe.Base.human_team, LinGe.Base);
 
+::LinGe.Base.Cmd_lshelp <- function (player, args)
+{
+	foreach (key, val in cmdTable)
+	{
+		if (val.remarks != "")
+			ClientPrint(player, 3, format("\x05!%s \x03%s", key, val.remarks));
+	}
+}
+::LinCmdAdd("lshelp", ::LinGe.Base.Cmd_lshelp, ::LinGe.Base, "", false);
+
 ::LinGe.Base.Cmd_teaminfo <- function (player, args)
 {
 	if (1 == args.len())
@@ -1054,7 +1064,7 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 		ClientPrint(player, 3, "\x04服务器已" + text + "队伍更换提示");
 	}
 }
-::LinCmdAdd("teaminfo", ::LinGe.Base.Cmd_teaminfo, ::LinGe.Base);
+::LinCmdAdd("teaminfo", ::LinGe.Base.Cmd_teaminfo, ::LinGe.Base, "开启或关闭玩家队伍更换提示");
 
 // 搜索玩家
 ::LinGe.Base.InitPyinfo <- function ()
