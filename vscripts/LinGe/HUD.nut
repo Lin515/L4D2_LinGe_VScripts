@@ -227,8 +227,6 @@ for (local i=1; i<9; i++)
 ::LinGe.HUD.tempTeamHurt <- {}; // 友伤临时数据记录
 ::LinGe.HUD.OnGameEvent_player_hurt <- function (params)
 {
-	::LinGe.DebugPrintl("OnGameEvent_player_hurt");
-	::LinGe.DebugPrintlTable(params);
 	if (!params.rawin("dmg_health"))
 		return;
 	if (params.dmg_health < 1)

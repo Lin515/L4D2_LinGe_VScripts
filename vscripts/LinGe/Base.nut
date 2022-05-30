@@ -502,6 +502,7 @@ local FILE_CONFIG = "LinGe/Config_" + ::LinGe.hostport;
 			local _params = null==params ? null : clone params;
 			local len = callback.len();
 			local val = null;
+			::LinGe.DebugPrintlTable(params);
 			for (local i=0; i<len; i++)
 			{
 				val = callback[i];
