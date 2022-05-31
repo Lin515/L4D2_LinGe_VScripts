@@ -56,10 +56,10 @@ printl("[LinGe] HUD 正在载入");
 
 ::LinGe.HUD.Pre.BuildFuncStr <- function (formatAndKey)
 {
-	local funcStr = "return function (idx) { return format(\"" + formatAndKey.str + "\"";
+	local funcStr = "return format(\"" + formatAndKey.str + "\"";
 	foreach (val in formatAndKey.key)
-		funcStr += ", hurtData[idx]." + val;
-	funcStr += "); }";
+		funcStr += ", hurtData[vargv[0]]." + val;
+	funcStr += ");";
 	return funcStr;
 }
 
@@ -68,11 +68,11 @@ printl("[LinGe] HUD 正在载入");
 	// 预处理HUD排行榜相关
 	local result = GetKeyAndReplace(::LinGe.HUD.Config.hurt.rankStyle, "%d");
 	::LinGe.HUD.Pre.HUDKey <- result.key; // key列表需要保存下来，用于排序
-	::LinGe.HUD.Pre.HUDFunc <- compilestring(BuildFuncStr(result))().bindenv(::LinGe.HUD);
+	::LinGe.HUD.Pre.HUDFunc <- compilestring(BuildFuncStr(result)).bindenv(::LinGe.HUD);
 	// 预处理聊天窗排行榜相关
 	result = GetKeyAndReplace(::LinGe.HUD.Config.hurt.chatStyle, "\\x03%d\\x04");
 	::LinGe.HUD.Pre.ChatKey <- result.key;
-	::LinGe.HUD.Pre.ChatFunc <- compilestring(BuildFuncStr(result))().bindenv(::LinGe.HUD);
+	::LinGe.HUD.Pre.ChatFunc <- compilestring(BuildFuncStr(result)).bindenv(::LinGe.HUD);
 }
 ::LinGe.HUD.Pre.CompileFunc();
 
