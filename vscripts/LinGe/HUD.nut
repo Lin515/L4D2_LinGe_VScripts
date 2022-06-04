@@ -5,13 +5,6 @@ printl("[LinGe] HUD 正在载入");
 	isShowHUD = true,
 	isShowTime = true,
 	style = 0,
-	playerState = {
-		enabled = 2,
-		incap = "啊，我重伤倒地",
-		dead = "再见了大家，我会想念你们的",
-		hanging = "快救救我，我快掉下去了！",
-		dying = "我快寄了，有谁能给我一个医疗包吗"
-	},
 	hurt = {
 		versusNoHUDRank = true, // 对抗模式是否不显示HUD击杀排行
 		HUDRank = 3, // HUD排行榜最多显示多少人，范围0~8 设置为0则关闭排行显示
@@ -400,16 +393,13 @@ for (local i=1; i<9; i++)
 	attacker = params.attacker;
 	dierEntity = GetPlayerFromUserID(dier);
 	attackerEntity = GetPlayerFromUserID(attacker);
-	// 如果死亡的是生还者，则提示生还者死亡，否则统计并更新击杀数量
+
 	if (dierEntity && dierEntity.IsSurvivor())
 	{
 		// 自杀时伤害类型为0
 		if (params.type == 0)
 			return;
-		if (Config.playerState.enabled > 0 && (!IsPlayerABot(dierEntity)||::LinGe.Debug))
-		{
-			VSLib.Timers.AddTimerByName(dier, 0.2, false, Timer_PrintPlayerState, dierEntity);
-		}
+
 		// 如果是友伤致其死亡
 		if (attackerEntity && attackerEntity.IsSurvivor())
 		{
@@ -444,10 +434,6 @@ for (local i=1; i<9; i++)
 		attackerEntity = GetPlayerFromUserID(params.attacker);
 	if (player.IsSurvivor())
 	{
-		if (Config.playerState.enabled > 0 && (!IsPlayerABot(player)||::LinGe.Debug))
-		{
-			VSLib.Timers.AddTimerByName(params.userid, 0.1, false, Timer_PrintPlayerState, player);
-		}
 		// 如果是友伤致其倒地
 		if (attackerEntity && attackerEntity.IsSurvivor())
 		{
@@ -458,59 +444,6 @@ for (local i=1; i<9; i++)
 	}
 }
 ::LinEventHook("OnGameEvent_player_incapacitated", ::LinGe.HUD.OnGameEvent_player_incapacitated, ::LinGe.HUD);
-
-::LinGe.HUD.Timer_PrintPlayerState <- function (player)
-{
-	if (player.IsIncapacitated())
-	{
-		if (Config.playerState.enabled == 1)
-			ClientPrint(null, 3, "\x03" + player.GetPlayerName() + "\x04 倒地了，谁来帮帮他");
-		else if (Config.playerState.enabled == 2)
-			Say(player, "\x03" + Config.playerState.incap, false);
-	}
-	else if (!::LinGe.IsAlive(player))
-	{
-		if (Config.playerState.enabled == 1)
-			ClientPrint(null, 3, "\x03" + player.GetPlayerName() + "\x04 牺牲了");
-		else if (Config.playerState.enabled == 2)
-			Say(player, "\x03" + Config.playerState.dead, false);
-	}
-}.bindenv(::LinGe.HUD);
-
-::LinGe.HUD.OnGameEvent_player_ledge_grab <- function (params)
-{
-	if (!params.rawin("userid"))
-		return;
-	local player = GetPlayerFromUserID(params.userid);
-	if (player.IsHangingFromLedge())
-	{
-		if (Config.playerState.enabled == 1)
-			ClientPrint(null, 3, "\x03" + player.GetPlayerName() + "\x04 笨比地挂边了");
-		else if (Config.playerState.enabled == 2)
-			Say(player, "\x03" + Config.playerState.hanging, false);
-	}
-}
-::LinEventHook("OnGameEvent_player_ledge_grab", ::LinGe.HUD.OnGameEvent_player_ledge_grab, ::LinGe.HUD);
-
-// 成功拉起队友
-::LinGe.HUD.OnGameEvent_revive_success <- function (params)
-{
-	if (!params.rawin("subject"))
-		return;
-	local player = GetPlayerFromUserID(params.subject);
-	if (!player.IsSurvivor())
-		return;
-	if (IsPlayerABot(player) && !::LinGe.Debug)
-		return;
-	if (::LinGe.GetReviveCount(player) >= 2)
-	{
-		if (Config.playerState.enabled == 1)
-			ClientPrint(null, 3, "\x03" + player.GetPlayerName() + "\x04 黑白了，有没有人可以治疗一下他呢");
-		else if (Config.playerState.enabled == 2)
-			Say(player, "\x03" + Config.playerState.dying, false);
-	}
-}
-::LinEventHook("OnGameEvent_revive_success", ::LinGe.HUD.OnGameEvent_revive_success, ::LinGe.HUD);
 
 ::LinGe.HUD.maxplayers_changed <- function (params)
 {
@@ -523,38 +456,6 @@ for (local i=1; i<9; i++)
 	HUD_table.Fields.hostname.dataval = params.hostname;
 }
 ::LinEventHook("OnGameEvent_hostname_changed", ::LinGe.HUD.OnGameEvent_hostname_changed, ::LinGe.HUD);
-
-::LinGe.HUD.Cmd_playerstate <- function (player, args)
-{
-	if (2 == args.len())
-	{
-		local style = LinGe.TryStringToInt(args[1], -1);
-		if (style < 0 || style > 2)
-		{
-			ClientPrint(player, 3, "\x04!playerstate 0:关闭倒地死亡提示 1:服务器提示 2:自言自语式");
-			return;
-		}
-		else
-			Config.playerState.enabled = style;
-		switch (style)
-		{
-		case 0:
-			ClientPrint(player, 3, "\x04服务器已关闭倒地死亡提示");
-			break;
-		case 1:
-			ClientPrint(player, 3, "\x04服务器已开启倒地死亡提示 \x03服务器提示");
-			break;
-		case 2:
-			ClientPrint(player, 3, "\x04服务器已开启倒地死亡提示 \x03自言自语式");
-			break;
-		default:
-			throw "未知异常情况";
-		}
-	}
-	else
-		ClientPrint(player, 3, "\x04!playerstate 0:关闭倒地死亡提示 1:服务器提示 2:自言自语式");
-}
-::LinCmdAdd("playerstate", ::LinGe.HUD.Cmd_playerstate, ::LinGe.HUD, "0:关闭倒地死亡提示 1:服务器提示 2:自言自语式");
 
 ::LinGe.HUD.Cmd_thi <- function (player, args)
 {
