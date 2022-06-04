@@ -61,6 +61,15 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 	return ret;
 }
 
+// 查找并移除找到的第一个元素 返回其索引，若未找到则返回null
+::LinGe.RemoveInArray <- function (value, array)
+{
+	local idx = array.find(value);
+	if (idx)
+		array.remove(idx);
+	return idx;
+}
+
 // 当前模式是否是对抗模式
 ::LinGe.CheckVersus <- function ()
 {
@@ -105,6 +114,18 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 		count++;
 	}
 	return count;
+}
+
+// 获取 targetname，若其为空，则给它设置一个
+::LinGe.GetEntityTargetname <- function (entity)
+{
+	local targetname = entity.GetName();
+	if (targetname == "")
+	{
+		targetname = "LinGe_" + UniqueString();
+		entity.__KeyValueFromString("targetname", targetname);
+	}
+	return targetname;
 }
 
 // 通过userid获得玩家实体索引
