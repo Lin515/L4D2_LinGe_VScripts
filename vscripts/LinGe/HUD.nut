@@ -2,9 +2,13 @@ printl("[LinGe] HUD 正在载入");
 ::LinGe.HUD <- {};
 
 ::LinGe.HUD.Config <- {
-	isShowHUD = true,
-	isShowTime = true,
-	style = 0,
+	HUDShow = {
+		all = true,
+		time = true,
+		players = true,
+		hostname = true,
+		playersStyle = 0,
+	},
 	hurt = {
 		versusNoHUDRank = true, // 对抗模式是否不显示HUD击杀排行
 		HUDRank = 3, // HUD排行榜最多显示多少人，范围0~8 设置为0则关闭排行显示
@@ -115,7 +119,7 @@ for (local i=1; i<9; i++)
 ::LinGe.HUD.ApplyConfigHUD <- function ()
 {
 	local i = 0;
-	if (Config.isShowHUD)
+	if (Config.HUDShow.all)
 	{
 		HUDSetLayout(HUD_table);
 		// HUDPlace(slot, x, y, width, height)
@@ -130,10 +134,20 @@ for (local i=1; i<9; i++)
 	else
 		HUDSetLayout( ::VSLib.HUD._hud );
 
-	if (Config.isShowTime)
+	if (Config.HUDShow.time)
 		HUD_table.Fields.time.flags = HUD_table.Fields.time.flags & (~HUD_FLAG_NOTVISIBLE);
 	else
 		HUD_table.Fields.time.flags = HUD_table.Fields.time.flags | HUD_FLAG_NOTVISIBLE;
+
+	if (Config.HUDShow.players)
+		HUD_table.Fields.players.flags = HUD_table.Fields.players.flags & (~HUD_FLAG_NOTVISIBLE);
+	else
+		HUD_table.Fields.players.flags = HUD_table.Fields.players.flags | HUD_FLAG_NOTVISIBLE;
+
+	if (Config.HUDShow.hostname)
+		HUD_table.Fields.hostname.flags = HUD_table.Fields.hostname.flags & (~HUD_FLAG_NOTVISIBLE);
+	else
+		HUD_table.Fields.hostname.flags = HUD_table.Fields.hostname.flags | HUD_FLAG_NOTVISIBLE;
 
 	if (::LinGe.isVersus && Config.hurt.versusNoHUDRank)
 	{
@@ -527,28 +541,38 @@ for (local i=1; i<9; i++)
 ::LinCmdAdd("hurt", ::LinGe.HUD.Cmd_hurtdata, ::LinGe.HUD, "", false);
 ::LinCmdAdd("hd", ::LinGe.HUD.Cmd_hurtdata, ::LinGe.HUD, "输出一次聊天窗排行榜或者调整自动播报配置", false);
 
+local reHudCmd = regexp("^(all|time|players|hostname)$");
 ::LinGe.HUD.Cmd_hud <- function (player, args)
 {
 	if (1 == args.len())
 	{
-		Config.isShowHUD = !Config.isShowHUD;
+		Config.HUDShow.all = !Config.HUDShow.all;
 		ApplyConfigHUD();
+		return;
 	}
 	else if (2 == args.len())
 	{
-		if ("on" == args[1])
+		if (args[1] == "rank")
 		{
-			Config.isShowHUD = true;
-			ApplyConfigHUD();
+			ClientPrint(player, 3, "\x04!hud rank n 设置排行榜最大显示人数为n");
+			return;
 		}
-		else if ("off" == args[1])
+		else if (reHudCmd.search(args[1]))
 		{
-			Config.isShowHUD = false;
+			Config.HUDShow[args[1]] = !Config.HUDShow[args[1]];
 			ApplyConfigHUD();
+			return;
 		}
 	}
+	else if (3 == args.len())
+	{
+		Config.hurt.HUDRank = ::LinGe.TryStringToInt(args[2]);
+		ApplyConfigHUD();
+		return;
+	}
+	ClientPrint(player, 3, "\x04!hud time/players/hostname/rank 控制HUD元素的显示");
 }
-::LinCmdAdd("hud", ::LinGe.HUD.Cmd_hud, ::LinGe.HUD, "打开或关闭HUD");
+::LinCmdAdd("hud", ::LinGe.HUD.Cmd_hud, ::LinGe.HUD, "time/players/hostname/rank 控制HUD元素的显示");
 
 ::LinGe.HUD.Cmd_rank <- function (player, args)
 {
@@ -556,15 +580,17 @@ for (local i=1; i<9; i++)
 	{
 		Config.hurt.HUDRank = ::LinGe.TryStringToInt(args[1]);
 		ApplyConfigHUD();
+		return;
 	}
+	ClientPrint(player, 3, "\x04!rank n 设置排行榜最大显示人数为n");
 }
-::LinCmdAdd("rank", ::LinGe.HUD.Cmd_rank, ::LinGe.HUD, "设置HUD排行榜最大显示人数");
+::LinCmdAdd("rank", ::LinGe.HUD.Cmd_rank, ::LinGe.HUD);
 
 // 更新玩家信息HUD
 ::LinGe.HUD.UpdatePlayerHUD <- function ()
 {
 	local playerText = "";
-	local style = Config.style;
+	local style = Config.HUDShow.playersStyle;
 	if (0 == style)
 	{
 		if (::LinGe.isVersus)
