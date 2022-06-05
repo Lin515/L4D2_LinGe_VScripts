@@ -65,7 +65,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 ::LinGe.RemoveInArray <- function (value, array)
 {
 	local idx = array.find(value);
-	if (idx)
+	if (null != idx)
 		array.remove(idx);
 	return idx;
 }
