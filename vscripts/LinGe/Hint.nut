@@ -68,6 +68,7 @@ getconsttable()["HELP_ICON"] <- "icon_shield";
 	if (player.IsSurvivor())
 	{
 		EndHint(player);
+		// 摔死时会有短暂的倒地 所以延迟0.1s再判断是否处于倒地
 		VSLib.Timers.AddTimerByName(params.userid, 0.1, false, ShowPlayerIncap, player);
 	}
 }
@@ -75,7 +76,7 @@ if (::LinGe.Hint.Config.friend.duration > 0)
 	::LinEventHook("OnGameEvent_player_incapacitated", ::LinGe.Hint.OnGameEvent_player_incapacitated, ::LinGe.Hint);
 ::LinGe.Hint.ShowPlayerIncap <- function (player)
 {
-	if (player.IsIncapacitated())
+	if (player.IsValid() && player.IsIncapacitated())
 	{
 		// 倒地状态提示
 		local showTo = clone ::pyinfo.survivorIdx;
@@ -125,7 +126,7 @@ if (::LinGe.Hint.Config.friend.duration > 0)
 ::LinGe.Hint.ShowPlayerDying <- function (player)
 {
 	// 黑白状态提示
-	local showTo = ::pyinfo.survivorIdx;
+	local showTo = clone ::pyinfo.survivorIdx;
 	if (::LinGe.RemoveInArray(player.GetEntityIndex(), showTo) != null)
 	{
 		ShowHint(player.GetPlayerName() + "濒死", 1, player,
@@ -153,12 +154,12 @@ if (::LinGe.Hint.Config.friend.duration > 0)
 		ShowHint(player.GetPlayerName() + "被控了", 3, player,
 			showTo, Config.friend.duration, HELP_ICON);
 	}
-}
+}.bindenv(::LinGe.Hint);
 
 // 被控解除
 ::LinGe.Hint.PlayerDominateEnd <- function (params)
 {
-	if (!params.rawin("victim") && params.victim !=0)
+	if (!params.rawin("victim") || params.victim == 0)
 		return;
 	local player = GetPlayerFromUserID(params.victim);
 	EndHint(player);
@@ -221,7 +222,7 @@ if (::LinGe.Hint.Config.friend.duration > 0 && ::LinGe.Hint.Config.friend.domina
 	if (::LinGe.GetPlayerTeam(bot) == 2 && FindHintIndex(player)!=null)
 	{
 		::VSLib.Timers.AddTimerByName(::LinGe.GetEntityTargetname(bot),
-			0.1, false, Timer_CheckSurvivor, bot);
+			0.1, false, CheckSurvivor, bot);
 	}
 }
 ::LinEventHook("OnGameEvent_player_bot_replace", ::LinGe.Hint.OnGameEvent_player_bot_replace, ::LinGe.Hint);
