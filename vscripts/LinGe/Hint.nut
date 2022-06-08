@@ -52,7 +52,7 @@ printl("[LinGe] Hint 正在载入");
 if (::LinGe.Hint.Config.limit > 0) {
 
 // 当前提示列表 包含三个键
-// key=level 信息提示等级，等级越高越重要
+// key=level 信息提示等级，等级越高越重要 若为-1级，则该提示不占用CurrentHint
 // key=ent value为env_instructor_hint实体
 // key=targetname` value为目标实体名
 local CurrentHint = [];
@@ -158,7 +158,7 @@ if (::LinGe.Hint.Config.friend.duration > 0)
 // 被控解除
 ::LinGe.Hint.PlayerDominateEnd <- function (params)
 {
-	if (!params.rawin("victim"))
+	if (!params.rawin("victim") && params.victim !=0)
 		return;
 	local player = GetPlayerFromUserID(params.victim);
 	EndHint(player);
@@ -221,7 +221,7 @@ if (::LinGe.Hint.Config.friend.duration > 0 && ::LinGe.Hint.Config.friend.domina
 	if (::LinGe.GetPlayerTeam(bot) == 2 && FindHintIndex(player)!=null)
 	{
 		::VSLib.Timers.AddTimerByName(::LinGe.GetEntityTargetname(bot),
-			0.1, false, Timer_CheckPlayer, bot);
+			0.1, false, Timer_CheckSurvivor, bot);
 	}
 }
 ::LinEventHook("OnGameEvent_player_bot_replace", ::LinGe.Hint.OnGameEvent_player_bot_replace, ::LinGe.Hint);
@@ -234,16 +234,18 @@ if (::LinGe.Hint.Config.friend.duration > 0 && ::LinGe.Hint.Config.friend.domina
 	if (::LinGe.GetPlayerTeam(player) == 2 && FindHintIndex(bot)!=null)
 	{
 		::VSLib.Timers.AddTimerByName(::LinGe.GetEntityTargetname(player),
-			0.1, false, Timer_CheckPlayer, player);
+			0.1, false, CheckSurvivor, player);
 	}
 }
 ::LinEventHook("OnGameEvent_bot_player_replace", ::LinGe.Hint.OnGameEvent_bot_player_replace, ::LinGe.Hint);
 
-::LinGe.Hint.Timer_CheckPlayer <- function (player)
+// 检查并在生还者身上出现状态提示，若其状态一切正常则返回true
+::LinGe.Hint.CheckSurvivor <- function (player)
 {
 	if (!::LinGe.IsAlive(player))
-		return;
-	else if (player.IsIncapacitated())
+		return false;
+
+	if (player.IsIncapacitated())
 		ShowPlayerIncap(player);
 	else if (player.IsHangingFromLedge())
 		ShowPlayerLedge(player);
@@ -251,6 +253,9 @@ if (::LinGe.Hint.Config.friend.duration > 0 && ::LinGe.Hint.Config.friend.domina
 		ShowPlayerBeDominating(player);
 	else if (::LinGe.GetReviveCount(player) >= 2)
 		ShowPlayerDying(player);
+	else
+		return true;
+	return false;
 }.bindenv(::LinGe.Hint);
 
 ::LinGe.Hint.ShowHint <- function ( text, level=0, target = "", showTo = null,
@@ -293,7 +298,7 @@ if (::LinGe.Hint.Config.friend.duration > 0 && ::LinGe.Hint.Config.friend.domina
 	if (!ent)
 	{
 		printl("[LinGe] 创建 env_instructor_hint 实体失败");
-		return;
+		return false;
 	}
 	ent.ValidateScriptScope();
 
@@ -305,8 +310,12 @@ if (::LinGe.Hint.Config.friend.duration > 0 && ::LinGe.Hint.Config.friend.domina
 	{
 		foreach (val in showTo)
 		{
-			DoEntFire("!self", "ShowHint", "", 0, PlayerInstanceFromIndex(val), ent);
-			::LinGe.DebugPrintl("显示给 " + PlayerInstanceFromIndex(val).GetPlayerName());
+			if (typeof val == "integer")
+				DoEntFire("!self", "ShowHint", "", 0, PlayerInstanceFromIndex(val), ent);
+			else if (typeof val == "instance")
+				DoEntFire("!self", "ShowHint", "", 0, val, ent);
+			else
+				throw "参数类型非法";
 		}
 	}
 	CurrentHint.push({ level=level, ent=ent, targetname=target });
@@ -363,101 +372,178 @@ if (::LinGe.Hint.Config.friend.duration > 0 && ::LinGe.Hint.Config.friend.domina
 	CurrentHint.remove(idx);
 }.bindenv(::LinGe.Hint);
 
-// 清理一个空位出来 若空位不足，则返回 false
+// 保证至少一个空位。若空位不足，则清理一个同级或更低级别的信息（优先清理最低级、最早出现的提示）
+// 若无可清理的空位，返回 false
 ::LinGe.Hint.AtLeastOne <- function (level)
 {
-	// 如果已经没有空位，则尝试清理一个出来
-	if (CurrentHint.len() >= Config.limit)
+	if (level < 0) // level < 0 表示该提示无视上限
+		return true;
+	if (CurrentHint.len() < Config.limit)
+		return true;
+
+	local minLevel = level + 1;
+	local i = null, count = 0;
+	foreach (idx, val in CurrentHint)
 	{
-		// 清理掉一个满足 <= level 的最低等级提示
-		local minLevel = level + 1;
-		local i = null;
-		foreach (idx, val in CurrentHint)
+		if (val.level >= 0)
 		{
+			count++;
 			if (val.level < minLevel)
 			{
 				minLevel = val.level;
 				i = idx;
 			}
 		}
-		if (i)
-		{
-			EndHint(i);
-			return true;
-		}
-		else
-			return false;
 	}
-	return true;
+	// 如果 level >= 0 的项目小于限制数量 则可以不清理
+	if (count < Config.limit)
+		return true;
+
+	if (i != null)
+	{
+		EndHint(i);
+		return true;
+	}
+	else
+		return false;
 }
 
 // 实现玩家使用按键发出信号
 // 以下用了很多 @samisalreadytaken 的 Contextual Ping System 标记系统 MOD 里的代码
 // https://steamcommunity.com/linkfilter/?url=http://github.com/samisalreadytaken
 // https://github.com/samisalreadytaken/vscripts/blob/master/left4dead2/ping_system.nut
+local WeaponName = {
+	oxygentank			= "氧气管",
+	propanetank			= "煤气罐",
+	fireworkcrate		= "烟花",
+	gnome				= "侏儒",
+	cola_bottles		= "可乐",
+	gascan				= "汽油桶",
+
+	first_aid_kit		= "医疗包",
+	pain_pills			= "止疼药",
+	adrenaline			= "肾上腺素",
+	defibrillator		= "电击器",
+
+	upgradepack_explosive	= "爆炸弹药包",
+	upgradepack_incendiary	= "燃烧弹药包",
+	laser_sight = "激光瞄准镜",
+
+	pipe_bomb			= "土制炸弹",
+	molotov				= "燃烧瓶",
+	vomitjar			= "胆汁",
+
+	ammo				= "弹药",
+	melee				= "近战武器",
+	baseball_bat		= "棒球棒",
+	fireaxe				= "斧头",
+	crowbar				= "撬棍",
+	cricket_bat			= "板球拍",
+	electric_guitar		= "电吉他",
+	frying_pan			= "平底锅",
+	golfclub			= "高尔夫球棒",
+	katana				= "武士刀",
+	knife				= "小刀",
+	machete				= "砍刀",
+	pitchfork			= "干草叉",
+	shovel				= "铲子",
+	tonfa				= "警棍",
+	riotshield			= "防爆盾",
+	chainsaw			= "电锯",
+
+	pistol				= "手枪",
+	pistol_magnum		= "马格南",
+	shotgun_chrome		= "霰弹枪",
+	pumpshotgun			= "霰弹枪",
+	autoshotgun			= "自动霰弹枪",
+	shotgun_spas		= "自动霰弹枪",
+	grenade_launcher	= "榴弹",
+	smg					= "SMG冲锋枪",
+	smg_mp5				= "MP5冲锋枪",
+	smg_silenced		= "MAC冲锋枪",
+	rifle				= "M16步枪",
+	rifle_ak47			= "AK47步枪",
+	rifle_desert		= "SCAR步枪",
+	rifle_sg552			= "SG552步枪",
+	rifle_m60			= "M60机枪",
+	sniper_scout		= "SCOUT狙击枪",
+	sniper_awp			= "AWP狙击枪",
+	hunting_rifle		= "猎枪",
+	sniper_military		= "连发狙击枪",
+};
+
+local WeaponModelPath = {
+	cola_bottles		= "models/w_models/weapons/w_cola.mdl",
+	gnome				= "models/props_junk/gnome.mdl",
+	fireworkcrate		= "models/props_junk/explosive_box001.mdl",
+
+	first_aid_kit	= "models/w_models/weapons/w_eq_Medkit.mdl",
+	pain_pills		= "models/w_models/weapons/w_eq_painpills.mdl",
+	adrenaline		= "models/w_models/weapons/w_eq_adrenaline.mdl",
+	defibrillator	= "models/w_models/weapons/w_eq_defibrillator.mdl",
+
+	upgradepack_explosive	= "models/w_models/weapons/w_eq_explosive_ammopack.mdl",
+	upgradepack_incendiary	= "models/w_models/weapons/w_eq_incendiary_ammopack.mdl",
+
+	molotov		= "models/w_models/weapons/w_eq_molotov.mdl",
+	pipe_bomb	= "models/w_models/weapons/w_eq_pipebomb.mdl",
+	vomitjar	= "models/w_models/weapons/w_eq_bile_flask.mdl",
+
+	// ammo				= "models/props/terror/ammo_stack.mdl",
+	// ammo				= "models/props_unique/spawn_apartment/coffeeammo.mdl",
+	baseball_bat		= "models/weapons/melee/w_bat.mdl",
+	fireaxe				= "models/weapons/melee/w_fireaxe.mdl",
+	crowbar				= "models/weapons/melee/w_crowbar.mdl",
+	cricket_bat			= "models/weapons/melee/w_cricket_bat.mdl",
+	electric_guitar		= "models/weapons/melee/w_electric_guitar.mdl",
+	frying_pan			= "models/weapons/melee/w_frying_pan.mdl",
+	golfclub			= "models/weapons/melee/w_golfclub.mdl",
+	katana				= "models/weapons/melee/w_katana.mdl",
+	knife				= "models/w_models/weapons/w_knife_t.mdl",
+	machete				= "models/weapons/melee/w_machete.mdl",
+	pitchfork			= "models/weapons/melee/w_pitchfork.mdl",
+	shovel				= "models/weapons/melee/w_shovel.mdl",
+	tonfa				= "models/weapons/melee/w_tonfa.mdl",
+	riotshield			= "models/weapons/melee/w_riotshield.mdl",
+	chainsaw			= "models/w_models/weapons/w_chainsaw.mdl",
+
+	pistol				= "models/w_models/weapons/w_pistol_B.mdl",
+	pistol_magnum		= "models/w_models/weapons/w_desert_eagle.mdl",
+	shotgun_chrome		= "models/w_models/weapons/w_pumpshotgun_A.mdl",
+	pumpshotgun			= "models/w_models/weapons/w_shotgun.mdl",
+	autoshotgun			= "models/w_models/weapons/w_autoshot_m4super.mdl",
+	shotgun_spas		= "models/w_models/weapons/w_shotgun_spas.mdl",
+	grenade_launcher	= "models/w_models/weapons/w_grenade_launcher.mdl",
+	smg					= "models/w_models/weapons/w_smg_uzi.mdl",
+	smg_mp5				= "models/w_models/weapons/w_smg_mp5.mdl",
+	smg_silenced		= "models/w_models/weapons/w_smg_a.mdl",
+	rifle				= "models/w_models/weapons/w_rifle_m16a2.mdl",
+	rifle_ak47			= "models/w_models/weapons/w_rifle_ak47.mdl",
+	rifle_desert		= "models/w_models/weapons/w_desert_rifle.mdl",
+	rifle_sg552			= "models/w_models/weapons/w_rifle_sg552.mdl",
+	rifle_m60			= "models/w_models/weapons/w_m60.mdl",
+	sniper_scout		= "models/w_models/weapons/w_sniper_scout.mdl",
+	sniper_awp			= "models/w_models/weapons/w_sniper_awp.mdl",
+	hunting_rifle		= "models/w_models/weapons/w_sniper_mini14.mdl",
+	sniper_military		= "models/w_models/weapons/w_sniper_military.mdl",
+};
+
+local WeaponEntity = {};
+local WeaponSpawn = {};
+local WeaponModel = {};
+foreach ( k, v in WeaponName )
+	WeaponEntity[ "weapon_" + k ] <- v;
+foreach ( k, v in WeaponName )
+	WeaponSpawn[ "weapon_" + k + "_spawn" ] <- v;
+foreach ( k, v in WeaponModelPath )
+	WeaponModel[v] <- WeaponName[k];
+
+const IN_ALT1 = 0x4000;
 const IN_ALT2 = 0x8000;
+const MAX_COORD_FLOAT	= 16384.0;
 const MAX_TRACE_LENGTH	= 56755.840862417;
 
-local s_tr =
-{
-	start = null,
-	end = null,
-	mask = MASK_SHOT_HULL & (~CONTENTS_WINDOW),
-	ignore = null,
-	pos = null,
-	hit = null,
-	enthit = null,
-	startsolid = null
-}
-
-local WeaponName = {
-	weapon_first_aid_kit		= "医疗包",
-	weapon_pain_pills			= "止疼药",
-	weapon_adrenaline			= "肾上腺素",
-	weapon_defibrillator		= "电击器",
-
-	weapon_upgradepack_explosive	= "爆炸弹药",
-	weapon_upgradepack_incendiary	= "燃烧弹药",
-
-	weapon_pipe_bomb			= "土制炸弹",
-	weapon_molotov				= "燃烧瓶",
-	weapon_vomitjar				= "胆汁",
-
-	weapon_oxygentank			= "氧气管",
-	weapon_propanetank			= "煤气罐",
-	weapon_fireworkcrate		= "烟花",
-	weapon_gnome				= "侏儒",
-	weapon_cola_bottles			= "可乐",
-	weapon_gascan				= "汽油桶",
-
-	weapon_ammo					= "弹药",
-	weapon_autoshotgun			= "自动霰弹枪",
-	weapon_chainsaw				= "电锯",
-	weapon_grenade_launcher		= "榴弹",
-	weapon_hunting_rifle		= "猎枪",
-	weapon_pistol				= "手枪",
-	weapon_pistol_magnum		= "马格南",
-	weapon_pumpshotgun			= "霰弹枪",
-	weapon_rifle				= "M16步枪",
-	weapon_rifle_ak47			= "AK47步枪",
-	weapon_rifle_desert			= "SCAR步枪",
-	weapon_rifle_m60			= "M60机枪",
-	weapon_rifle_sg552			= "SG552步枪",
-	weapon_shotgun_chrome		= "霰弹枪",
-	weapon_shotgun_spas			= "自动霰弹枪",
-	weapon_smg					= "SMG冲锋枪",
-	weapon_smg_mp5				= "MP5冲锋枪",
-	weapon_smg_silenced			= "MAC冲锋枪",
-	weapon_sniper_awp			= "AWP狙击枪",
-	weapon_sniper_military		= "连发狙击枪",
-	weapon_sniper_scout			= "SCOUT狙击枪",
-
-	weapon_melee				= "近战武器"
-}
-local WeaponSpawn = {};
-foreach ( k, v in WeaponName )
-	WeaponSpawn[ k + "_spawn" ] <- v;
-
+// 按键监测
 ::LinGe.Hint.ButtonScanFunc <- function ()
 {
 	if (!("LinGe" in getroottable()))
@@ -469,7 +555,7 @@ foreach ( k, v in WeaponName )
 		if (!::LinGe.IsAlive(player))
 			continue;
 		// 判断绑定的按键是否松开
-		local curPressed = player.GetButtonMask() & IN_ALT2;
+		local curPressed = player.GetButtonMask() & IN_ALT1;
 		if ( curPressed != val)
 		{
 			buttonState[key] = curPressed;
@@ -482,7 +568,7 @@ foreach ( k, v in WeaponName )
 // 玩家使用按键发出信号
 ::LinGe.Hint.PlayerPing <- function (player)
 {
-	// 如果玩家处于不可控制的虚弱状态，则发出求救信号
+	// 如果玩家处于虚弱状态，则发出求救信号
 	if (player.IsIncapacitated())
 		ShowPlayerIncap(player);
 	else if (player.IsHangingFromLedge())
@@ -490,78 +576,134 @@ foreach ( k, v in WeaponName )
 	else if (player.GetSpecialInfectedDominatingMe())
 		ShowPlayerBeDominating(player);
 	else
+	{
 		PingTrace(player);
+		return;
+	}
+	ClientPrint(player, 3, "\x04已发出求救信号");
 }
 
 // 通过玩家视野进行光线追踪查找实体
-::LinGe.Hint.PingTrace <- function (player, tr = s_tr )
+::LinGe.Hint.PingTrace <- function (player)
 {
 	local eyePos = player.EyePosition();
-	tr.start = eyePos;
-	tr.end = eyePos + player.EyeAngles().Forward().Scale( MAX_TRACE_LENGTH );
-	tr.ignore = player;
+	local tr = {
+		start = eyePos,
+		end = eyePos + player.EyeAngles().Forward().Scale( MAX_TRACE_LENGTH ),
+		ignore = player,
+		mask = MASK_SHOT_HULL & (~CONTENTS_WINDOW),
+	};
 
-	TraceLine( tr );
-
-	return PingEntity(player, tr.enthit);
+	TraceLine(tr);
+	PingEntity(player, tr.enthit, tr.pos);
 }
 
 // 标记到实体
-::LinGe.Hint.PingEntity <- function (player, pEnt)
+::LinGe.Hint.PingEntity <- function (player, pEnt, vecPingPos = null)
 {
 	local szClassname = pEnt.GetClassname();
-	printl(szClassname);
 
 	switch ( szClassname )
 	{
-		case "worldspawn":
-			break;
-		case "player":
-			break;
-		case "witch":
-			ShowHint("小心Witch!", 1, pEnt, null, Config.pingDuration, "tip_witch");
-			break;
-		case "infected":
-			break;
-		case "prop_physics":
-			break;
-		case "prop_health_cabinet":
-			break;
-		case "prop_car_alarm":
-			if (!GetNetPropInt( pEnt, "m_bDisabled" ) )
-				ShowHint("注意警报!", 0, pEnt, null, Config.pingDuration, "icon_alert_red");
-			break;
-		case "prop_door_rotating":
-			break;
-		case "prop_door_rotating_checkpoint":
-			break;
-		case "prop_fuel_barrel":
-			break;
-		case "upgrade_ammo_explosive":
-			ShowHint("爆炸弹药", 0, pEnt, null, Config.pingDuration, "icon_interact");
-			break;
-		case "upgrade_ammo_incendiary":
-			ShowHint("燃烧弹药", 0, pEnt, null, Config.pingDuration, "icon_interact");
-			break;
-		case "upgrade_laser_sight":
-			ShowHint("激光瞄准", 0, pEnt, null, Config.pingDuration, "icon_interact");
-			break;
-		// Partial matches and undefined entities
-		default:
-			// All weapons go through here
-			if (szClassname.find("weapon") == 0 )
+	// case "worldspawn":
+	// 	break;
+	case "player":
+		if (!player.IsValid() || ::LinGe.GetPlayerTeam(player) != 2)
+			return;
+		if (CheckSurvivor(pEnt))
+		{
+			// 如果队友是健康的，则单独给标记的玩家提示血量
+			ShowHint("当前血量:" + ceil(pEnt.GetHealth() +pEnt.GetHealthBuffer()), -1, pEnt, [player], Config.pingDuration, "icon_info");
+		}
+		break;
+	// case "witch":
+	// 	break;
+	// case "infected":
+	// 	break;
+	case "prop_health_cabinet": // 医疗箱
+		if ( GetNetPropInt( pEnt, "m_isUsed" ) == 1 )
+		{
+			// 如果医疗箱已经打开了则追踪里面的物体
+			local tr = {
+				start = vecPingPos,
+				end = vecPingPos + player.EyeAngles().Forward().Scale( MAX_COORD_FLOAT ),
+				ignore = pEnt,
+				mask = MASK_SHOT_HULL & (~CONTENTS_WINDOW),
+			};
+			TraceLine(tr);
+
+			if ( tr.enthit.GetEntityIndex() != 0 )
 			{
-				if (WeaponName.rawin(szClassname))
-					ShowHint(WeaponName[szClassname], 0, pEnt, null, Config.pingDuration, "icon_interact");
-				else if (WeaponSpawn.rawin(szClassname))
-					ShowHint(WeaponSpawn[szClassname], 0, pEnt, null, Config.pingDuration, "icon_interact");
+				PingEntity( player, tr.enthit, tr.pos);
+				return;
 			}
-			break;
+		}
+		ShowHint("医疗箱", 0, pEnt, null, Config.pingDuration, "icon_door");
+		break;
+	case "prop_car_alarm":
+		if (!GetNetPropInt( pEnt, "m_bDisabled" ) )
+			ShowHint("注意警报!", 0, pEnt, null, Config.pingDuration, "icon_alert_red");
+		break;
+	case "prop_door_rotating":
+		ShowHint("走这里吧", 0, pEnt, null, Config.pingDuration, "icon_door");
+		break;
+	case "prop_door_rotating_checkpoint":
+		ShowHint("安全屋", 0, pEnt, null, Config.pingDuration, "icon_door");
+		break;
+	// case "prop_fuel_barrel":
+	// 	break;
+	case "upgrade_ammo_explosive":
+		ShowHint("爆炸弹药", 0, pEnt, null, Config.pingDuration, "icon_interact");
+		break;
+	case "upgrade_ammo_incendiary":
+		ShowHint("燃烧弹药", 0, pEnt, null, Config.pingDuration, "icon_interact");
+		break;
+	case "upgrade_laser_sight":
+		ShowHint("激光瞄准", 0, pEnt, null, Config.pingDuration, "icon_interact");
+		break;
+	// Partial matches and undefined entities
+	default:
+		// All weapons go through here
+		if (szClassname.find("weapon") == 0 )
+		{
+			local model = pEnt.GetModelName();
+			if (WeaponModel.rawin(model))
+				ShowHint(WeaponModel[model], 0, pEnt, null, Config.pingDuration, "icon_interact");
+			else if (WeaponEntity.rawin(szClassname))
+				ShowHint(WeaponEntity[szClassname], 0, pEnt, null, Config.pingDuration, "icon_interact");
+			else if (WeaponSpawn.rawin(szClassname))
+				ShowHint(WeaponSpawn[szClassname], 0, pEnt, null, Config.pingDuration, "icon_interact");
+		}
+		// else
+		// {
+		// 	// 创建普通路径标记
+		// 	local entInfo = SetInfoTarget(vecPingPos);
+		// 	if (entInfo)
+		// 	{
+		// 		ShowHint(player.GetPlayerName() + "的标记", 0, entInfo, null, Config.pingDuration, "icon_tip");
+		// 	}
+		// }
+		break;
 	}
 }
 
+local infoTargetEnt = null;
+::LinGe.Hint.SetInfoTarget <- function (origin)
+{
+	if (null == infoTargetEnt)
+		infoTargetEnt = SpawnEntityFromTable("info_target_instructor_hint", { targetname = "LinGe_Hint_infoTarget" });
+	if (null == infoTargetEnt)
+	{
+		printl("[LinGe] 无法创建 info_target_instructor_hint");
+		return null;
+	}
+
+	infoTargetEnt.SetLocalOrigin(origin);
+	return infoTargetEnt;
+}
+
 // 启用按键监控
-if (!("_buttonScaner" in ::LinGe.Hint) && ::LinGe.Hint.Config.pingDuration > 0)
+if (!::LinGe.Hint.rawin("_buttonScaner") && ::LinGe.Hint.Config.pingDuration > 0)
 {
 	::LinGe.Hint._buttonScaner <- SpawnEntityFromTable("info_target", { targetname = "LinGe_Hint_buttonScan" });
 	if (::LinGe.Hint._buttonScaner != null)
@@ -571,6 +713,7 @@ if (!("_buttonScaner" in ::LinGe.Hint) && ::LinGe.Hint.Config.pingDuration > 0)
 		scrScope.buttonState <- ::LinGe.Hint.buttonState;
 		scrScope["ButtonScanFunc"] <- ::LinGe.Hint.ButtonScanFunc;
 		AddThinkToEnt(::LinGe.Hint._buttonScaner, "ButtonScanFunc");
+		printl("[LinGe] 按键监视器已创建");
 	}
 	else
 		throw "无法创建按键监视器";
