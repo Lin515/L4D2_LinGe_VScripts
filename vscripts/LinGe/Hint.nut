@@ -3,7 +3,7 @@
 // 只在非对抗模式下加载此功能
 if (!::LinGe.isVersus) {
 
-printl("[LinGe] Hint 正在载入");
+printl("[LinGe] 标记提示 正在载入");
 ::LinGe.Hint <- {};
 
 ::LinGe.Hint.Config <- {

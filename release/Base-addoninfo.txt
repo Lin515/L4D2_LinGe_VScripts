@@ -1,0 +1,10 @@
+"AddonInfo"
+{
+	addonSteamAppID	550
+	addontitle	"LinGe VScripts 基础库"
+	addonDescription "LinGe VScripts 脚本基础库"
+	addonauthor	"LinGe"
+	addonURL0	"https://github.com/Lin515/L4D2_LinGe_VScripts"
+
+	addonContent_Script 1
+}
