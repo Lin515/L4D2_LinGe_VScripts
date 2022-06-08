@@ -290,7 +290,8 @@ for (local i=1; i<9; i++)
 			local key = params.attacker + "_" + params.userid;
 			if (!tempTeamHurt.rawin(key))
 			{
-				tempTeamHurt[key] <- { dmg=0, attacker=attacker, victim=victim, isDead=false, isIncap=false };
+				tempTeamHurt[key] <- { dmg=0, attacker=attacker, atkName=attacker.GetPlayerName(),
+					victim=victim, vctName=victim.GetPlayerName(), isDead=false, isIncap=false };
 			}
 			tempTeamHurt[key].dmg += dmg;
 			// 友伤发生后，0.5秒内同一人若未再对同一人造成友伤，则输出其造成的伤害
@@ -326,8 +327,8 @@ for (local i=1; i<9; i++)
 ::LinGe.HUD.Timer_PrintTeamHurt <- function (key)
 {
 	local info = tempTeamHurt[key];
-	local atkName = info.attacker.GetPlayerName();
-	local vctName = info.victim.GetPlayerName();
+	local atkName = info.atkName;
+	local vctName = info.vctName;
 	local text = "";
 
 	if (Config.hurt.teamHurtInfo == 1)
@@ -362,7 +363,8 @@ for (local i=1; i<9; i++)
 				text += "，并且死亡";
 			else if (info.isIncap)
 				text += "，并且倒地";
-			ClientPrint(info.attacker, 3, text);
+			if (info.attacker.IsValid())
+				ClientPrint(info.attacker, 3, text);
 		}
 		else
 		{
@@ -372,14 +374,16 @@ for (local i=1; i<9; i++)
 				text += "，并且杀死了他";
 			else if (info.isIncap)
 				text += "，并且击倒了他";
-			ClientPrint(info.attacker, 3, text);
+			if (info.attacker.IsValid())
+				ClientPrint(info.attacker, 3, text);
 			text = "\x03" + atkName
 				+ "\x04 对你造成了 \x03" + info.dmg + "\x04 点伤害";
 			if (info.isDead)
 				text += "，并且杀死了你";
 			else if (info.isIncap)
 				text += "，并且打倒了你";
-			ClientPrint(info.victim, 3, text);
+			if (info.victim.IsValid())
+				ClientPrint(info.victim, 3, text);
 		}
 	}
 	tempTeamHurt.rawdelete(key);
