@@ -15,7 +15,10 @@ printl("[LinGe] 标记提示 正在载入");
 						// 若<0，则不会自动提示玩家被控，但是玩家可以用按键自己发出呼救
 		noShowSelf = true // 自己的倒地被控等状态不会显示给自己
 	},
-	pingDuration = 10, // 玩家用按键发出信号的持续时间，若<=0则禁止玩家发出信号
+	ping = {
+		duration = 10, // 玩家用按键发出信号的持续时间，若<=0则禁止玩家发出信号
+		empytSpace = true, // 可以标记到什么都没有的位置
+	},
 	deadHint = true, // 死亡时不会出现标记提示，不过会在聊天窗输出提示 若设置为 false 则关闭该提示
 					// 该提示对BOT不生效
 	deadChat = "再见了大家，我会想念你们的", // 若这里设置为 "" 或者 null 则以服务器式提示输出
@@ -58,7 +61,7 @@ if (::LinGe.Hint.Config.limit > 0) {
 // key=targetname` value为目标实体名
 local CurrentHint = [];
 getconsttable()["HELP_ICON"] <- "icon_shield";
-getconsttable()["NONEICON"] <- "__NONE__";
+getconsttable()["NONE_ICON"] <- "__NONE__";
 
 // 事件：玩家倒地
 ::LinGe.Hint.OnGameEvent_player_incapacitated <- function (params)
@@ -78,6 +81,8 @@ if (::LinGe.Hint.Config.help.duration > 0)
 	::LinEventHook("OnGameEvent_player_incapacitated", ::LinGe.Hint.OnGameEvent_player_incapacitated, ::LinGe.Hint);
 ::LinGe.Hint.ShowPlayerIncap <- function (player)
 {
+	if (Config.help.duration <= 0)
+		return;
 	if (!player.IsValid() || !player.IsIncapacitated())
 		return;
 	// 倒地状态提示
@@ -110,6 +115,8 @@ if (::LinGe.Hint.Config.help.duration > 0)
 	::LinEventHook("OnGameEvent_player_ledge_grab", ::LinGe.Hint.OnGameEvent_player_ledge_grab, ::LinGe.Hint);
 ::LinGe.Hint.ShowPlayerLedge <- function (player)
 {
+	if (Config.help.duration <= 0)
+		return;
 	// 挂边提示
 	local idx = ::pyinfo.survivorIdx.find(player.GetEntityIndex());
 	if (null == idx)
@@ -145,6 +152,8 @@ if (::LinGe.Hint.Config.help.duration > 0)
 	::LinEventHook("OnGameEvent_revive_success", ::LinGe.Hint.OnGameEvent_revive_success, ::LinGe.Hint);
 ::LinGe.Hint.ShowPlayerDying <- function (player)
 {
+	if (Config.help.duration <= 0)
+		return;
 	// 黑白状态提示
 	local idx = ::pyinfo.survivorIdx.find(player.GetEntityIndex());
 	if (null == idx)
@@ -177,6 +186,11 @@ if (::LinGe.Hint.Config.help.duration > 0)
 }
 ::LinGe.Hint.ShowPlayerBeDominating <- function (player)
 {
+	if (Config.help.duration <= 0)
+		return;
+	if (!player.IsValid() || ::LinGe.GetPlayerTeam(player) != 2
+	|| !player.GetSpecialInfectedDominatingMe())
+		return;
 	local idx = ::pyinfo.survivorIdx.find(player.GetEntityIndex());
 	if (null == idx)
 		return;
@@ -216,6 +230,55 @@ if (::LinGe.Hint.Config.help.duration > 0 && ::LinGe.Hint.Config.help.dominateDe
 	::LinEventHook("OnGameEvent_jockey_ride_end", ::LinGe.Hint.PlayerDominateEnd, ::LinGe.Hint);
 }
 
+// BOT与玩家的交换，将状态进行转移
+// BOT取代玩家
+::LinGe.Hint.OnGameEvent_player_bot_replace <- function (params)
+{
+	local bot = GetPlayerFromUserID(params.bot);
+	local player = GetPlayerFromUserID(params.player);
+	if (::LinGe.GetPlayerTeam(bot) == 2 && FindHintIndex(player)!=null)
+	{
+		::VSLib.Timers.AddTimerByName(::LinGe.GetEntityTargetname(bot),
+			0.1, false, CheckSurvivor, bot);
+	}
+}
+if (::LinGe.Hint.Config.help.duration > 0)
+	::LinEventHook("OnGameEvent_player_bot_replace", ::LinGe.Hint.OnGameEvent_player_bot_replace, ::LinGe.Hint);
+
+// 玩家取代BOT
+::LinGe.Hint.OnGameEvent_bot_player_replace <- function (params)
+{
+	local bot = GetPlayerFromUserID(params.bot);
+	local player = GetPlayerFromUserID(params.player);
+	if (::LinGe.GetPlayerTeam(player) == 2 && FindHintIndex(bot)!=null)
+	{
+		::VSLib.Timers.AddTimerByName(::LinGe.GetEntityTargetname(player),
+			0.1, false, CheckSurvivor, player);
+	}
+}
+if (::LinGe.Hint.Config.help.duration > 0)
+	::LinEventHook("OnGameEvent_bot_player_replace", ::LinGe.Hint.OnGameEvent_bot_player_replace, ::LinGe.Hint);
+
+// 检查并在生还者身上出现状态提示，若其状态一切正常则返回true
+::LinGe.Hint.CheckSurvivor <- function (player)
+{
+	if (!player.IsValid() || ::LinGe.GetPlayerTeam(player) != 2
+	|| !::LinGe.IsAlive(player))
+		return false;
+
+	if (player.IsIncapacitated())
+		ShowPlayerIncap(player);
+	else if (player.IsHangingFromLedge())
+		ShowPlayerLedge(player);
+	else if (player.GetSpecialInfectedDominatingMe())
+		ShowPlayerBeDominating(player);
+	else if (::LinGe.GetReviveCount(player) >= 2)
+		ShowPlayerDying(player);
+	else
+		return true;
+	return false;
+}.bindenv(::LinGe.Hint);
+
 // 按键监控
 ::LinGe.Hint.buttonState <- {};
 ::LinGe.Hint.OnGameEvent_round_start <- function (params)
@@ -251,52 +314,6 @@ if (::LinGe.Hint.Config.help.duration > 0 && ::LinGe.Hint.Config.help.dominateDe
 }
 ::LinEventHook("OnGameEvent_player_team", ::LinGe.Hint.OnGameEvent_player_team, ::LinGe.Hint);
 
-// BOT与玩家的交换，将状态进行转移
-// BOT取代玩家
-::LinGe.Hint.OnGameEvent_player_bot_replace <- function (params)
-{
-	local bot = GetPlayerFromUserID(params.bot);
-	local player = GetPlayerFromUserID(params.player);
-	if (::LinGe.GetPlayerTeam(bot) == 2 && FindHintIndex(player)!=null)
-	{
-		::VSLib.Timers.AddTimerByName(::LinGe.GetEntityTargetname(bot),
-			0.1, false, CheckSurvivor, bot);
-	}
-}
-::LinEventHook("OnGameEvent_player_bot_replace", ::LinGe.Hint.OnGameEvent_player_bot_replace, ::LinGe.Hint);
-
-// 玩家取代BOT
-::LinGe.Hint.OnGameEvent_bot_player_replace <- function (params)
-{
-	local bot = GetPlayerFromUserID(params.bot);
-	local player = GetPlayerFromUserID(params.player);
-	if (::LinGe.GetPlayerTeam(player) == 2 && FindHintIndex(bot)!=null)
-	{
-		::VSLib.Timers.AddTimerByName(::LinGe.GetEntityTargetname(player),
-			0.1, false, CheckSurvivor, player);
-	}
-}
-::LinEventHook("OnGameEvent_bot_player_replace", ::LinGe.Hint.OnGameEvent_bot_player_replace, ::LinGe.Hint);
-
-// 检查并在生还者身上出现状态提示，若其状态一切正常则返回true
-::LinGe.Hint.CheckSurvivor <- function (player)
-{
-	if (!::LinGe.IsAlive(player))
-		return false;
-
-	if (player.IsIncapacitated())
-		ShowPlayerIncap(player);
-	else if (player.IsHangingFromLedge())
-		ShowPlayerLedge(player);
-	else if (player.GetSpecialInfectedDominatingMe())
-		ShowPlayerBeDominating(player);
-	else if (::LinGe.GetReviveCount(player) >= 2)
-		ShowPlayerDying(player);
-	else
-		return true;
-	return false;
-}.bindenv(::LinGe.Hint);
-
 ::LinGe.Hint.ShowHint <- function ( text, level=0, target = "", showTo = null,
 	duration = 0.0, icon = "icon_tip", color = "255 255 255")
 {
@@ -317,7 +334,7 @@ if (::LinGe.Hint.Config.help.duration > 0 && ::LinGe.Hint.Config.help.dominateDe
 		hint_caption = text.tostring(),
 		hint_color = color,
 		hint_forcecaption = "1",
-		hint_suppress_rest = icon==NONEICON ? "1" : "0", // 是否关闭图标
+		hint_suppress_rest = icon==NONE_ICON ? "1" : "0", // 是否关闭图标
 		hint_icon_offscreen = icon,
 		hint_icon_offset = "0",
 		hint_icon_onscreen = icon,
@@ -452,10 +469,10 @@ if (::LinGe.Hint.Config.help.duration > 0 && ::LinGe.Hint.Config.help.dominateDe
 
 // 实现玩家使用按键发出信号
 // 以下用了很多 @samisalreadytaken 的 Contextual Ping System 标记系统 MOD 里的代码
-// https://steamcommunity.com/linkfilter/?url=http://github.com/samisalreadytaken
+// https://steamcommunity.com/sharedfiles/filedetails/?id=2638628508
 // https://github.com/samisalreadytaken/vscripts/blob/master/left4dead2/ping_system.nut
 // 所有可拾取/使用的物品名称 不一定只是武器
-local WeaponName = {
+local weaponName = {
 	oxygentank			= "氧气管",
 	propanetank			= "煤气罐",
 	fireworkcrate		= "烟花",
@@ -515,7 +532,7 @@ local WeaponName = {
 	sniper_military		= "连发狙击枪",
 };
 
-local WeaponModelPath = {
+local weaponModelPath = {
 	oxygentank			= "models/props_equipment/oxygentank01.mdl",
 	propanetank			= "models/props_junk/propanecanister001a.mdl",
 	cola_bottles		= "models/w_models/weapons/w_cola.mdl",
@@ -574,15 +591,18 @@ local WeaponModelPath = {
 	sniper_military		= "models/w_models/weapons/w_sniper_military.mdl",
 };
 
-local WeaponEntity = {};
-local WeaponSpawn = {};
-local WeaponModel = {};
-foreach ( k, v in WeaponName )
-	WeaponEntity[ "weapon_" + k ] <- v; // 会有不少不存在的实体名 不过无所谓
-foreach ( k, v in WeaponName )
-	WeaponSpawn[ "weapon_" + k + "_spawn" ] <- v;
-foreach ( k, v in WeaponModelPath )
-	WeaponModel[v] <- WeaponName[k];
+local weaponEntity = {};
+local weaponSpawn = {};
+local weaponModel = {};
+foreach ( k, v in weaponName )
+	weaponEntity[ "weapon_" + k ] <- v; // 会有不少不存在的实体名 不过无所谓
+foreach ( k, v in weaponName )
+	weaponSpawn[ "weapon_" + k + "_spawn" ] <- v;
+foreach ( k, v in weaponModelPath )
+	weaponModel[v] <- weaponName[k];
+
+local zombieType = ["Smoker", "Boomer", "Hunter", "Spitter",
+	"Jockey", "Charger", "Witch", "Tank"];
 
 const IN_ALT1 = 0x4000;
 const IN_ALT2 = 0x8000;
@@ -614,24 +634,29 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 // 玩家使用按键发出信号
 ::LinGe.Hint.PlayerPing <- function (player)
 {
-	// 如果玩家处于虚弱状态，则发出求救信号
-	if (player.IsIncapacitated())
+	if (Config.help.duration > 0)
 	{
-		ShowPlayerIncap(player);
-		ClientPrint(player, 3, "\x05已发出倒地求救信号");
+		// 如果玩家处于虚弱状态，则发出求救信号
+		if (player.IsIncapacitated())
+		{
+			ShowPlayerIncap(player);
+			ClientPrint(player, 3, "\x05已发出倒地求救信号");
+		}
+		else if (player.IsHangingFromLedge())
+		{
+			ShowPlayerLedge(player);
+			ClientPrint(player, 3, "\x05已发出挂边求救信号");
+		}
+		else if (player.GetSpecialInfectedDominatingMe())
+		{
+			ShowPlayerBeDominating(player);
+			ClientPrint(player, 3, "\x05已发出被控求救信号");
+		}
+		else
+			PingTrace(player);
 	}
-	else if (player.IsHangingFromLedge())
-	{
-		ShowPlayerLedge(player);
-		ClientPrint(player, 3, "\x05已发出挂边求救信号");
-	}
-	else if (player.GetSpecialInfectedDominatingMe())
-	{
-		ShowPlayerBeDominating(player);
-		ClientPrint(player, 3, "\x05已发出被控求救信号");
-	}
-	else
-		PingTrace(player);
+	// else
+	// 	PingTrace(player);
 }
 
 // 通过玩家视野进行光线追踪查找实体
@@ -656,32 +681,36 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 
 	switch ( szClassname )
 	{
-	// case "worldspawn":
-	// 	break;
 	case "player":
 		if (::LinGe.GetPlayerTeam(pEnt) == 3) // 如果是特感
 		{
-			if (pEnt.GetZombieType() == 8) // 只认Tank
-				ShowHint("Tank!", 1, pEnt, null, Config.pingDuration, "icon_alert_red");
+			local type = pEnt.GetZombieType();
+			if (type == 8)
+				ShowHint("Tank!", 1, pEnt, null, Config.ping.duration, "icon_alert_red");
+			else if (type > 0 && type < 8) // 除Tank外其余特感不显示图标，因为容易遮挡住特感
+				ShowHint(zombieType[type-1] + "!", 1, pEnt, null, Config.ping.duration, NONE_ICON);
 		}
-		else if (::LinGe.GetPlayerTeam(pEnt) == 2 && CheckSurvivor(pEnt))
+		else if (::LinGe.GetPlayerTeam(pEnt) == 2)
 		{
-			// 如果队友是健康的，则单独给发出标记的玩家提示血量
-			ShowHint("当前血量:" + ceil(pEnt.GetHealth() +pEnt.GetHealthBuffer()), -1, pEnt, [player], Config.pingDuration, NONEICON);
+			if (Config.help.duration <= 0 || CheckSurvivor(pEnt))
+			{
+				// 如果不允许玩家状态标记，或者队友是健康的，则单独给发出标记的玩家提示血量
+				ShowHint("当前血量:" + ceil(pEnt.GetHealth() + pEnt.GetHealthBuffer()), -1, pEnt, [player], Config.ping.duration, NONE_ICON);
+			}
 		}
 		break;
 	case "witch":
-		ShowHint("当心Witch!", 1, pEnt, null, Config.pingDuration, NONEICON); // 为了避免影响视线，对Witch的标记不显示图标
+		ShowHint("当心Witch!", 1, pEnt, null, Config.ping.duration, NONE_ICON); // 为了避免影响视线，对Witch的标记不显示图标
 		break;
 // case "infected": // 小僵尸
 // 		break;
 	case "prop_physics":
 		local model = pEnt.GetModelName();
-		if (WeaponModel.rawin(model))
-			ShowHint(WeaponModel[model], 0, pEnt, null, Config.pingDuration, "icon_interact");
+		if (weaponModel.rawin(model))
+			ShowHint(weaponModel[model], 0, pEnt, null, Config.ping.duration, "icon_interact");
 		break;
 	case "prop_dynamic": // 很多地方都会有这种实体，所以用了一个稍微有点意义不明的提示（
-		ShowHint("这里!", 0, pEnt, null, Config.pingDuration, "icon_tip");
+		ShowHint("这里!", 0, pEnt, null, Config.ping.duration, "icon_tip");
 		break;
 	case "prop_health_cabinet": // 医疗箱
 		if ( NetProps.GetPropInt( pEnt, "m_isUsed" ) == 1 )
@@ -701,48 +730,89 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 				return;
 			}
 		}
-		ShowHint("医疗箱", 0, pEnt, null, Config.pingDuration, "icon_interact");
+		ShowHint("医疗箱", 0, pEnt, null, Config.ping.duration, "icon_interact");
 		break;
 	case "prop_car_alarm":
 		if (!GetNetPropInt( pEnt, "m_bDisabled" ) )
-			ShowHint("注意警报!", 0, pEnt, null, Config.pingDuration, "icon_alert_red");
+			ShowHint("注意警报!", 0, pEnt, null, Config.ping.duration, "icon_alert_red");
 		break;
 	case "prop_door_rotating":
-		ShowHint("走这里吧", 0, pEnt, null, Config.pingDuration, "icon_door");
+		ShowHint("走这里吧", 0, pEnt, null, Config.ping.duration, "icon_door");
 		break;
 	case "prop_door_rotating_checkpoint":
-		ShowHint("安全屋", 0, pEnt, null, Config.pingDuration, "icon_door");
+		ShowHint("安全屋", 0, pEnt, null, Config.ping.duration, "icon_door");
 		break;
 	// case "prop_fuel_barrel":
 	// 	break;
 	case "upgrade_ammo_explosive":
-		ShowHint("高爆弹药", 0, pEnt, null, Config.pingDuration, "icon_interact");
+		ShowHint("高爆弹药", 0, pEnt, null, Config.ping.duration, "icon_interact");
 		break;
 	case "upgrade_ammo_incendiary":
-		ShowHint("燃烧弹药", 0, pEnt, null, Config.pingDuration, "icon_interact");
+		ShowHint("燃烧弹药", 0, pEnt, null, Config.ping.duration, "icon_interact");
 		break;
 	case "upgrade_laser_sight":
-		ShowHint("激光瞄准", 0, pEnt, null, Config.pingDuration, "icon_interact");
+		ShowHint("激光瞄准", 0, pEnt, null, Config.ping.duration, "icon_interact");
 		break;
+	// case "worldspawn":
+	// 	break;
 	// Partial matches and undefined entities
 	default:
 		// All weapons go through here
 		if (szClassname.find("weapon") == 0 )
 		{
 			local model = pEnt.GetModelName();
-			if (WeaponModel.rawin(model))
-				ShowHint(WeaponModel[model], 0, pEnt, null, Config.pingDuration, "icon_interact");
-			else if (WeaponEntity.rawin(szClassname))
-				ShowHint(WeaponEntity[szClassname], 0, pEnt, null, Config.pingDuration, "icon_interact");
-			else if (WeaponSpawn.rawin(szClassname))
-				ShowHint(WeaponSpawn[szClassname], 0, pEnt, null, Config.pingDuration, "icon_interact");
+			if (weaponModel.rawin(model))
+				ShowHint(weaponModel[model], 0, pEnt, null, Config.ping.duration, "icon_interact");
+			else if (weaponEntity.rawin(szClassname))
+				ShowHint(weaponEntity[szClassname], 0, pEnt, null, Config.ping.duration, "icon_interact");
+			else if (weaponSpawn.rawin(szClassname))
+				ShowHint(weaponSpawn[szClassname], 0, pEnt, null, Config.ping.duration, "icon_interact");
+		}
+		else
+		{
+			// 有些实体模型比较小，准星没对准很容易标记不到
+			local weapon = null;
+			while ( weapon = Entities.FindByClassnameWithin(weapon, "weapon_*", vecPingPos, 50.0) )
+			{
+				if ( weapon.IsValid() )
+				{
+					PingEntity(player, weapon, weapon.GetLocalOrigin());
+					return;
+				}
+			}
+			// 如果查找不到就标记普通路径点
+			// 创建普通路径标记
+			if (Config.ping.emptySpace)
+			{
+				local entInfo = SetInfoTarget(vecPingPos);
+				if (entInfo)
+				{
+					ShowHint("这里!", -1, entInfo, null, Config.ping.duration, "icon_tip");
+				}
+			}
 		}
 		break;
 	}
 }
 
+// 创建路径点标记实体
+local infoTargetEnt = null;
+::LinGe.Hint.SetInfoTarget <- function (origin)
+{
+	if (null == infoTargetEnt)
+		infoTargetEnt = SpawnEntityFromTable("info_target_instructor_hint", { targetname = "LinGe_Hint_infoTarget" });
+	if (null == infoTargetEnt)
+	{
+		printl("[LinGe] 无法创建 info_target_instructor_hint");
+		return null;
+	}
+
+	infoTargetEnt.SetLocalOrigin(origin);
+	return infoTargetEnt;
+}
+
 // 启用按键监控
-if (!::LinGe.Hint.rawin("_buttonScaner") && ::LinGe.Hint.Config.pingDuration > 0)
+if (!::LinGe.Hint.rawin("_buttonScaner") && ::LinGe.Hint.Config.ping.duration > 0)
 {
 	::LinGe.Hint._buttonScaner <- SpawnEntityFromTable("info_target", { targetname = "LinGe_Hint_buttonScan" });
 	if (::LinGe.Hint._buttonScaner != null)
