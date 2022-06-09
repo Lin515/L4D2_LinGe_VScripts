@@ -17,7 +17,7 @@ printl("[LinGe] 自杀指令 正在载入");
 {
 	if (args.len() == 1)
 	{
-		if (!player.IsSurvivor())
+		if (::LinGe.GetPlayerTeam(player) != 2)
 			return;
 
 		local vplayer = ::VSLib.Player(player);
