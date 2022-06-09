@@ -7,10 +7,10 @@ printl("[LinGe] HUD 正在载入");
 		time = true,
 		players = true,
 		hostname = true,
+		versusNoHUDRank = true, // 对抗模式是否永远不显示击杀排行
 		playersStyle = 0,
 	},
 	hurt = {
-		versusNoHUDRank = true, // 对抗模式是否不显示HUD击杀排行
 		HUDRank = 3, // HUD排行榜最多显示多少人，范围0~8 设置为0则关闭排行显示
 		rankTitle = "特感/丧尸击杀：",
 		rankStyle = "{ksi}/{kci}",
@@ -149,7 +149,7 @@ for (local i=1; i<9; i++)
 	else
 		HUD_table.Fields.hostname.flags = HUD_table.Fields.hostname.flags | HUD_FLAG_NOTVISIBLE;
 
-	if (::LinGe.isVersus && Config.hurt.versusNoHUDRank)
+	if (::LinGe.isVersus && Config.HUDShow.versusNoHUDRank)
 	{
 		for (i=0; i<9; i++)
 			HUD_table.Fields["rank"+i].flags = HUD_table.Fields["rank"+i].flags | HUD_FLAG_NOTVISIBLE;
@@ -568,7 +568,7 @@ local reHudCmd = regexp("^(all|time|players|hostname)$");
 			return;
 		}
 	}
-	else if (3 == args.len())
+	else if (3 == args.len() && args[1] == "rank")
 	{
 		Config.hurt.HUDRank = ::LinGe.TryStringToInt(args[2]);
 		ApplyConfigHUD();
@@ -626,7 +626,7 @@ local reHudCmd = regexp("^(all|time|players|hostname)$");
 {
 	if (Config.hurt.HUDRank < 1)
 		return;
-	if (::LinGe.isVersus && Config.hurt.versusNoHUDRank)
+	if (::LinGe.isVersus && Config.HUDShow.versusNoHUDRank)
 		return;
 
 	// 如果不想改变 ::pyinfo.survivorIdx 的顺序 这里应使用 clone 克隆数组
