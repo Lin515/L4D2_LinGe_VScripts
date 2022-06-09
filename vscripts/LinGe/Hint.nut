@@ -9,10 +9,11 @@ printl("[LinGe] 标记提示 正在载入");
 ::LinGe.Hint.Config <- {
 	limit = 4, // 队友状态与普通标记提示的总数量上限，若设置为<=0则彻底关闭提示系统
 	offscreenShow = true, // 提示在画面之外是否也要显示
-	friend = { // 队友需要帮助时出现提示 包括 倒地、挂边、黑白、被控
+	help = { // 队友需要帮助时出现提示 包括 倒地、挂边、黑白、被控
 		duration = 15, // 提示持续时间，若<=0则彻底关闭所有队友需要帮助的提示
 		dominateDelay = 0, // 被控延迟，玩家被控多少秒后才会出现提示，若设置为0则无延迟立即显示
 						// 若<0，则不会自动提示玩家被控，但是玩家可以用按键自己发出呼救
+		noShowSelf = true // 自己的倒地被控等状态不会显示给自己
 	},
 	pingDuration = 10, // 玩家用按键发出信号的持续时间，若<=0则禁止玩家发出信号
 	deadHint = true, // 死亡时不会出现标记提示，不过会在聊天窗输出提示 若设置为 false 则关闭该提示
@@ -73,19 +74,27 @@ getconsttable()["NONEICON"] <- "__NONE__";
 		VSLib.Timers.AddTimerByName(params.userid, 0.1, false, ShowPlayerIncap, player);
 	}
 }
-if (::LinGe.Hint.Config.friend.duration > 0)
+if (::LinGe.Hint.Config.help.duration > 0)
 	::LinEventHook("OnGameEvent_player_incapacitated", ::LinGe.Hint.OnGameEvent_player_incapacitated, ::LinGe.Hint);
 ::LinGe.Hint.ShowPlayerIncap <- function (player)
 {
-	if (player.IsValid() && player.IsIncapacitated())
+	if (!player.IsValid() || !player.IsIncapacitated())
+		return;
+	// 倒地状态提示
+	local idx = ::pyinfo.survivorIdx.find(player.GetEntityIndex());
+	if (null == idx)
+		return;
+	if (Config.help.noShowSelf)
 	{
-		// 倒地状态提示
 		local showTo = clone ::pyinfo.survivorIdx;
-		if (::LinGe.RemoveInArray(player.GetEntityIndex(), showTo) != null)
-		{
-			ShowHint(player.GetPlayerName() + "倒地了", 1, player,
-				showTo, Config.friend.duration, HELP_ICON);
-		}
+		showTo.remove(idx);
+		ShowHint(player.GetPlayerName() + "倒地了", 1, player,
+			showTo, Config.help.duration, HELP_ICON);
+	}
+	else
+	{
+		ShowHint(player.GetPlayerName() + "倒地了", 1, player,
+			null, Config.help.duration, HELP_ICON);
 	}
 }.bindenv(::LinGe.Hint);
 
@@ -97,15 +106,25 @@ if (::LinGe.Hint.Config.friend.duration > 0)
 	local player = GetPlayerFromUserID(params.userid);
 	ShowPlayerLedge(player);
 }
-if (::LinGe.Hint.Config.friend.duration > 0)
+if (::LinGe.Hint.Config.help.duration > 0)
 	::LinEventHook("OnGameEvent_player_ledge_grab", ::LinGe.Hint.OnGameEvent_player_ledge_grab, ::LinGe.Hint);
 ::LinGe.Hint.ShowPlayerLedge <- function (player)
 {
-	local showTo = clone ::pyinfo.survivorIdx;
-	if (::LinGe.RemoveInArray(player.GetEntityIndex(), showTo) != null)
+	// 挂边提示
+	local idx = ::pyinfo.survivorIdx.find(player.GetEntityIndex());
+	if (null == idx)
+		return;
+	if (Config.help.noShowSelf)
+	{
+		local showTo = clone ::pyinfo.survivorIdx;
+		showTo.remove(idx);
+		ShowHint("帮助" + player.GetPlayerName(), 2, player,
+			showTo, Config.help.duration, HELP_ICON);
+	}
+	else
 	{
 		ShowHint("帮助" + player.GetPlayerName(), 2, player,
-			showTo, Config.friend.duration, HELP_ICON);
+			null, Config.help.duration, HELP_ICON);
 	}
 }
 
@@ -122,16 +141,25 @@ if (::LinGe.Hint.Config.friend.duration > 0)
 	if (::LinGe.GetReviveCount(player) >= 2)
 		ShowPlayerDying(player);
 }
-if (::LinGe.Hint.Config.friend.duration > 0)
+if (::LinGe.Hint.Config.help.duration > 0)
 	::LinEventHook("OnGameEvent_revive_success", ::LinGe.Hint.OnGameEvent_revive_success, ::LinGe.Hint);
 ::LinGe.Hint.ShowPlayerDying <- function (player)
 {
 	// 黑白状态提示
-	local showTo = clone ::pyinfo.survivorIdx;
-	if (::LinGe.RemoveInArray(player.GetEntityIndex(), showTo) != null)
+	local idx = ::pyinfo.survivorIdx.find(player.GetEntityIndex());
+	if (null == idx)
+		return;
+	if (Config.help.noShowSelf)
+	{
+		local showTo = clone ::pyinfo.survivorIdx;
+		showTo.remove(idx);
+		ShowHint(player.GetPlayerName() + "濒死", 1, player,
+			showTo, Config.help.duration, HELP_ICON);
+	}
+	else
 	{
 		ShowHint(player.GetPlayerName() + "濒死", 1, player,
-			showTo, Config.friend.duration, HELP_ICON);
+			null, Config.help.duration, HELP_ICON);
 	}
 }
 
@@ -141,19 +169,28 @@ if (::LinGe.Hint.Config.friend.duration > 0)
 	if (!params.rawin("victim"))
 		return;
 	local player = GetPlayerFromUserID(params.victim);
-	if (Config.friend.dominateDelay > 0)
+	if (Config.help.dominateDelay > 0)
 		::VSLib.Timers.AddTimerByName(::LinGe.GetEntityTargetname(player),
-			Config.friend.dominateDelay, false, ShowPlayerBeDominating, player);
+			Config.help.dominateDelay, false, ShowPlayerBeDominating, player);
 	else
 		ShowPlayerBeDominating(player);
 }
 ::LinGe.Hint.ShowPlayerBeDominating <- function (player)
 {
-	local showTo = clone ::pyinfo.survivorIdx;
-	if (::LinGe.RemoveInArray(player.GetEntityIndex(), showTo) != null)
+	local idx = ::pyinfo.survivorIdx.find(player.GetEntityIndex());
+	if (null == idx)
+		return;
+	if (Config.help.noShowSelf)
+	{
+		local showTo = clone ::pyinfo.survivorIdx;
+		showTo.remove(idx);
+		ShowHint(player.GetPlayerName() + "被控了", 3, player,
+			showTo, Config.help.duration, HELP_ICON);
+	}
+	else
 	{
 		ShowHint(player.GetPlayerName() + "被控了", 3, player,
-			showTo, Config.friend.duration, HELP_ICON);
+			null, Config.help.duration, HELP_ICON);
 	}
 }.bindenv(::LinGe.Hint);
 
@@ -166,7 +203,7 @@ if (::LinGe.Hint.Config.friend.duration > 0)
 	EndHint(player);
 }
 
-if (::LinGe.Hint.Config.friend.duration > 0 && ::LinGe.Hint.Config.friend.dominateDelay >= 0)
+if (::LinGe.Hint.Config.help.duration > 0 && ::LinGe.Hint.Config.help.dominateDelay >= 0)
 {
 	::LinEventHook("OnGameEvent_lunge_pounce", ::LinGe.Hint.PlayerBeDominating, ::LinGe.Hint); // Hunter
 	::LinEventHook("OnGameEvent_tongue_grab", ::LinGe.Hint.PlayerBeDominating, ::LinGe.Hint); // Smoker
@@ -263,6 +300,8 @@ if (::LinGe.Hint.Config.friend.duration > 0 && ::LinGe.Hint.Config.friend.domina
 ::LinGe.Hint.ShowHint <- function ( text, level=0, target = "", showTo = null,
 	duration = 0.0, icon = "icon_tip", color = "255 255 255")
 {
+	if (typeof showTo == "array" && showTo.len() == 0)
+		return;
 	if (typeof target == "instance")
 		target = ::LinGe.GetEntityTargetname(target);
 	EndHint(target); // 不允许同一目标上存在两个提示
@@ -305,7 +344,7 @@ if (::LinGe.Hint.Config.friend.duration > 0 && ::LinGe.Hint.Config.friend.domina
 	}
 	ent.ValidateScriptScope();
 
-	if (null == showTo || showTo.len() == 0)
+	if (null == showTo)
 	{
 		DoEntFire("!self", "ShowHint", "", 0, null, ent);
 	}
@@ -566,7 +605,7 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 		if ( curPressed != val)
 		{
 			buttonState[key] = curPressed;
-			if (!curPressed) // 按下触发
+			if (!curPressed) // 松开触发
 				::LinGe.Hint.PlayerPing(player);
 		}
 	}
@@ -591,7 +630,8 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 		ShowPlayerBeDominating(player);
 		ClientPrint(player, 3, "\x05已发出被控求救信号");
 	}
-	PingTrace(player);
+	else
+		PingTrace(player);
 }
 
 // 通过玩家视野进行光线追踪查找实体
@@ -607,7 +647,7 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 
 	TraceLine(tr);
 	PingEntity(player, tr.enthit, tr.pos);
-}.bindenv(::LinGe.Hint);
+}
 
 // 标记到实体
 ::LinGe.Hint.PingEntity <- function (player, pEnt, vecPingPos = null)
@@ -626,7 +666,7 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 		}
 		else if (::LinGe.GetPlayerTeam(pEnt) == 2 && CheckSurvivor(pEnt))
 		{
-			// 如果队友是健康的，则单独给标记的玩家提示血量
+			// 如果队友是健康的，则单独给发出标记的玩家提示血量
 			ShowHint("当前血量:" + ceil(pEnt.GetHealth() +pEnt.GetHealthBuffer()), -1, pEnt, [player], Config.pingDuration, NONEICON);
 		}
 		break;
