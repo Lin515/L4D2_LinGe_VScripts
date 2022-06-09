@@ -10,7 +10,7 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 	siauto = 0, // 每1名生还者增加多少特感。在基础特感数量上增加，为0则不自动增加
 	sitime = 15, // 特感刷新间隔 若设定为 < 0 则单独关闭特感刷新时间控制
 	sionly = [], // 只允许生成哪些特感，若数组为空则不限制
-	noci = false // 是否清除小僵尸
+	sinoci = false // 是否清除小僵尸
 };
 ::LinGe.Config.Add("MoreSI", ::LinGe.MoreSI.Config);
 ::LinGe.Cache.MoreSI_Cache <- ::LinGe.MoreSI.Config;
@@ -24,7 +24,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	// 判断哪些控制处于开启
 	local ctrlNum = (Config.sibase >= 0);
 	local ctrlTime = (Config.sitime >= 0);
-	local ctrlNoci = Config.noci;
+	local ctrlNoci = Config.sinoci;
 	Checksionly();
 	local ctrlType = ( Config.sionly.len() > 0 );
 
@@ -162,7 +162,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 		text += "刷新控制为\x03 关闭";
 	ClientPrint(null, 3, text);
 
-	if (Config.sionly.len() > 0 || Config.noci)
+	if (Config.sionly.len() > 0 || Config.sinoci)
 	{
 		text = "\x04多特控制："
 		if (Config.sionly.len() > 0)
@@ -174,7 +174,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 		}
 		else
 			text += "限制特感生成 \x03关闭";
-		if (Config.noci)
+		if (Config.sinoci)
 			text += "\x04，无小僵尸 \x03开启";
 		else
 			text += "\x04，无小僵尸 \x03关闭";
@@ -282,9 +282,9 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	{
 		noci = args[4];
 		if ("on" == noci)
-			Config.noci = true;
+			Config.sinoci = true;
 		else if ("off" == noci)
-			Config.noci = false;
+			Config.sinoci = false;
 		else
 			noci = -2;
 	}
@@ -452,12 +452,12 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	if (args.len() == 2)
 	{
 		if (args[1] == "on")
-			Config.noci = true;
+			Config.sinoci = true;
 		else if (args[1] == "off")
-			Config.noci = false;
+			Config.sinoci = false;
 		ExecConfig();
 	}
-	if (Config.noci)
+	if (Config.sinoci)
 		ClientPrint(null, 3, "\x04多特控制：无小僵尸 \x03开启");
 	else
 		ClientPrint(null, 3, "\x04多特控制：无小僵尸 \x03关闭");
