@@ -111,12 +111,12 @@ if (::LinGe.Hint.Config.help.duration > 0)
 		local showTo = clone ::pyinfo.survivorIdx;
 		showTo.remove(idx);
 		ShowHint(player.GetPlayerName() + "倒地了", 1, player,
-			showTo, Config.help.duration, HELP_ICON);
+			showTo, Config.help.duration, "icon_reviving");
 	}
 	else
 	{
 		ShowHint(player.GetPlayerName() + "倒地了", 1, player,
-			null, Config.help.duration, HELP_ICON);
+			null, Config.help.duration, "icon_reviving");
 	}
 }.bindenv(::LinGe.Hint);
 
@@ -143,16 +143,16 @@ if (::LinGe.Hint.Config.help.duration > 0)
 		local showTo = clone ::pyinfo.survivorIdx;
 		showTo.remove(idx);
 		ShowHint("帮助" + player.GetPlayerName(), 2, player,
-			showTo, Config.help.duration, HELP_ICON);
+			showTo, Config.help.duration, "icon_reviving");
 	}
 	else
 	{
 		ShowHint("帮助" + player.GetPlayerName(), 2, player,
-			null, Config.help.duration, HELP_ICON);
+			null, Config.help.duration, "icon_reviving");
 	}
 }
 
-// 成功救助队友 （倒地拉起、挂边拉起、治疗都会触发该事件）
+// 成功救助队友 （倒地拉起、挂边拉起都会触发该事件）
 ::LinGe.Hint.OnGameEvent_revive_success <- function (params)
 {
 	if (!params.rawin("subject"))
@@ -167,6 +167,20 @@ if (::LinGe.Hint.Config.help.duration > 0)
 }
 if (::LinGe.Hint.Config.help.duration > 0)
 	::LinEventHook("OnGameEvent_revive_success", ::LinGe.Hint.OnGameEvent_revive_success, ::LinGe.Hint);
+
+// 成功完成治疗
+::LinGe.Hint.OnGameEvent_heal_success <- function (params)
+{
+	if (!params.rawin("subject"))
+		return;
+	local player = GetPlayerFromUserID(params.subject);
+	if (!player.IsSurvivor())
+		return;
+	EndHint(player);
+}
+if (::LinGe.Hint.Config.help.duration > 0)
+	::LinEventHook("OnGameEvent_heal_success", ::LinGe.Hint.OnGameEvent_heal_success, ::LinGe.Hint);
+
 ::LinGe.Hint.ShowPlayerDying <- function (player)
 {
 	if (Config.help.duration <= 0)
@@ -180,12 +194,12 @@ if (::LinGe.Hint.Config.help.duration > 0)
 		local showTo = clone ::pyinfo.survivorIdx;
 		showTo.remove(idx);
 		ShowHint(player.GetPlayerName() + "濒死", 1, player,
-			showTo, Config.help.duration, HELP_ICON);
+			showTo, Config.help.duration, "icon_medkit");
 	}
 	else
 	{
 		ShowHint(player.GetPlayerName() + "濒死", 1, player,
-			null, Config.help.duration, HELP_ICON);
+			null, Config.help.duration, "icon_medkit");
 	}
 }
 
@@ -224,12 +238,12 @@ if (::LinGe.Hint.Config.help.duration > 0 && ::LinGe.Hint.Config.help.dominateDe
 		local showTo = clone ::pyinfo.survivorIdx;
 		showTo.remove(idx);
 		ShowHint(player.GetPlayerName() + "被控了", 3, player,
-			showTo, Config.help.duration, HELP_ICON);
+			showTo, Config.help.duration, "icon_blank");
 	}
 	else
 	{
 		ShowHint(player.GetPlayerName() + "被控了", 3, player,
-			null, Config.help.duration, HELP_ICON);
+			null, Config.help.duration, "icon_blank");
 	}
 }.bindenv(::LinGe.Hint);
 
@@ -495,7 +509,7 @@ if (::LinGe.Hint.Config.help.duration > 0)
 // https://github.com/samisalreadytaken/vscripts/blob/master/left4dead2/ping_system.nut
 // 所有可拾取/使用的物品名称 不一定只是武器
 local weaponName = {
-	oxygentank			= "氧气管",
+	oxygentank			= "氧气罐",
 	propanetank			= "煤气罐",
 	fireworkcrate		= "烟花",
 	gnome				= "侏儒",
@@ -509,7 +523,7 @@ local weaponName = {
 
 	upgradepack_explosive	= "高爆弹药包",
 	upgradepack_incendiary	= "燃烧弹药包",
-	laser_sight = "激光瞄准镜",
+	laser_sight = "激光瞄准",
 
 	pipe_bomb			= "土制炸弹",
 	molotov				= "燃烧瓶",
@@ -552,6 +566,76 @@ local weaponName = {
 	sniper_awp			= "AWP狙击枪",
 	hunting_rifle		= "猎枪",
 	sniper_military		= "连发狙击枪",
+};
+
+local weaponIcon = { // 特定物品可以显示特定图标
+	oxygentank			= "icon_interact",
+	propanetank			= "icon_interact",
+	fireworkcrate		= "icon_interact",
+	gnome				= "icon_interact",
+	cola_bottles		= "icon_cola_bottles",
+	gascan				= "icon_gas_can",
+
+	first_aid_kit		= "icon_equip_medkit",
+	pain_pills			= "icon_equip_pills",
+	adrenaline			= "icon_equip_adrenaline",
+	defibrillator		= "icon_defibrillator",
+
+	// upgradepack_explosive	= "linge_upgradepack_explosive",
+	// upgradepack_incendiary	= "linge_upgradepack_incendiary",
+	upgradepack_explosive	= "icon_interact",
+	upgradepack_incendiary	= "icon_interact",
+	laser_sight			= "icon_laser_sight",
+
+	pipe_bomb			= "icon_equip_pipebomb",
+	molotov				= "icon_equip_molotov",
+	// vomitjar			= "linge_equip_vomitjar",
+	vomitjar			= "icon_interact",
+
+	ammo				= "icon_equip_ammopack",
+	melee				= "icon_interact",
+	baseball_bat		= "icon_baseball_bat",
+	fireaxe				= "icon_fireaxe",
+	crowbar				= "icon_crowbar",
+	cricket_bat			= "icon_cricket_bat",
+	electric_guitar		= "icon_guitar",
+	frying_pan			= "icon_frying_pan",
+	golfclub			= "icon_interact",
+	katana				= "icon_katana",
+	knife				= "icon_knife",
+	machete				= "icon_machete",
+	pitchfork			= "icon_interact",
+	shovel				= "icon_interact",
+	tonfa				= "icon_tonfa",
+	riotshield			= "icon_interact",
+	chainsaw			= "icon_chainsaw",
+
+	// 还有一个双枪的标志 icon_equip_dualpistols 不过懒得写这个判断了
+	pistol				= "icon_equip_pistol",
+	pistol_magnum		= "icon_pistol",
+	shotgun_chrome		= "icon_equip_chromeshotgun",
+	pumpshotgun			= "icon_equip_pumpshotgun",
+	autoshotgun			= "icon_equip_autoshotgun",
+	shotgun_spas		= "icon_equip_spasshotgun",
+	grenade_launcher	= "icon_equip_grenadelauncher",
+	smg					= "icon_equip_uzi",
+	// smg_mp5				= "linge_smg_mp5",
+	smg_mp5				= "icon_interact",
+	smg_silenced		= "icon_equip_silencedsmg",
+	rifle				= "icon_equip_machinegun",
+	// rifle_ak47			= "linge_rifle_ak47",
+	rifle_ak47			= "icon_interact",
+	// rifle_desert		= "icon_equip_desertrifle",
+	rifle_desert		= "icon_interact",
+	// rifle_sg552			= "linge_rifle_sg552",
+	rifle_sg552			= "icon_interact",
+	rifle_m60			= "icon_interact",
+	// sniper_scout		= "linge_sniper_scout",
+	// sniper_awp			= "linge_sniper_awp",
+	sniper_scout		= "icon_interact",
+	sniper_awp			= "icon_interact",
+	hunting_rifle		= "icon_equip_rifle",
+	sniper_military		= "icon_equip_militarysniper",
 };
 
 local weaponModelPath = {
@@ -617,11 +701,11 @@ local weaponEntity = {};
 local weaponSpawn = {};
 local weaponModel = {};
 foreach ( k, v in weaponName )
-	weaponEntity[ "weapon_" + k ] <- v; // 会有不少不存在的实体名 不过无所谓
+	weaponEntity[ "weapon_" + k ] <- k; // 会有不少不存在的实体名 不过无所谓
 foreach ( k, v in weaponName )
-	weaponSpawn[ "weapon_" + k + "_spawn" ] <- v;
+	weaponSpawn[ "weapon_" + k + "_spawn" ] <- k;
 foreach ( k, v in weaponModelPath )
-	weaponModel[v] <- weaponName[k];
+	weaponModel[v] <- k;
 
 local zombieType = ["Smoker", "Boomer", "Hunter", "Spitter",
 	"Jockey", "Charger", "Witch", "Tank"];
@@ -729,10 +813,10 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 	case "prop_physics":
 		local model = pEnt.GetModelName();
 		if (weaponModel.rawin(model))
-			ShowHint(weaponModel[model], 0, pEnt, null, Config.ping.duration, "icon_interact");
+			ShowHint(weaponName[weaponModel[model]], 0, pEnt, null, Config.ping.duration, weaponIcon[weaponModel[model]]);
 		break;
 	case "prop_dynamic": // 很多地方都会有这种实体，所以用了一个稍微有点意义不明的提示（
-		ShowHint("这里!", 0, pEnt, null, Config.ping.duration, "icon_tip");
+		ShowHint("这里!", 0, pEnt, null, Config.ping.duration, "icon_run");
 		break;
 	case "prop_health_cabinet": // 医疗箱
 		if ( NetProps.GetPropInt( pEnt, "m_isUsed" ) == 1 )
@@ -769,13 +853,13 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 	// case "prop_fuel_barrel":
 	// 	break;
 	case "upgrade_ammo_explosive":
-		ShowHint("高爆弹药", 0, pEnt, null, Config.ping.duration, "icon_interact");
+		ShowHint("高爆弹药", 0, pEnt, null, Config.ping.duration, "icon_explosive_ammo");
 		break;
 	case "upgrade_ammo_incendiary":
-		ShowHint("燃烧弹药", 0, pEnt, null, Config.ping.duration, "icon_interact");
+		ShowHint("燃烧弹药", 0, pEnt, null, Config.ping.duration, "icon_incendiary_ammo");
 		break;
 	case "upgrade_laser_sight":
-		ShowHint("激光瞄准", 0, pEnt, null, Config.ping.duration, "icon_interact");
+		ShowHint("激光瞄准", 0, pEnt, null, Config.ping.duration, "icon_laser_sight");
 		break;
 	// case "worldspawn":
 	// 	break;
@@ -786,17 +870,17 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 		{
 			local model = pEnt.GetModelName();
 			if (weaponModel.rawin(model))
-				ShowHint(weaponModel[model], 0, pEnt, null, Config.ping.duration, "icon_interact");
+				ShowHint(weaponName[weaponModel[model]], 0, pEnt, null, Config.ping.duration, weaponIcon[weaponModel[model]]);
 			else if (weaponEntity.rawin(szClassname))
-				ShowHint(weaponEntity[szClassname], 0, pEnt, null, Config.ping.duration, "icon_interact");
+				ShowHint(weaponName[weaponEntity[szClassname]], 0, pEnt, null, Config.ping.duration, weaponIcon[weaponEntity[szClassname]]);
 			else if (weaponSpawn.rawin(szClassname))
-				ShowHint(weaponSpawn[szClassname], 0, pEnt, null, Config.ping.duration, "icon_interact");
+				ShowHint(weaponName[weaponSpawn[szClassname]], 0, pEnt, null, Config.ping.duration, weaponIcon[weaponSpawn[szClassname]]);
 		}
 		else
 		{
 			// 有些实体模型比较小，准星没对准很容易标记不到
 			local weapon = null;
-			while ( weapon = Entities.FindByClassnameWithin(weapon, "weapon_*", vecPingPos, 10.0) )
+			while ( weapon = Entities.FindByClassnameWithin(weapon, "weapon_*", vecPingPos, 15.0) )
 			{
 				if ( weapon.IsValid() && weapon.GetMoveParent() == null) // 查找到的实体必须是有效且无主的
 				{
@@ -810,7 +894,7 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 				local entInfo = SetInfoTarget(vecPingPos);
 				if (entInfo)
 				{
-					ShowHint("这里!", -1, entInfo, null, Config.ping.duration, "icon_tip");
+					ShowHint("这里!", -1, entInfo, null, Config.ping.duration, "icon_run");
 				}
 			}
 		}
