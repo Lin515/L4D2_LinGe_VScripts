@@ -248,34 +248,34 @@ for (local i=1; i<9; i++)
 
 	if (0 == params.type) // 伤害类型为0
 		return;
-    local attacker = GetPlayerFromUserID(params.attacker); // 获得攻击者实体
-    if (null == attacker) // 攻击者无效
-    	return;
+	local attacker = GetPlayerFromUserID(params.attacker); // 获得攻击者实体
+	if (null == attacker) // 攻击者无效
+		return;
 	if (!attacker.IsSurvivor()) // 攻击者不是生还者
 		return;
 
 	// 获取被攻击者实体
-    local victim = GetPlayerFromUserID(params.userid);
+	local victim = GetPlayerFromUserID(params.userid);
 	local vctHp = victim.GetHealth();
 	local dmg = params.dmg_health;
-    // 如果被攻击者是生还者则统计友伤数据
+	// 如果被攻击者是生还者则统计友伤数据
 	if (victim.IsSurvivor())
 	{
 		if (victim.IsDying() || victim.IsDead())
 			return;
-	    else if (vctHp < 0) // 致死伤害事件发生时，victim.IsDead()还不会为真，但血量会<0
-	    {
+		else if (vctHp < 0) // 致死伤害事件发生时，victim.IsDead()还不会为真，但血量会<0
+		{
 			// 如果是本次伤害致其死亡，则 生命值 + 伤害值 > 0
 			if (vctHp + dmg <= 0)
 				return;
 		}
-	    else if (victim.IsIncapacitated())
-	    {
-	    	// 如果是本次伤害致其倒地，则其当前血量+伤害量=300
+		else if (victim.IsIncapacitated())
+		{
+			// 如果是本次伤害致其倒地，则其当前血量+伤害量=300
 			// 如果不是，则说明攻击时已经倒地，则不统计本次友伤
-	    	if (vctHp + dmg != 300)
+			if (vctHp + dmg != 300)
 				return;
-	    }
+		}
 
 		// 若不是对自己造成的伤害，则计入累计统计
 		if (attacker != victim)
@@ -393,18 +393,18 @@ for (local i=1; i<9; i++)
 // 虽然是player_death 但小丧尸和witch死亡也会触发该事件
 ::LinGe.HUD.OnGameEvent_player_death <- function (params)
 {
-    local dier = 0;	// 死者ID
-    local dierEntity = null;	// 死者实体
+	local dier = 0;	// 死者ID
+	local dierEntity = null;	// 死者实体
 	local attacker = 0; // 攻击者ID
 	local attackerEntity = null; // 攻击者实体
 
-    if (params.victimname == "Infected" || params.victimname == "Witch")
-    {
-    	// witch 和 小丧尸 不属于玩家可控制实体 无userid
-    	dier = params.entityid;
-    }
-    else
-    	dier = params.userid;
+	if (params.victimname == "Infected" || params.victimname == "Witch")
+	{
+		// witch 和 小丧尸 不属于玩家可控制实体 无userid
+		dier = params.entityid;
+	}
+	else
+		dier = params.userid;
 	if (dier == 0)
 		return;
 
