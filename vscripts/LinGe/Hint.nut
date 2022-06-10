@@ -88,7 +88,8 @@ getconsttable()["NONE_ICON"] <- "__NONE__";
 	local player = GetPlayerFromUserID(params.userid);
 	if (player.IsSurvivor())
 	{
-		EndHint(player);
+		if (Config.help.dominateDelay >= 0 && null != player.GetSpecialInfectedDominatingMe()) // 如果处于被控状态则先不提示倒地
+			return;
 		// 摔死时会有短暂的倒地 所以延迟0.1s再判断是否处于倒地
 		VSLib.Timers.AddTimerByName(params.userid, 0.1, false, ShowPlayerIncap, player);
 	}
@@ -99,8 +100,7 @@ if (::LinGe.Hint.Config.help.duration > 0)
 {
 	if (Config.help.duration <= 0)
 		return;
-	if (!player.IsValid() || !player.IsIncapacitated()
-	|| (Config.friend.dominateDelay >= 0 && player.GetSpecialInfectedDominatingMe())) // 如果处于被控状态则先不提示倒地
+	if (!player.IsValid() || !player.IsIncapacitated())
 		return;
 	// 倒地状态提示
 	local idx = ::pyinfo.survivorIdx.find(player.GetEntityIndex());
@@ -201,12 +201,20 @@ if (::LinGe.Hint.Config.help.duration > 0)
 	else
 		ShowPlayerBeDominating(player);
 }
+if (::LinGe.Hint.Config.help.duration > 0 && ::LinGe.Hint.Config.help.dominateDelay >= 0)
+{
+	::LinEventHook("OnGameEvent_lunge_pounce", ::LinGe.Hint.PlayerBeDominating, ::LinGe.Hint); // Hunter
+	::LinEventHook("OnGameEvent_tongue_grab", ::LinGe.Hint.PlayerBeDominating, ::LinGe.Hint); // Smoker
+	::LinEventHook("OnGameEvent_charger_pummel_start", ::LinGe.Hint.PlayerBeDominating, ::LinGe.Hint); // Charger
+	::LinEventHook("OnGameEvent_jockey_ride", ::LinGe.Hint.PlayerBeDominating, ::LinGe.Hint); // Jockey
+}
+
 ::LinGe.Hint.ShowPlayerBeDominating <- function (player)
 {
 	if (Config.help.duration <= 0)
 		return;
 	if (!player.IsValid() || ::LinGe.GetPlayerTeam(player) != 2
-	|| !player.GetSpecialInfectedDominatingMe())
+	|| player.GetSpecialInfectedDominatingMe()==null)
 		return;
 	local idx = ::pyinfo.survivorIdx.find(player.GetEntityIndex());
 	if (null == idx)
@@ -231,16 +239,13 @@ if (::LinGe.Hint.Config.help.duration > 0)
 	if (!params.rawin("victim") || params.victim == 0)
 		return;
 	local player = GetPlayerFromUserID(params.victim);
-	EndHint(player);
+	if (::LinGe.IsAlive(player) && player.IsIncapacitated())
+		ShowPlayerIncap(player);
+	else
+		EndHint(player);
 }
-
-if (::LinGe.Hint.Config.help.duration > 0 && ::LinGe.Hint.Config.help.dominateDelay >= 0)
+if (::LinGe.Hint.Config.help.duration > 0)
 {
-	::LinEventHook("OnGameEvent_lunge_pounce", ::LinGe.Hint.PlayerBeDominating, ::LinGe.Hint); // Hunter
-	::LinEventHook("OnGameEvent_tongue_grab", ::LinGe.Hint.PlayerBeDominating, ::LinGe.Hint); // Smoker
-	::LinEventHook("OnGameEvent_charger_pummel_start", ::LinGe.Hint.PlayerBeDominating, ::LinGe.Hint); // Charger
-	::LinEventHook("OnGameEvent_jockey_ride", ::LinGe.Hint.PlayerBeDominating, ::LinGe.Hint); // Jockey
-
 	::LinEventHook("OnGameEvent_pounce_stopped", ::LinGe.Hint.PlayerDominateEnd, ::LinGe.Hint);
 	::LinEventHook("OnGameEvent_tongue_release", ::LinGe.Hint.PlayerDominateEnd, ::LinGe.Hint);
 	::LinEventHook("OnGameEvent_charger_pummel_end", ::LinGe.Hint.PlayerDominateEnd, ::LinGe.Hint);
@@ -750,7 +755,7 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 		ShowHint("医疗箱", 0, pEnt, null, Config.ping.duration, "icon_interact");
 		break;
 	case "prop_car_alarm":
-		if (!GetNetPropInt( pEnt, "m_bDisabled" ) )
+		if (!NetProps.GetPropInt( pEnt, "m_bDisabled" ) )
 			ShowHint("注意警报!", 0, pEnt, null, Config.ping.duration, "icon_alert_red");
 		else
 			ShowHint("警报不会触发", -1, pEnt, [player], 2, "icon_tip");
@@ -840,7 +845,7 @@ if (!::LinGe.Hint.rawin("_buttonScaner") && ::LinGe.Hint.Config.ping.duration > 
 		scrScope.buttonState <- ::LinGe.Hint.buttonState;
 		scrScope["ButtonScanFunc"] <- ::LinGe.Hint.ButtonScanFunc;
 		AddThinkToEnt(::LinGe.Hint._buttonScaner, "ButtonScanFunc");
-		printl("[LinGe] 按键监视器已创建");
+		// printl("[LinGe] 按键监视器已创建");
 	}
 	else
 		throw "无法创建按键监视器";

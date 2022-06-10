@@ -4,8 +4,6 @@
 // L4D2 EMS/Appendix：HUD：https://developer.valvesoftware.com/wiki/L4D2_EMS/Appendix:_HUD
 // L4D2 Events：https://wiki.alliedmods.net/Left_4_Dead_2_Events
 // 以及VSLib与admin_system的脚本源码
-printl("[LinGe] 脚本功能集正在载入");
-
 printl("[LinGe] Base 正在载入");
 ::LinGe <- {};
 ::LinGe.Debug <- false;
