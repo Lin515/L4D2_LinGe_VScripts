@@ -17,7 +17,7 @@ printl("[LinGe] 标记提示 正在载入");
 	},
 	ping = {
 		duration = 10, // 玩家用按键发出信号的持续时间，若<=0则禁止玩家发出信号
-		empytSpace = true, // 可以标记到什么都没有的位置
+		emptySpace = true, // 可以标记到什么都没有的位置
 	},
 	deadHint = true, // 死亡时不会出现标记提示，不过会在聊天窗输出提示 若设置为 false 则关闭该提示
 					// 该提示对BOT不生效
@@ -26,18 +26,34 @@ printl("[LinGe] 标记提示 正在载入");
 ::LinGe.Config.Add("Hint", ::LinGe.Hint.Config);
 // ::LinGe.Cache.Hint_Config <- ::LinGe.Hint.Config;
 
-// 生还者玩家死亡时输出提示
+// 特感或玩家死亡后消除其身上的提示
 ::LinGe.Hint.OnGameEvent_player_death <- function (params)
 {
-	if (!params.rawin("userid"))
+    local dier = 0;	// 死者ID
+	local dierEntity = null;
+	if (params.victimname == "Witch")
+	{
+		dier = params.entityid;
+		dierEntity = Ent(dier);
+	}
+	else if (params.victimname == "Infected")
+		return;
+	else
+	{
+		dier = params.userid;
+		dierEntity = GetPlayerFromUserID(dier);
+	}
+	if (dier == 0)
 		return;
 
-    local dier = params.userid;	// 死者ID
-    local dierEntity = GetPlayerFromUserID(dier);
-	if (dierEntity && dierEntity.IsSurvivor())
+	if (dierEntity)
 	{
 		if (this.rawin("EndHint"))
 			EndHint(dierEntity);
+
+		// 生还者玩家死亡时输出提示
+		if (::LinGe.GetPlayerTeam(dierEntity) != 2)
+			return;
 		// 自杀时伤害类型为0
 		if (params.type == 0)
 			return;
@@ -83,7 +99,8 @@ if (::LinGe.Hint.Config.help.duration > 0)
 {
 	if (Config.help.duration <= 0)
 		return;
-	if (!player.IsValid() || !player.IsIncapacitated())
+	if (!player.IsValid() || !player.IsIncapacitated()
+	|| (Config.friend.dominateDelay >= 0 && player.GetSpecialInfectedDominatingMe())) // 如果处于被控状态则先不提示倒地
 		return;
 	// 倒地状态提示
 	local idx = ::pyinfo.survivorIdx.find(player.GetEntityIndex());
@@ -266,12 +283,12 @@ if (::LinGe.Hint.Config.help.duration > 0)
 	|| !::LinGe.IsAlive(player))
 		return false;
 
-	if (player.IsIncapacitated())
+	if (player.GetSpecialInfectedDominatingMe())
+		ShowPlayerBeDominating(player);
+	else if (player.IsIncapacitated())
 		ShowPlayerIncap(player);
 	else if (player.IsHangingFromLedge())
 		ShowPlayerLedge(player);
-	else if (player.GetSpecialInfectedDominatingMe())
-		ShowPlayerBeDominating(player);
 	else if (::LinGe.GetReviveCount(player) >= 2)
 		ShowPlayerDying(player);
 	else
@@ -636,8 +653,13 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 {
 	if (Config.help.duration > 0)
 	{
+		if (player.GetSpecialInfectedDominatingMe())
+		{
+			ShowPlayerBeDominating(player);
+			ClientPrint(player, 3, "\x05已发出被控求救信号");
+		}
 		// 如果玩家处于虚弱状态，则发出求救信号
-		if (player.IsIncapacitated())
+		else if (player.IsIncapacitated())
 		{
 			ShowPlayerIncap(player);
 			ClientPrint(player, 3, "\x05已发出倒地求救信号");
@@ -646,11 +668,6 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 		{
 			ShowPlayerLedge(player);
 			ClientPrint(player, 3, "\x05已发出挂边求救信号");
-		}
-		else if (player.GetSpecialInfectedDominatingMe())
-		{
-			ShowPlayerBeDominating(player);
-			ClientPrint(player, 3, "\x05已发出被控求救信号");
 		}
 		else
 			PingTrace(player);
@@ -695,7 +712,7 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 			if (Config.help.duration <= 0 || CheckSurvivor(pEnt))
 			{
 				// 如果不允许玩家状态标记，或者队友是健康的，则单独给发出标记的玩家提示血量
-				ShowHint("当前血量:" + ceil(pEnt.GetHealth() + pEnt.GetHealthBuffer()), -1, pEnt, [player], Config.ping.duration, NONE_ICON);
+				ShowHint("当前血量:" + ceil(pEnt.GetHealth() + pEnt.GetHealthBuffer()), -1, pEnt, [player], 2.0, NONE_ICON);
 			}
 		}
 		break;
@@ -735,6 +752,8 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 	case "prop_car_alarm":
 		if (!GetNetPropInt( pEnt, "m_bDisabled" ) )
 			ShowHint("注意警报!", 0, pEnt, null, Config.ping.duration, "icon_alert_red");
+		else
+			ShowHint("警报不会触发", -1, pEnt, [player], 2, "icon_tip");
 		break;
 	case "prop_door_rotating":
 		ShowHint("走这里吧", 0, pEnt, null, Config.ping.duration, "icon_door");
@@ -772,16 +791,15 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 		{
 			// 有些实体模型比较小，准星没对准很容易标记不到
 			local weapon = null;
-			while ( weapon = Entities.FindByClassnameWithin(weapon, "weapon_*", vecPingPos, 50.0) )
+			while ( weapon = Entities.FindByClassnameWithin(weapon, "weapon_*", vecPingPos, 10.0) )
 			{
-				if ( weapon.IsValid() )
+				if ( weapon.IsValid() && weapon.GetMoveParent() == null) // 查找到的实体必须是有效且无主的
 				{
 					PingEntity(player, weapon, weapon.GetLocalOrigin());
 					return;
 				}
 			}
 			// 如果查找不到就标记普通路径点
-			// 创建普通路径标记
 			if (Config.ping.emptySpace)
 			{
 				local entInfo = SetInfoTarget(vecPingPos);
