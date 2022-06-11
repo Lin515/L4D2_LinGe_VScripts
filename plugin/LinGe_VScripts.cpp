@@ -14,15 +14,6 @@
  *
  * You should have received a copy of the GNU General Public License along with
  * this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * As a special exception, AlliedModders LLC gives you permission to link the
- * code of this program (as well as its derivative works) to "Half-Life 2," the
- * "Source Engine," the "SourcePawn JIT," and any Game MODs that run on software
- * by the Valve Corporation.  You must obey the GNU General Public License in
- * all respects for all other code used.  Additionally, AlliedModders LLC grants
- * this exception to all derivative works.  AlliedModders LLC defines further
- * exceptions, found in LICENSE.txt (as of this writing, version JULY-31-2007),
- * or <http://www.sourcemod.net/license.php>.
  */
 #include <stdio.h>
 #include <time.h>
@@ -34,14 +25,14 @@ LinGe_VScripts plugin;
 EXPOSE_SINGLE_INTERFACE_GLOBALVAR(LinGe_VScripts, IServerPluginCallbacks, INTERFACEVERSION_ISERVERPLUGINCALLBACKS, plugin);
 
 // ConVar
-ConVar *cv_pSvMaxplayers = nullptr;
-ConVar cv_time("linge_time", "", FCVAR_PRINTABLEONLY, "Server system time.");
-ConVar cv_format("linge_time_format", "%Y-%m-%d %H:%M:%S", FCVAR_SERVER_CAN_EXECUTE, "linge_time format string, see also:https://www.runoob.com/cprogramming/c-function-strftime.html", false, 0.0, false, 0.0, LinGe_VScripts::OnTimeFormatChanged);
+ConVar cv_vscriptReturn("linge_vscript_return", "", FCVAR_HIDDEN|FCVAR_SPONLY, "Return VScript values.");
+ConVar cv_lookPing("linge_look_ping", "1", FCVAR_NOTIFY, "PlayerPing is executed when the 'vocalize smartlook' command is issued.", true, 0.0, true, 1.0, LinGe_VScripts::OnLookPingChanged);
+ConVar cv_time("linge_time", "", FCVAR_PRINTABLEONLY|FCVAR_SPONLY, "Server system time.");
+ConVar cv_format("linge_time_format", "%Y-%m-%d %H:%M:%S", FCVAR_NONE, "linge_time format string, see also:https://www.runoob.com/cprogramming/c-function-strftime.html", false, 0.0, false, 0.0, LinGe_VScripts::OnTimeFormatChanged);
 char g_sTimeFormat[50] = "%Y-%m-%d %H:%M:%S";
+bool g_bLookPing = true;
 
-LinGe_VScripts::LinGe_VScripts() :
-	m_iMaxClients(0),
-	m_bIsFristStart(true)
+LinGe_VScripts::LinGe_VScripts() : m_iClientCommandIndex(0), m_bPlayerPingLoaded(false)
 {
 }
 LinGe_VScripts::~LinGe_VScripts() {}
@@ -52,11 +43,13 @@ bool LinGe_VScripts::Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn 
 
 	ConVar_Register();
 
-	_Msg("Loaded.\n");
+	PL_Msg("Loaded.\n");
 	return true;
 }
 void LinGe_VScripts::Unload(void)
 {
+	SDKAPI::iGameEventManager->RemoveListener(this);
+
 	ConVar_Unregister();
 	SDKAPI::UnInitialize();
 }
@@ -81,47 +74,71 @@ void LinGe_VScripts::GameFrame(bool simulating)
 	}
 }
 
-void LinGe_VScripts::ServerActivate(edict_t *pEdictList, int edictCount, int clientMax)
+void LinGe_VScripts::LevelInit(char const *pMapName) {
+	SDKAPI::iGameEventManager->AddListener(this, "round_start", true);
+}
+void LinGe_VScripts::LevelShutdown(void) {
+	SDKAPI::iGameEventManager->RemoveListener(this);
+}
+
+void LinGe_VScripts::FireGameEvent(IGameEvent * event)
 {
-	m_iMaxClients = clientMax;
-	// sv_maxplayers 参数是 l4dtoolz 插件创建的，其通过 metamod 加载
-	// 本插件一定比 l4dtoolz 先载入，所以不能在插件载入时就去获取 sv_maxplayers
-	if (m_bIsFristStart)
+	const char *name = event->GetName();
+	if (Q_stricmp(name, "round_start") == 0)
 	{
-		cv_pSvMaxplayers = SDKAPI::iCvar->FindVar("sv_maxplayers");
-		if (cv_pSvMaxplayers)
+		// 验证根表下是否存在 LinPlayerPing
+		SDKAPI::L4D2_RunScript("Convars.SetValue(\"linge_vscript_return\", getroottable().rawin(\"LinPlayerPing\"));");
+		if (cv_vscriptReturn.GetBool())
 		{
-			// 保存原有 callback，然后安装自己的 callback
-			// 直接访问 m_fnChangeCallback 需要修改 hl2sdk-l4d2/public/tier1/convar.h
-			// 将 m_fnChangeCallback 声明为 public
-			SvMaxplayersCallback = cv_pSvMaxplayers->m_fnChangeCallback;
-			cv_pSvMaxplayers->InstallChangeCallback(LinGe_VScripts::OnSvMaxplayersChanged);
+			m_bPlayerPingLoaded = true;
+			PL_DevMsg("LinPlayerPing found.\n");
 		}
-		m_bIsFristStart = false;
+		else
+		{
+			m_bPlayerPingLoaded = false;
+			PL_DevMsg("LinPlayerPing not found.\n");
+		}
 	}
 }
 
-// sv_maxplayers 发生改变
-FnChangeCallback_t LinGe_VScripts::SvMaxplayersCallback = nullptr;
-void LinGe_VScripts::OnSvMaxplayersChanged(IConVar *var, const char *pOldValue, float flOldValue)
+void LinGe_VScripts::ServerActivate(edict_t *pEdictList, int edictCount, int clientMax) {}
+
+// 监测 vocalize smartlook
+PLUGIN_RESULT LinGe_VScripts::ClientCommand(edict_t *pEntity, const CCommand &args)
 {
-	SvMaxplayersCallback(var, pOldValue, flOldValue);
-	if (!SDKAPI::L4D2_RunScript("::LinGe.Base.UpdateMaxplayers()"))
-		_Warning("L4D2_RunScript ::LinGe.Base.UpdateMaxplayers() Failed\n");
+	if ( !pEntity || pEntity->IsFree() )
+		return PLUGIN_CONTINUE;
+	if (m_bPlayerPingLoaded && g_bLookPing)
+	{
+		if ( Q_stricmp(args[0], "vocalize") == 0
+		&& Q_stricmp(args[1], "smartlook") == 0
+		&& (args.ArgC() == 2 || Q_stricmp(args[2], "auto") != 0))
+		// 游戏自动让人物发出该指令时，第三个参数会为 auto
+		{
+			IPlayerInfo *player = SDKAPI::iPlayerInfoManager->GetPlayerInfo(pEntity);
+			if (player->IsPlayer() && player->GetTeamIndex() == 2
+			&& !player->IsFakeClient() && !player->IsDead())
+			{
+				PL_DevMsg("%s PlayerPing\n", player->GetName());
+				SDKAPI::L4D2_RunScript("::LinPlayerPing(%d);", player->GetUserID());
+			}
+		}
+	}
+
+	return PLUGIN_CONTINUE;
 }
 
 // 插件控制台变量发生改变
+void LinGe_VScripts::OnLookPingChanged(IConVar *var, const char *pOldValue, float flOldValue)
+{
+	g_bLookPing = cv_lookPing.GetBool();
+}
 void LinGe_VScripts::OnTimeFormatChanged(IConVar *var, const char *pOldValue, float flOldValue)
 {
 	strncpy(g_sTimeFormat, cv_format.GetString(), sizeof(g_sTimeFormat) - 1);
 	g_sTimeFormat[sizeof(g_sTimeFormat) - 1] = '\0';
 }
 
-PLUGIN_RESULT LinGe_VScripts::ClientCommand(edict_t *pEntity, const CCommand &args) {
-	return PLUGIN_CONTINUE;
-}
-void LinGe_VScripts::LevelInit(char const *pMapName) {}
-void LinGe_VScripts::LevelShutdown(void) {}
 void LinGe_VScripts::Pause(void) {}
 void LinGe_VScripts::UnPause(void) {}
 void LinGe_VScripts::ClientActive(edict_t *pEntity) {}
@@ -129,7 +146,9 @@ void LinGe_VScripts::ClientDisconnect(edict_t *pEntity) {}
 void LinGe_VScripts::OnQueryCvarValueFinished(QueryCvarCookie_t iCookie, edict_t *pPlayerEntity,
 	EQueryCvarValueStatus eStatus, const char *pCvarName, const char *pCvarValue) {}
 void LinGe_VScripts::ClientPutInServer(edict_t *pEntity, const char *playername) {}
-void LinGe_VScripts::SetCommandClient(int index) {}
+void LinGe_VScripts::SetCommandClient(int index) {
+	m_iClientCommandIndex = index;
+}
 void LinGe_VScripts::ClientSettingsChanged(edict_t *pEdict) {}
 PLUGIN_RESULT LinGe_VScripts::ClientConnect(bool *bAllowConnect, edict_t *pEntity, const char *pszName, const char *pszAddress, char *reject, int maxrejectlen) {
 	return PLUGIN_CONTINUE;

@@ -1,0 +1,10 @@
+"AddonInfo"
+{
+	addonSteamAppID	550
+	addontitle	"玩家状态提示与物品标记提示"
+	addonDescription "必须安装 LinGe VScripts Base 基础库。使用 bind t +alt1 绑定快捷键可以标记物品"
+	addonauthor	"LinGe"
+	addonURL0	"https://github.com/Lin515/L4D2_LinGe_VScripts"
+
+	addonContent_Script 1
+}

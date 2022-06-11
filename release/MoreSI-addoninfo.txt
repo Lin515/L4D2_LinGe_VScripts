@@ -1,0 +1,10 @@
+"AddonInfo"
+{
+	addonSteamAppID	550
+	addontitle	"多特控制：修改特感生成数量、种类与刷新时间"
+	addonDescription "必须安装 LinGe VScripts Base 基础库"
+	addonauthor	"LinGe"
+	addonURL0	"https://github.com/Lin515/L4D2_LinGe_VScripts"
+
+	addonContent_Script 1
+}

@@ -14,15 +14,6 @@
  *
  * You should have received a copy of the GNU General Public License along with
  * this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * As a special exception, AlliedModders LLC gives you permission to link the
- * code of this program (as well as its derivative works) to "Half-Life 2," the
- * "Source Engine," the "SourcePawn JIT," and any Game MODs that run on software
- * by the Valve Corporation.  You must obey the GNU General Public License in
- * all respects for all other code used.  Additionally, AlliedModders LLC grants
- * this exception to all derivative works.  AlliedModders LLC defines further
- * exceptions, found in LICENSE.txt (as of this writing, version JULY-31-2007),
- * or <http://www.sourcemod.net/license.php>.
  */
 #pragma once
 #include <eiface.h>
@@ -43,9 +34,11 @@
 #define SDKAPI_Error(format, ...)	Error("SDKAPI: " format, ## __VA_ARGS__)
 
 namespace SDKAPI {
+	// 伪 SDK 类前置声明
 	class FCGlobalEntityList;
+	class FCBaseEntity;
 
-	// Interface
+	// SDK API 接口
 	extern ICvar *iCvar;
 	extern IPlayerInfoManager *iPlayerInfoManager;
 	extern IServerGameEnts *iServerGameEnts;
@@ -54,24 +47,44 @@ namespace SDKAPI {
 	extern IServerGameDLL *iServerGameDLL;
 	extern IServerPluginHelpers *iServerPluginHelpers;
 	extern IGameEventManager2 *iGameEventManager;
-
-	extern MemoryUtils *mu_engine;
-	extern MemoryUtils *mu_server;
-
+	extern CGlobalVars *pGlobals;
 	extern FCGlobalEntityList *gEntList;
 
+	namespace ServerSigFunc {
+		typedef CBaseEntity *(__thiscall *FINDENTITYBYCLASSNAME)(void *, CBaseEntity *, const char *);
+		extern FINDENTITYBYCLASSNAME CBaseEntity_FindEntityByClassname;
+	}
+
+	// 全局函数
 	void Initialize(CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerFactory);
 	void UnInitialize();
 
 	// 通过向实体 logic_script 发送实体输入执行 vscripts 脚本代码
-	bool L4D2_RunScript(const char *sCode);
+	bool L4D2_RunScript(const char *_Format, ...);
 
-	// 签名函数
-	namespace ServerSigFunc {
-		typedef CBaseEntity *(__thiscall *FINDENTITYBYCLASSNAME)(void *, CBaseEntity *, const char *);
-		extern FINDENTITYBYCLASSNAME CBaseEntity_FindEntityByClassname;
+	inline int IndexOfEdict(const edict_t *pEdict)
+	{
+		return (int)(pEdict - pGlobals->pEdicts);
+	}
+	inline edict_t *PEntityOfEntIndex(int iEntIndex)
+	{
+		if (iEntIndex >= 0 && iEntIndex < pGlobals->maxEntities)
+		{
+			return (edict_t *)(pGlobals->pEdicts + iEntIndex);
+		}
+		return nullptr;
+	}
 
-		void Initialize();
+	// 通过UserID获取到实体
+	inline edict_t *GetEntityFromUserID(int userid)
+	{
+		for (int i=0; i<pGlobals->maxEntities; i++)
+		{
+			edict_t *pEntity = PEntityOfEntIndex(i);
+			if (iVEngineServer->GetPlayerUserId(pEntity) == userid)
+				return pEntity;
+		}
+		return nullptr;
 	}
 
 	// 伪SDK类，用于方便调用一些函数
@@ -83,7 +96,10 @@ namespace SDKAPI {
 			if (ServerSigFunc::CBaseEntity_FindEntityByClassname)
 				return ServerSigFunc::CBaseEntity_FindEntityByClassname(this, pStartEntity, szName);
 			else
-				throw "FindEntityByClassname function pointer is nullptr!";
+			{
+				SDKAPI_Error("FindEntityByClassname function pointer is nullptr!");
+				return nullptr;
+			}
 		}
 	};
 
@@ -93,7 +109,7 @@ namespace SDKAPI {
 		typedef bool(__thiscall *ACCEPTINPUT)(void *, const char *, CBaseEntity *, CBaseEntity *, variant_t, int);
 
 	public:
-		inline bool AcceptInput(const char *szInputName, CBaseEntity *pActivator, CBaseEntity *pCaller, variant_t Value, int outputID)
+		inline bool AcceptInput(const char *szInputName, CBaseEntity *pActivator, CBaseEntity *pCaller, variant_t Value, int outputID=0)
 		{
 			return GetVirtualFunction<ACCEPTINPUT>(this, VTI_AcceptInput)
 				(this, szInputName, pActivator, pCaller, Value, outputID);

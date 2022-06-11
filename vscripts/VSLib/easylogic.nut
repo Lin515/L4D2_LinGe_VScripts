@@ -645,7 +645,8 @@ if ( !("MutationState" in g_ModeScript) )
 		::VSLib.GlobalCache <- {};
 
 		// Attempt read from session
-		::VSLib.GlobalCache <- ::VSLib.Utils.DeserializeIdxTable(::VSLib.GlobalCacheSession);
+		if (::VSLib.rawin("GlobalCacheSession"))
+			::VSLib.GlobalCache <- ::VSLib.Utils.DeserializeIdxTable(::VSLib.GlobalCacheSession);
 
 		if (::VSLib.GlobalCache == null)
 			::VSLib.GlobalCache <- {};

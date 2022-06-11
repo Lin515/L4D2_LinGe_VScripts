@@ -7,10 +7,10 @@ printl("[LinGe] HUD 正在载入");
 		time = true,
 		players = true,
 		hostname = true,
+		versusNoHUDRank = true, // 对抗模式是否永远不显示击杀排行
 		playersStyle = 0,
 	},
 	hurt = {
-		versusNoHUDRank = true, // 对抗模式是否不显示HUD击杀排行
 		HUDRank = 3, // HUD排行榜最多显示多少人，范围0~8 设置为0则关闭排行显示
 		rankTitle = "特感/丧尸击杀：",
 		rankStyle = "{ksi}/{kci}",
@@ -149,7 +149,7 @@ for (local i=1; i<9; i++)
 	else
 		HUD_table.Fields.hostname.flags = HUD_table.Fields.hostname.flags | HUD_FLAG_NOTVISIBLE;
 
-	if (::LinGe.isVersus && Config.hurt.versusNoHUDRank)
+	if (::LinGe.isVersus && Config.HUDShow.versusNoHUDRank)
 	{
 		for (i=0; i<9; i++)
 			HUD_table.Fields["rank"+i].flags = HUD_table.Fields["rank"+i].flags | HUD_FLAG_NOTVISIBLE;
@@ -160,10 +160,6 @@ for (local i=1; i<9; i++)
 			Config.hurt.HUDRank = 8;
 		else if (Config.hurt.HUDRank <= 0)
 			Config.hurt.HUDRank = -1;
-		if (Config.hurt.HUDRank > 0)
-			::VSLib.Timers.AddTimerByName("UpdateRankHUD", 1.0, true, ::LinGe.HUD.UpdateRankHUD);
-		else
-			::VSLib.Timers.RemoveTimerByName("UpdateRankHUD");
 
 		for (i=0; i<=Config.hurt.HUDRank; i++) // 去掉所有排行榜数据HUD的隐藏属性
 			HUD_table.Fields["rank"+i].flags = HUD_table.Fields["rank"+i].flags & (~HUD_FLAG_NOTVISIBLE);
@@ -179,9 +175,14 @@ for (local i=1; i<9; i++)
 	UpdateRankHUD();
 }
 
-::LinGe.HUD.Timer_UpdateTime <- function (params)
+local isExistTime = false;
+::LinGe.HUD.Timer_HUD <- function (params)
 {
-	HUD_table.Fields.time.dataval = Convars.GetStr("linge_time");
+	if (isExistTime)
+		HUD_table.Fields.time.dataval = Convars.GetStr("linge_time");
+	if (Config.hurt.HUDRank > 0)
+		UpdateRankHUD();
+	::LinGe.Base.UpdateMaxplayers(); // 如果存在更新则会触发 maxplayers_changed
 }.bindenv(::LinGe.HUD);
 
 // 事件：回合开始
@@ -199,18 +200,18 @@ for (local i=1; i<9; i++)
 	// 如果linge_time变量不存在则显示回合时间
 	if (null == Convars.GetStr("linge_time"))
 	{
-//		if (!("special" in HUD_table.Fields.time))
-			HUD_table.Fields.time.special <- HUD_SPECIAL_ROUNDTIME;
+		isExistTime = false;
+		HUD_table.Fields.time.special <- HUD_SPECIAL_ROUNDTIME;
 	}
 	else
 	{
-//		if (!("dataval" in HUD_table.Fields.time))
-			HUD_table.Fields.time.dataval <- "";
-		::VSLib.Timers.AddTimerByName("Timer_UpdateTime", 1.0, true, Timer_UpdateTime);
+		isExistTime = true;
+		HUD_table.Fields.time.dataval <- "";
 	}
 
 	ApplyAutoHurtPrint();
 	ApplyConfigHUD();
+	::VSLib.Timers.AddTimerByName("Timer_HUD", 1.0, true, Timer_HUD);
 }
 ::LinEventHook("OnGameEvent_round_start", ::LinGe.HUD.OnGameEvent_round_start, ::LinGe.HUD);
 
@@ -248,34 +249,34 @@ for (local i=1; i<9; i++)
 
 	if (0 == params.type) // 伤害类型为0
 		return;
-    local attacker = GetPlayerFromUserID(params.attacker); // 获得攻击者实体
-    if (null == attacker) // 攻击者无效
-    	return;
+	local attacker = GetPlayerFromUserID(params.attacker); // 获得攻击者实体
+	if (null == attacker) // 攻击者无效
+		return;
 	if (!attacker.IsSurvivor()) // 攻击者不是生还者
 		return;
 
 	// 获取被攻击者实体
-    local victim = GetPlayerFromUserID(params.userid);
+	local victim = GetPlayerFromUserID(params.userid);
 	local vctHp = victim.GetHealth();
 	local dmg = params.dmg_health;
-    // 如果被攻击者是生还者则统计友伤数据
+	// 如果被攻击者是生还者则统计友伤数据
 	if (victim.IsSurvivor())
 	{
 		if (victim.IsDying() || victim.IsDead())
 			return;
-	    else if (vctHp < 0) // 致死伤害事件发生时，victim.IsDead()还不会为真，但血量会<0
-	    {
+		else if (vctHp < 0) // 致死伤害事件发生时，victim.IsDead()还不会为真，但血量会<0
+		{
 			// 如果是本次伤害致其死亡，则 生命值 + 伤害值 > 0
 			if (vctHp + dmg <= 0)
 				return;
 		}
-	    else if (victim.IsIncapacitated())
-	    {
-	    	// 如果是本次伤害致其倒地，则其当前血量+伤害量=300
+		else if (victim.IsIncapacitated())
+		{
+			// 如果是本次伤害致其倒地，则其当前血量+伤害量=300
 			// 如果不是，则说明攻击时已经倒地，则不统计本次友伤
-	    	if (vctHp + dmg != 300)
+			if (vctHp + dmg != 300)
 				return;
-	    }
+		}
 
 		// 若不是对自己造成的伤害，则计入累计统计
 		if (attacker != victim)
@@ -290,7 +291,8 @@ for (local i=1; i<9; i++)
 			local key = params.attacker + "_" + params.userid;
 			if (!tempTeamHurt.rawin(key))
 			{
-				tempTeamHurt[key] <- { dmg=0, attacker=attacker, victim=victim, isDead=false, isIncap=false };
+				tempTeamHurt[key] <- { dmg=0, attacker=attacker, atkName=attacker.GetPlayerName(),
+					victim=victim, vctName=victim.GetPlayerName(), isDead=false, isIncap=false };
 			}
 			tempTeamHurt[key].dmg += dmg;
 			// 友伤发生后，0.5秒内同一人若未再对同一人造成友伤，则输出其造成的伤害
@@ -326,8 +328,8 @@ for (local i=1; i<9; i++)
 ::LinGe.HUD.Timer_PrintTeamHurt <- function (key)
 {
 	local info = tempTeamHurt[key];
-	local atkName = info.attacker.GetPlayerName();
-	local vctName = info.victim.GetPlayerName();
+	local atkName = info.atkName;
+	local vctName = info.vctName;
 	local text = "";
 
 	if (Config.hurt.teamHurtInfo == 1)
@@ -362,7 +364,8 @@ for (local i=1; i<9; i++)
 				text += "，并且死亡";
 			else if (info.isIncap)
 				text += "，并且倒地";
-			ClientPrint(info.attacker, 3, text);
+			if (info.attacker.IsValid())
+				ClientPrint(info.attacker, 3, text);
 		}
 		else
 		{
@@ -372,14 +375,16 @@ for (local i=1; i<9; i++)
 				text += "，并且杀死了他";
 			else if (info.isIncap)
 				text += "，并且击倒了他";
-			ClientPrint(info.attacker, 3, text);
+			if (info.attacker.IsValid())
+				ClientPrint(info.attacker, 3, text);
 			text = "\x03" + atkName
 				+ "\x04 对你造成了 \x03" + info.dmg + "\x04 点伤害";
 			if (info.isDead)
 				text += "，并且杀死了你";
 			else if (info.isIncap)
 				text += "，并且打倒了你";
-			ClientPrint(info.victim, 3, text);
+			if (info.victim.IsValid())
+				ClientPrint(info.victim, 3, text);
 		}
 	}
 	tempTeamHurt.rawdelete(key);
@@ -389,18 +394,18 @@ for (local i=1; i<9; i++)
 // 虽然是player_death 但小丧尸和witch死亡也会触发该事件
 ::LinGe.HUD.OnGameEvent_player_death <- function (params)
 {
-    local dier = 0;	// 死者ID
-    local dierEntity = null;	// 死者实体
+	local dier = 0;	// 死者ID
+	local dierEntity = null;	// 死者实体
 	local attacker = 0; // 攻击者ID
 	local attackerEntity = null; // 攻击者实体
 
-    if (params.victimname == "Infected" || params.victimname == "Witch")
-    {
-    	// witch 和 小丧尸 不属于玩家可控制实体 无userid
-    	dier = params.entityid;
-    }
-    else
-    	dier = params.userid;
+	if (params.victimname == "Infected" || params.victimname == "Witch")
+	{
+		// witch 和 小丧尸 不属于玩家可控制实体 无userid
+		dier = params.entityid;
+	}
+	else
+		dier = params.userid;
 	if (dier == 0)
 		return;
 
@@ -458,12 +463,6 @@ for (local i=1; i<9; i++)
 	}
 }
 ::LinEventHook("OnGameEvent_player_incapacitated", ::LinGe.HUD.OnGameEvent_player_incapacitated, ::LinGe.HUD);
-
-::LinGe.HUD.maxplayers_changed <- function (params)
-{
-	UpdatePlayerHUD();
-}
-::LinEventHook("maxplayers_changed", ::LinGe.HUD.maxplayers_changed, ::LinGe.HUD);
 
 ::LinGe.HUD.OnGameEvent_hostname_changed <- function (params)
 {
@@ -564,7 +563,7 @@ local reHudCmd = regexp("^(all|time|players|hostname)$");
 			return;
 		}
 	}
-	else if (3 == args.len())
+	else if (3 == args.len() && args[1] == "rank")
 	{
 		Config.hurt.HUDRank = ::LinGe.TryStringToInt(args[2]);
 		ApplyConfigHUD();
@@ -587,7 +586,7 @@ local reHudCmd = regexp("^(all|time|players|hostname)$");
 ::LinCmdAdd("rank", ::LinGe.HUD.Cmd_rank, ::LinGe.HUD);
 
 // 更新玩家信息HUD
-::LinGe.HUD.UpdatePlayerHUD <- function ()
+::LinGe.HUD.UpdatePlayerHUD <- function (params=null)
 {
 	local playerText = "";
 	local style = Config.HUDShow.playersStyle;
@@ -617,12 +616,13 @@ local reHudCmd = regexp("^(all|time|players|hostname)$");
 
 	HUD_table.Fields.players.dataval = playerText;
 }
+::LinEventHook("maxplayers_changed", ::LinGe.HUD.UpdatePlayerHUD, ::LinGe.HUD);
 
 ::LinGe.HUD.UpdateRankHUD <- function (params=null)
 {
 	if (Config.hurt.HUDRank < 1)
 		return;
-	if (::LinGe.isVersus && Config.hurt.versusNoHUDRank)
+	if (::LinGe.isVersus && Config.HUDShow.versusNoHUDRank)
 		return;
 
 	// 如果不想改变 ::pyinfo.survivorIdx 的顺序 这里应使用 clone 克隆数组

@@ -4,8 +4,6 @@
 // L4D2 EMS/Appendix：HUD：https://developer.valvesoftware.com/wiki/L4D2_EMS/Appendix:_HUD
 // L4D2 Events：https://wiki.alliedmods.net/Left_4_Dead_2_Events
 // 以及VSLib与admin_system的脚本源码
-printl("[LinGe] 脚本功能集正在载入");
-
 printl("[LinGe] Base 正在载入");
 ::LinGe <- {};
 ::LinGe.Debug <- false;
@@ -278,7 +276,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 }
 
 // 如果source中某个key在dest中也存在，则将其赋值给dest中的key
-::LinGe.Merge <- function (dest, source)
+::LinGe.Merge <- function (dest, source, typeMatch=true)
 {
 	if ("table" == typeof dest && "table" == typeof source)
 	{
@@ -288,8 +286,15 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 			{
 				// 如果指定key也是table，则进行递归
 				if ("table" == typeof dest[key]
-				&& "table" == typeof val )
+				&& "table" == typeof val)
 					::LinGe.Merge(dest[key], val);
+				else if (typeof dest[key] != typeof val)
+				{
+					if (!typeMatch)
+						dest[key] = val;
+					else if (typeof dest[key] == "bool" && typeof val == "integer") // 争对某些情况下 bool 被转换成了 integer
+						dest[key] = (val!=0);
+				}
 				else
 					dest[key] = val;
 			}
@@ -468,10 +473,9 @@ class ::LinGe.ConfigManager
 		if (!table.rawin(tableName))
 			throw "未找到表";
 		local fromFile = ::VSLib.FileIO.LoadTable(filePath);
-		if (null != fromFile)
+		if (null != fromFile && fromFile.rawin(tableName))
 		{
-			if (fromFile.rawin(tableName))
-				::LinGe.Merge(table[tableName], fromFile[tableName]);
+			::LinGe.Merge(table[tableName], fromFile[tableName]);
 		}
 		Save(tableName); // 保持文件配置和已载入配置的一致性
 	}
@@ -501,7 +505,10 @@ class ::LinGe.ConfigManager
 	// 保存所有表
 	function SaveAll()
 	{
-		::VSLib.FileIO.SaveTable(filePath, table);
+		local fromFile = ::VSLib.FileIO.LoadTable(filePath);
+		foreach (k, v in table)
+			fromFile.rawset(k, v);
+		::VSLib.FileIO.SaveTable(filePath, fromFile);
 	}
 };
 
@@ -842,12 +849,29 @@ if (null == ::LinGe.Admin.adminslist)
 
 ::LinGe.Admin.Cmd_saveconfig <- function (player, args)
 {
-	::LinGe.Config.SaveAll();
-	ClientPrint(player, 3, "\x04已保存当前功能设定为默认设定\n");
-	ClientPrint(player, 3, "\x04配置文件: \x05 left4dead2/ems/" + FILE_CONFIG + ".tbl\n");
+	if (args.len() == 1)
+	{
+		::LinGe.Config.SaveAll();
+		ClientPrint(player, 3, "\x04已保存当前功能设定为默认设定\n");
+		ClientPrint(player, 3, "\x04配置文件: \x05 left4dead2/ems/" + FILE_CONFIG + ".tbl");
+	}
+	else if (args.len() == 2)
+	{
+		foreach (name, tbl in ::LinGe.Config.table)
+		{
+			if (name.tolower() == args[1])
+			{
+				::LinGe.Config.Save(name);
+				ClientPrint(player, 3, "\x04已保存当前功能设定为默认设定: \x05" + name);
+				ClientPrint(player, 3, "\x04配置文件: \x05 left4dead2/ems/" + FILE_CONFIG + ".tbl");
+				return;
+			}
+		}
+		ClientPrint(player, 3, "\x04未找到 \x05" + args[1]);
+	}
 }
 ::LinCmdAdd("saveconfig", ::LinGe.Admin.Cmd_saveconfig, ::LinGe.Admin);
-::LinCmdAdd("save", ::LinGe.Admin.Cmd_saveconfig, ::LinGe.Admin, "保存所有配置到配置文件");
+::LinCmdAdd("save", ::LinGe.Admin.Cmd_saveconfig, ::LinGe.Admin, "保存配置到配置文件");
 
 ::LinGe.Admin.Cmd_lshelp <- function (player, args)
 {

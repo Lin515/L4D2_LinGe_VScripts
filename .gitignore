@@ -2,5 +2,6 @@
 /release/*
 !/release/plugin.bat
 !/release/vpk.bat
-!/release/addoninfo.txt
+!/release/*-addoninfo.txt
+
 /plugin/*-build

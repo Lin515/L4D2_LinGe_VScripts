@@ -14,27 +14,20 @@
  *
  * You should have received a copy of the GNU General Public License along with
  * this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * As a special exception, AlliedModders LLC gives you permission to link the
- * code of this program (as well as its derivative works) to "Half-Life 2," the
- * "Source Engine," the "SourcePawn JIT," and any Game MODs that run on software
- * by the Valve Corporation.  You must obey the GNU General Public License in
- * all respects for all other code used.  Additionally, AlliedModders LLC grants
- * this exception to all derivative works.  AlliedModders LLC defines further
- * exceptions, found in LICENSE.txt (as of this writing, version JULY-31-2007),
- * or <http://www.sourcemod.net/license.php>.
  */
 #pragma once
 #include <engine/iserverplugin.h>
+#include <igameevents.h>
 #include <tier1.h>
 #define PLNAME	"LinGe_VScripts"
-#define PLVER	"v2.6"
+#define PLVER	"v2.7.0"
 
-#define _Msg(format, ...)		Msg(PLNAME ": " format, ## __VA_ARGS__)
-#define _Warning(format, ...)	Warning(PLNAME ": " format, ## __VA_ARGS__)
-#define _Error(format, ...)		Error(PLNAME ": " format, ## __VA_ARGS__)
+#define PL_Msg(format, ...)		Msg(PLNAME ": " format, ## __VA_ARGS__)
+#define PL_Warning(format, ...)	Warning(PLNAME ": " format, ## __VA_ARGS__)
+#define PL_Error(format, ...)	Error(PLNAME ": " format, ## __VA_ARGS__)
+#define PL_DevMsg(format, ...)	DevMsg(PLNAME ": " format, ## __VA_ARGS__)
 
-class LinGe_VScripts : public IServerPluginCallbacks
+class LinGe_VScripts : public IServerPluginCallbacks, public IGameEventListener2
 {
 public:
 	LinGe_VScripts();
@@ -45,7 +38,7 @@ public:
 	virtual void			Unload(void);
 	virtual void			Pause(void);
 	virtual void			UnPause(void);
-	virtual const char *GetPluginDescription(void);
+	virtual const char *	GetPluginDescription(void);
 	virtual void			LevelInit(char const *pMapName);
 	virtual void			ServerActivate(edict_t *pEdictList, int edictCount, int clientMax);
 	virtual void			GameFrame(bool simulating);
@@ -64,19 +57,16 @@ public:
 	virtual void			OnEdictAllocated(edict_t *edict);
 	virtual void			OnEdictFreed(const edict_t *edict);
 
+	// IGameEventListener Interface
+	virtual void FireGameEvent( IGameEvent * event );
+	virtual int GetEventDebugID() { return EVENT_DEBUG_ID_INIT; }
+	virtual int GetCommandIndex() { return m_iClientCommandIndex; }
+
+private:
+	int m_iClientCommandIndex;
+	bool m_bPlayerPingLoaded;
+
 public:
-	static void OnSvMaxplayersChanged(IConVar *var, const char *pOldValue, float flOldValue);
+	static void OnLookPingChanged(IConVar *var, const char *pOldValue, float flOldValue);
 	static void OnTimeFormatChanged(IConVar *var, const char *pOldValue, float flOldValue);
-
-public:
-	static FnChangeCallback_t SvMaxplayersCallback;
-
-	int m_iMaxClients;
-
-protected:
-	bool m_bIsFristStart;
 };
-
-extern ConVar *cv_pSvMaxplayers;
-extern ConVar cv_time;
-extern ConVar cv_format;
