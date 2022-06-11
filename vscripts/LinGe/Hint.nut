@@ -740,6 +740,12 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 // 玩家使用按键发出信号
 ::LinGe.Hint.PlayerPing <- function (player)
 {
+	if (Config.ping.duration <= 0)
+		return;
+	if (typeof player == "integer")
+		player = GetPlayerFromUserID(player);
+	if (typeof player != "instance")
+		throw "player 无效";
 	if (Config.help.duration > 0)
 	{
 		if (player.GetSpecialInfectedDominatingMe())
@@ -763,7 +769,11 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 	}
 	// else
 	// 	PingTrace(player);
-}
+}.bindenv(::LinGe.Hint);
+if (::LinGe.Hint.Config.ping.duration > 0)
+	::LinPlayerPing <- ::LinGe.Hint.PlayerPing.weakref(); // 这是留给插件调用的
+else
+	getroottable().rawdelete("LinPlayerPing");
 
 // 通过玩家视野进行光线追踪查找实体
 ::LinGe.Hint.PingTrace <- function (player)

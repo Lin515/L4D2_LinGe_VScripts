@@ -43,7 +43,7 @@ namespace SDKAPI {
 		{
 			CBaseEntity_FindEntityByClassname = mu_server->FindSignature<FINDENTITYBYCLASSNAME>(Sig_FindEntityByClassname);
 			if (!CBaseEntity_FindEntityByClassname)
-				SDKAPI_Warning("FindEntityByClassname signature not found!");
+				SDKAPI_Warning("FindEntityByClassname signature not found!\n");
 		}
 	}
 
@@ -94,14 +94,14 @@ namespace SDKAPI {
 		else
 			ServerSigFunc::Initialize();
 
-		// 初始化 pEntList 获取方法参考 sourcemod/core/HalfLife2.cpp
+		// 初始化 pEntList 方法参考 sourcemod/core/HalfLife2.cpp
 		// Win32下是通过LevelShutdown函数地址再加上偏移量获得pEntityList(指向gEntList的指针)的地址
 		// Linux下是直接通过符号查找获得gEntList的地址
 		if (mu_server->IsAvailable())
 		{
 			void *ptr = mu_server->FindSignature<void *>(Sig_gEntList);
 			if (!ptr)
-				SDKAPI_Warning("gEntList signature not found!");
+				SDKAPI_Warning("gEntList signature not found!\n");
 		#ifdef WIN32
 			ptr = *(reinterpret_cast<void **>((char *)ptr + Offset_gEntList_windows));
 		#endif
@@ -119,9 +119,17 @@ namespace SDKAPI {
 
 	// 通过向实体 logic_script 发送实体输入执行 vscripts 脚本代码
 	// 代码参考 Silver https://forums.alliedmods.net/showthread.php?p=2657025
-	bool L4D2_RunScript(const char *sCode)
+	bool L4D2_RunScript(const char *_Format, ...)
 	{
+		// 处理 _Format
+		static char buffer[8192];
+		va_list arg_list;
+		va_start(arg_list, _Format);
+		vsnprintf(buffer, sizeof(buffer), _Format, arg_list);
+		va_end(arg_list);
+
 		static variant_t var;
+		// pScriptLogic 必须每次执行时查找 因为每局游戏它应该都会变
 		CBaseEntity *pScriptLogic = gEntList->FindEntityByClassname(nullptr, "logic_script");
 		edict_t *edict = iServerGameEnts->BaseEntityToEdict(pScriptLogic);
 		if (!edict || edict->IsFree())
@@ -131,7 +139,7 @@ namespace SDKAPI {
 				return false;
 			iServerTools->DispatchSpawn(pScriptLogic);
 		}
-		castable_string_t str(sCode);
+		castable_string_t str(buffer);
 		var.SetString(str);
 		return reinterpret_cast<FCBaseEntity *>(pScriptLogic)->AcceptInput("RunScriptCode", nullptr, nullptr, var, 0);
 	}

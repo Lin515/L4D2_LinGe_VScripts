@@ -60,7 +60,7 @@ namespace SDKAPI {
 	void UnInitialize();
 
 	// 通过向实体 logic_script 发送实体输入执行 vscripts 脚本代码
-	bool L4D2_RunScript(const char *sCode);
+	bool L4D2_RunScript(const char *_Format, ...);
 
 	inline int IndexOfEdict(const edict_t *pEdict)
 	{
@@ -72,7 +72,19 @@ namespace SDKAPI {
 		{
 			return (edict_t *)(pGlobals->pEdicts + iEntIndex);
 		}
-		return NULL;
+		return nullptr;
+	}
+
+	// 通过UserID获取到实体
+	inline edict_t *GetEntityFromUserID(int userid)
+	{
+		for (int i=0; i<pGlobals->maxEntities; i++)
+		{
+			edict_t *pEntity = PEntityOfEntIndex(i);
+			if (iVEngineServer->GetPlayerUserId(pEntity) == userid)
+				return pEntity;
+		}
+		return nullptr;
 	}
 
 	// 伪SDK类，用于方便调用一些函数
@@ -97,7 +109,7 @@ namespace SDKAPI {
 		typedef bool(__thiscall *ACCEPTINPUT)(void *, const char *, CBaseEntity *, CBaseEntity *, variant_t, int);
 
 	public:
-		inline bool AcceptInput(const char *szInputName, CBaseEntity *pActivator, CBaseEntity *pCaller, variant_t Value, int outputID)
+		inline bool AcceptInput(const char *szInputName, CBaseEntity *pActivator, CBaseEntity *pCaller, variant_t Value, int outputID=0)
 		{
 			return GetVirtualFunction<ACCEPTINPUT>(this, VTI_AcceptInput)
 				(this, szInputName, pActivator, pCaller, Value, outputID);

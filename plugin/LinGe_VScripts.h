@@ -17,15 +17,17 @@
  */
 #pragma once
 #include <engine/iserverplugin.h>
+#include <igameevents.h>
 #include <tier1.h>
 #define PLNAME	"LinGe_VScripts"
-#define PLVER	"v2.6"
+#define PLVER	"v2.7.0"
 
 #define PL_Msg(format, ...)		Msg(PLNAME ": " format, ## __VA_ARGS__)
 #define PL_Warning(format, ...)	Warning(PLNAME ": " format, ## __VA_ARGS__)
 #define PL_Error(format, ...)	Error(PLNAME ": " format, ## __VA_ARGS__)
+#define PL_DevMsg(format, ...)	DevMsg(PLNAME ": " format, ## __VA_ARGS__)
 
-class LinGe_VScripts : public IServerPluginCallbacks
+class LinGe_VScripts : public IServerPluginCallbacks, public IGameEventListener2
 {
 public:
 	LinGe_VScripts();
@@ -55,6 +57,16 @@ public:
 	virtual void			OnEdictAllocated(edict_t *edict);
 	virtual void			OnEdictFreed(const edict_t *edict);
 
+	// IGameEventListener Interface
+	virtual void FireGameEvent( IGameEvent * event );
+	virtual int GetEventDebugID() { return EVENT_DEBUG_ID_INIT; }
+	virtual int GetCommandIndex() { return m_iClientCommandIndex; }
+
+private:
+	int m_iClientCommandIndex;
+	bool m_bPlayerPingLoaded;
+
 public:
+	static void OnLookPingChanged(IConVar *var, const char *pOldValue, float flOldValue);
 	static void OnTimeFormatChanged(IConVar *var, const char *pOldValue, float flOldValue);
 };
