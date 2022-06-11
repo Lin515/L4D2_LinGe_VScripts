@@ -2,7 +2,7 @@
 {
 	addonSteamAppID	550
 	addontitle	"击杀与伤害统计、友伤提示、时间显示"
-	addonDescription "必须安装 LinGe VScripts Base 基础库"
+	addonDescription "必须同时安装 LinGe VScripts Base 基础库才可使用"
 	addonauthor	"LinGe"
 	addonURL0	"https://github.com/Lin515/L4D2_LinGe_VScripts"
 

@@ -3,5 +3,6 @@
 !/release/plugin.bat
 !/release/vpk.bat
 !/release/*-addoninfo.txt
+!/release/*-addoninfo.jpg
 
 /plugin/*-build
