@@ -25,14 +25,11 @@ LinGe_VScripts plugin;
 EXPOSE_SINGLE_INTERFACE_GLOBALVAR(LinGe_VScripts, IServerPluginCallbacks, INTERFACEVERSION_ISERVERPLUGINCALLBACKS, plugin);
 
 // ConVar
-ConVar *cv_pSvMaxplayers = nullptr;
 ConVar cv_time("linge_time", "", FCVAR_PRINTABLEONLY, "Server system time.");
 ConVar cv_format("linge_time_format", "%Y-%m-%d %H:%M:%S", FCVAR_SERVER_CAN_EXECUTE, "linge_time format string, see also:https://www.runoob.com/cprogramming/c-function-strftime.html", false, 0.0, false, 0.0, LinGe_VScripts::OnTimeFormatChanged);
 char g_sTimeFormat[50] = "%Y-%m-%d %H:%M:%S";
 
-LinGe_VScripts::LinGe_VScripts() :
-	m_iMaxClients(0),
-	m_bIsFristStart(true)
+LinGe_VScripts::LinGe_VScripts()
 {
 }
 LinGe_VScripts::~LinGe_VScripts() {}
@@ -43,7 +40,7 @@ bool LinGe_VScripts::Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn 
 
 	ConVar_Register();
 
-	_Msg("Loaded.\n");
+	PL_Msg("Loaded.\n");
 	return true;
 }
 void LinGe_VScripts::Unload(void)
@@ -74,31 +71,6 @@ void LinGe_VScripts::GameFrame(bool simulating)
 
 void LinGe_VScripts::ServerActivate(edict_t *pEdictList, int edictCount, int clientMax)
 {
-	m_iMaxClients = clientMax;
-	// sv_maxplayers 参数是 l4dtoolz 插件创建的，其通过 metamod 加载
-	// 本插件一定比 l4dtoolz 先载入，所以不能在插件载入时就去获取 sv_maxplayers
-	if (m_bIsFristStart)
-	{
-		cv_pSvMaxplayers = SDKAPI::iCvar->FindVar("sv_maxplayers");
-		if (cv_pSvMaxplayers)
-		{
-			// 保存原有 callback，然后安装自己的 callback
-			// 直接访问 m_fnChangeCallback 需要修改 hl2sdk-l4d2/public/tier1/convar.h
-			// 将 m_fnChangeCallback 声明为 public
-			SvMaxplayersCallback = cv_pSvMaxplayers->m_fnChangeCallback;
-			cv_pSvMaxplayers->InstallChangeCallback(LinGe_VScripts::OnSvMaxplayersChanged);
-		}
-		m_bIsFristStart = false;
-	}
-}
-
-// sv_maxplayers 发生改变
-FnChangeCallback_t LinGe_VScripts::SvMaxplayersCallback = nullptr;
-void LinGe_VScripts::OnSvMaxplayersChanged(IConVar *var, const char *pOldValue, float flOldValue)
-{
-	SvMaxplayersCallback(var, pOldValue, flOldValue);
-	if (!SDKAPI::L4D2_RunScript("::LinGe.Base.UpdateMaxplayers()"))
-		_Warning("L4D2_RunScript ::LinGe.Base.UpdateMaxplayers() Failed\n");
 }
 
 // 插件控制台变量发生改变

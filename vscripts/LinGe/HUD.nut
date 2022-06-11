@@ -160,10 +160,6 @@ for (local i=1; i<9; i++)
 			Config.hurt.HUDRank = 8;
 		else if (Config.hurt.HUDRank <= 0)
 			Config.hurt.HUDRank = -1;
-		if (Config.hurt.HUDRank > 0)
-			::VSLib.Timers.AddTimerByName("UpdateRankHUD", 1.0, true, ::LinGe.HUD.UpdateRankHUD);
-		else
-			::VSLib.Timers.RemoveTimerByName("UpdateRankHUD");
 
 		for (i=0; i<=Config.hurt.HUDRank; i++) // 去掉所有排行榜数据HUD的隐藏属性
 			HUD_table.Fields["rank"+i].flags = HUD_table.Fields["rank"+i].flags & (~HUD_FLAG_NOTVISIBLE);
@@ -179,9 +175,14 @@ for (local i=1; i<9; i++)
 	UpdateRankHUD();
 }
 
-::LinGe.HUD.Timer_UpdateTime <- function (params)
+local isExistTime = false;
+::LinGe.HUD.Timer_HUD <- function (params)
 {
-	HUD_table.Fields.time.dataval = Convars.GetStr("linge_time");
+	if (isExistTime)
+		HUD_table.Fields.time.dataval = Convars.GetStr("linge_time");
+	if (Config.hurt.HUDRank > 0)
+		UpdateRankHUD();
+	::LinGe.Base.UpdateMaxplayers(); // 如果存在更新则会触发 maxplayers_changed
 }.bindenv(::LinGe.HUD);
 
 // 事件：回合开始
@@ -199,18 +200,18 @@ for (local i=1; i<9; i++)
 	// 如果linge_time变量不存在则显示回合时间
 	if (null == Convars.GetStr("linge_time"))
 	{
-//		if (!("special" in HUD_table.Fields.time))
-			HUD_table.Fields.time.special <- HUD_SPECIAL_ROUNDTIME;
+		isExistTime = false;
+		HUD_table.Fields.time.special <- HUD_SPECIAL_ROUNDTIME;
 	}
 	else
 	{
-//		if (!("dataval" in HUD_table.Fields.time))
-			HUD_table.Fields.time.dataval <- "";
-		::VSLib.Timers.AddTimerByName("Timer_UpdateTime", 1.0, true, Timer_UpdateTime);
+		isExistTime = true;
+		HUD_table.Fields.time.dataval <- "";
 	}
 
 	ApplyAutoHurtPrint();
 	ApplyConfigHUD();
+	::VSLib.Timers.AddTimerByName("Timer_HUD", 1.0, true, Timer_HUD);
 }
 ::LinEventHook("OnGameEvent_round_start", ::LinGe.HUD.OnGameEvent_round_start, ::LinGe.HUD);
 
@@ -463,12 +464,6 @@ for (local i=1; i<9; i++)
 }
 ::LinEventHook("OnGameEvent_player_incapacitated", ::LinGe.HUD.OnGameEvent_player_incapacitated, ::LinGe.HUD);
 
-::LinGe.HUD.maxplayers_changed <- function (params)
-{
-	UpdatePlayerHUD();
-}
-::LinEventHook("maxplayers_changed", ::LinGe.HUD.maxplayers_changed, ::LinGe.HUD);
-
 ::LinGe.HUD.OnGameEvent_hostname_changed <- function (params)
 {
 	HUD_table.Fields.hostname.dataval = params.hostname;
@@ -591,7 +586,7 @@ local reHudCmd = regexp("^(all|time|players|hostname)$");
 ::LinCmdAdd("rank", ::LinGe.HUD.Cmd_rank, ::LinGe.HUD);
 
 // 更新玩家信息HUD
-::LinGe.HUD.UpdatePlayerHUD <- function ()
+::LinGe.HUD.UpdatePlayerHUD <- function (params=null)
 {
 	local playerText = "";
 	local style = Config.HUDShow.playersStyle;
@@ -621,6 +616,7 @@ local reHudCmd = regexp("^(all|time|players|hostname)$");
 
 	HUD_table.Fields.players.dataval = playerText;
 }
+::LinEventHook("maxplayers_changed", ::LinGe.HUD.UpdatePlayerHUD, ::LinGe.HUD);
 
 ::LinGe.HUD.UpdateRankHUD <- function (params=null)
 {

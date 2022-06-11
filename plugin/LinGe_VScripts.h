@@ -21,9 +21,9 @@
 #define PLNAME	"LinGe_VScripts"
 #define PLVER	"v2.6"
 
-#define _Msg(format, ...)		Msg(PLNAME ": " format, ## __VA_ARGS__)
-#define _Warning(format, ...)	Warning(PLNAME ": " format, ## __VA_ARGS__)
-#define _Error(format, ...)		Error(PLNAME ": " format, ## __VA_ARGS__)
+#define PL_Msg(format, ...)		Msg(PLNAME ": " format, ## __VA_ARGS__)
+#define PL_Warning(format, ...)	Warning(PLNAME ": " format, ## __VA_ARGS__)
+#define PL_Error(format, ...)	Error(PLNAME ": " format, ## __VA_ARGS__)
 
 class LinGe_VScripts : public IServerPluginCallbacks
 {
@@ -36,7 +36,7 @@ public:
 	virtual void			Unload(void);
 	virtual void			Pause(void);
 	virtual void			UnPause(void);
-	virtual const char *GetPluginDescription(void);
+	virtual const char *	GetPluginDescription(void);
 	virtual void			LevelInit(char const *pMapName);
 	virtual void			ServerActivate(edict_t *pEdictList, int edictCount, int clientMax);
 	virtual void			GameFrame(bool simulating);
@@ -56,18 +56,5 @@ public:
 	virtual void			OnEdictFreed(const edict_t *edict);
 
 public:
-	static void OnSvMaxplayersChanged(IConVar *var, const char *pOldValue, float flOldValue);
 	static void OnTimeFormatChanged(IConVar *var, const char *pOldValue, float flOldValue);
-
-public:
-	static FnChangeCallback_t SvMaxplayersCallback;
-
-	int m_iMaxClients;
-
-protected:
-	bool m_bIsFristStart;
 };
-
-extern ConVar *cv_pSvMaxplayers;
-extern ConVar cv_time;
-extern ConVar cv_format;
