@@ -276,28 +276,48 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 }
 
 // 如果source中某个key在dest中也存在，则将其赋值给dest中的key
+// key无视大小写
 ::LinGe.Merge <- function (dest, source, typeMatch=true)
 {
 	if ("table" == typeof dest && "table" == typeof source)
 	{
 		foreach (key, val in source)
 		{
-			if (dest.rawin(key))
+			if (!dest.rawin(key))
 			{
-				// 如果指定key也是table，则进行递归
-				if ("table" == typeof dest[key]
-				&& "table" == typeof val)
-					::LinGe.Merge(dest[key], val);
-				else if (typeof dest[key] != typeof val)
+				// 为什么有些保存到 Cache 会产生大小写转换？？
+				// HUD.Config.hurt 保存到 Cache 恢复后，hurt 居然变成了 Hurt
+				foreach (_key, _val in dest)
 				{
-					if (!typeMatch)
-						dest[key] = val;
-					else if (typeof dest[key] == "bool" && typeof val == "integer") // 争对某些情况下 bool 被转换成了 integer
-						dest[key] = (val!=0);
+					if (_key.tolower() == key.tolower())
+					{
+						key = _key;
+						break;
+					}
 				}
-				else
-					dest[key] = val;
+				if (!dest.rawin(key))
+					break;
 			}
+			local type_dest = typeof dest[key];
+			local type_src = typeof val;
+			// 如果指定key也是table，则进行递归
+			if ("table" == type_dest && "table" == type_src)
+				::LinGe.Merge(dest[key], val);
+			else if (type_dest != type_src)
+			{
+				if (!typeMatch)
+					dest[key] = val;
+				else if (type_dest == "bool" && type_src == "integer") // 争对某些情况下 bool 被转换成了 integer
+					dest[key] = (val!=0);
+				else if (type_dest == "array" && type_src == "table") // 争对某些情况下 array 被转换成了 table 原数组的顺序可能会错乱
+				{
+					dest[key].clear();
+					foreach (_val in val)
+						dest[key].append(_val);
+				}
+			}
+			else
+				dest[key] = val;
 		}
 	}
 }
