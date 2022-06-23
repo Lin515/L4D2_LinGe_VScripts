@@ -6,7 +6,7 @@ printl("[LinGe] HUD 正在载入");
 		all = true,
 		time = true,
 		players = true,
-		hostname = true,
+		hostname = false,
 		versusNoHUDRank = true, // 对抗模式是否永远不显示击杀排行
 		playersStyle = 0,
 	},
