@@ -632,21 +632,21 @@ local reHudCmd = regexp("^(all|time|players|hostname)$");
 	// 将生还者实体索引数组按特感击杀数量由大到小进行排序
 	// 如果特感击杀数量相等，则按丧尸击杀数
 	hurtDataSort(survivorIdx, Pre.HUDKey);
-	local rank = 1, name = "";
-	for (local i=0; i<len && rank<=Config.hurt.HUDRank; i++)
+	local rank = 0, name = "";
+	for (local i=0; i<len && rank<Config.hurt.HUDRank; i++)
 	{
 		local player = PlayerInstanceFromIndex(survivorIdx[i]);
 		if (!IsPlayerABot(player) || ::LinGe.Debug) // HUD排行榜正常情况下不显示BOT数据
 		{
+			rank++;
 			name = player.GetPlayerName();
 			HUD_table.Fields["rank" + rank].dataval = format("[%d] %s <- %s",
 				rank, Pre.HUDFunc(survivorIdx[i]), name);
-			rank++;
 		}
 	}
 	// 清空可能存在的多余的显示
-	for (local i=rank+1; i<=Config.hurt.HUDRank; i++)
-		HUD_table.Fields["rank" + i].dataval = "";
+	while ((rank++) < Config.hurt.HUDRank)
+		HUD_table.Fields["rank" + rank].dataval = "";
 }.bindenv(::LinGe.HUD);
 
 // Tank 事件控制
