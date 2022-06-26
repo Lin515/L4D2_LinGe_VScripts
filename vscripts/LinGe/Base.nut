@@ -248,6 +248,114 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 	return NetProps.GetPropInt(player, "m_iTeamNum");
 }
 
+// 将 Vector 转换为 QAngle
+// hl2sdk-l4d2/mathlib/mathlib_base.cpp > line:506
+::LinGe.QAngleFromVector <- function (forward)
+{
+	local tmp, yaw, pitch;
+
+	if (forward.y == 0 && forward.x == 0)
+	{
+		yaw = 0;
+		if (forward.z > 0)
+			pitch = 270;
+		else
+			pitch = 90;
+	}
+	else
+	{
+		yaw = (atan2(forward.y, forward.x) * 180 / PI);
+		if (yaw < 0)
+			yaw += 360;
+
+		tmp = sqrt(forward.x*forward.x + forward.y*forward.y);
+		pitch = (atan2(-forward.z, tmp) * 180 / PI);
+		if (pitch < 0)
+			pitch += 360;
+	}
+	return QAngle(pitch, yaw, 0.0);
+}
+
+// 玩家是否看着实体的位置或指定位置
+// VSLib/player.nut > line:1381 function VSLib::Player::CanSeeLocation
+::LinGe.IsPlayerSeeHere <- function (player, location, tolerance = 50)
+{
+	local _location = null;
+	if (typeof location == "instance")
+		_location = location.GetOrigin();
+	else if (typeof location == "Vector")
+		_location = location;
+	else
+		throw "location 参数类型非法";
+
+	local clientPos = player.EyePosition();
+	local clientToTargetVec = _location - clientPos;
+	local clientAimVector = player.EyeAngles().Forward();
+
+	local angToFind = acos(
+			::VSLib.Utils.VectorDotProduct(clientAimVector, clientToTargetVec)
+			/ (clientAimVector.Length() * clientToTargetVec.Length())
+		) * 360 / 2 / 3.14159265;
+
+	if (angToFind < tolerance)
+		return true;
+	else
+		return false;
+}
+
+::LinGe.TraceToEntity <- function (origin, entity, mask=MASK_SHOT_HULL & (~CONTENTS_WINDOW))
+{
+	// 获取出发点
+	local _origin = null;
+	if (typeof origin == "instance")
+	{
+		if ("EyePosition" in origin)
+			_origin = origin.EyePosition(); // 如果对象是有眼睛的则获取眼睛位置
+		else
+			_origin = origin.GetOrigin();
+	}
+	else if (typeof origin == "Vector")
+		_origin = origin;
+	else
+		throw "origin 参数类型非法";
+
+	// 获取终点
+	local end = null;
+	if ("EyePosition" in entity)
+		end = entity.EyePosition();
+	else
+		end = entity.GetOrigin();
+
+	local tr = {
+		start = _origin,
+		end =  end,
+		ignore = (typeof origin == "instance" ? origin : null),
+		mask = mask,
+	};
+	TraceLine(tr);
+	return tr;
+}
+
+// player 是否注意着 entity
+::LinGe.IsPlayerNoticeEntity <- function (player, entity, tolerance = 50, mask=MASK_SHOT_HULL & (~CONTENTS_WINDOW), radius=0.0)
+{
+	if (!IsPlayerSeeHere(player, entity, tolerance))
+		return false;
+	local tr = TraceToEntity(player, entity, mask);
+	if (tr.rawin("enthit") && tr.enthit == entity)
+		return true;
+	if (radius <= 0.0)
+		return false;
+	// 如果不能看到指定实体，但指定了半径范围，则进行搜索
+	local _entity = null, className = entity.GetClassname();
+	while ( _entity = Entities.FindByClassnameWithin(_entity, className, tr.pos, radius) )
+	{
+		if (_entity == entity)
+			return true;
+	}
+	return false;
+}
+
 // 获取玩家实体数组
 // team 指定要获取的队伍
 // bot 是否获取bot
@@ -492,7 +600,13 @@ class ::LinGe.ConfigManager
 	{
 		if (!table.rawin(tableName))
 			throw "未找到表";
-		local fromFile = ::VSLib.FileIO.LoadTable(filePath);
+		local fromFile = null;
+		try {
+			fromFile = ::VSLib.FileIO.LoadTable(filePath);
+		} catch (e)	{
+			printl("[LinGe] 服务器配置文件损坏，将自动还原为默认设置");
+			fromFile = null;
+		}
 		if (null != fromFile && fromFile.rawin(tableName))
 		{
 			::LinGe.Merge(table[tableName], fromFile[tableName]);
@@ -504,7 +618,12 @@ class ::LinGe.ConfigManager
 	{
 		if (table.rawin(tableName))
 		{
-			local fromFile = ::VSLib.FileIO.LoadTable(filePath);
+			local fromFile = null;
+			try {
+				fromFile = ::VSLib.FileIO.LoadTable(filePath);
+			} catch (e) {
+				fromFile = null;
+			}
 			if (null == fromFile)
 				fromFile = {};
 			fromFile.rawset(tableName, table[tableName]);
@@ -912,11 +1031,13 @@ if (null == ::LinGe.Admin.adminslist)
 		{
 			::LinGe.Debug = true;
 			Convars.SetValue("display_game_events", 1);
+			Convars.SetValue("ent_messages_draw", 1);
 		}
 		else if (args[1] == "off")
 		{
 			::LinGe.Debug = false;
 			Convars.SetValue("display_game_events", 0);
+			Convars.SetValue("ent_messages_draw", 0);
 		}
 	}
 }

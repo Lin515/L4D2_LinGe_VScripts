@@ -13,7 +13,6 @@ printl("[LinGe] 标记提示 正在载入");
 		duration = 12, // 提示持续时间，若<=0则彻底关闭所有队友需要帮助的提示
 		dominateDelay = 0, // 被控延迟，玩家被控多少秒后才会出现提示，若设置为0则无延迟立即显示
 						// 若<0，则不会自动提示玩家被控，但是玩家可以用按键自己发出呼救
-		noShowSelf = true // 自己的倒地被控等状态不会显示给自己
 	},
 	ping = {
 		duration = 8, // 玩家用按键发出信号的持续时间，若<=0则禁止玩家发出信号
@@ -25,6 +24,30 @@ printl("[LinGe] 标记提示 正在载入");
 };
 ::LinGe.Config.Add("Hint", ::LinGe.Hint.Config);
 // ::LinGe.Cache.Hint_Config <- ::LinGe.Hint.Config;
+if (::LinGe.Hint.Config.limit > 8)
+{
+	::LinGe.Hint.Config.limit = 8;
+	printl("[LinGe] LinGe.Hint.Config.limit 超过上限值，自动置为 8");
+}
+
+// 这是调试代码
+// ::LinGe.Hint.Timer_CheckSee <- function (params)
+// {
+// 	local player = PlayerInstanceFromIndex(1);
+// 	if (player && player.IsValid())
+// 	{
+// 		foreach (val in ::pyinfo.survivorIdx)
+// 		{
+// 			local bot = PlayerInstanceFromIndex(val);
+// 			if (bot.GetEntityIndex() != 1)
+// 			{
+// 				ClientPrint(null, 3, bot.GetPlayerName() + " : "
+// 					+ (player.GetOrigin() - bot.GetOrigin()).Length());
+// 			}
+// 		}
+// 	}
+// }
+// ::VSLib.Timers.AddTimerByName("Timer_CheckSee", 0.1, true, ::LinGe.Hint.Timer_CheckSee);
 
 // 特感或玩家死亡后消除其身上的提示
 ::LinGe.Hint.OnGameEvent_player_death <- function (params)
@@ -71,13 +94,11 @@ printl("[LinGe] 标记提示 正在载入");
 // 数量限制不大于0时不加载标记提示功能
 if (::LinGe.Hint.Config.limit > 0) {
 
-// 当前提示列表 包含三个键
-// key=level 信息提示等级，等级越高越重要 若为-1级，则该提示不占用CurrentHint
-// key=ent value为env_instructor_hint实体
-// key=targetname` value为目标实体名
 local CurrentHint = [];
-getconsttable()["HELP_ICON"] <- "icon_shield";
-getconsttable()["NONE_ICON"] <- "__NONE__";
+getconsttable()["LINGE_NONE_ICON"] <- "";
+const HINTMODE_AUTO		= 0; // 当玩家已经注意到提示时会自动关闭
+const HINTMODE_NORMAL	= 1; // 会一直持续到设定的提示时间
+const HINTMODE_SCREEN	= 2; // 不管配置文件如何设定，提示都只显示在屏幕内
 
 // 事件：玩家倒地
 ::LinGe.Hint.OnGameEvent_player_incapacitated <- function (params)
@@ -96,7 +117,7 @@ getconsttable()["NONE_ICON"] <- "__NONE__";
 }
 if (::LinGe.Hint.Config.help.duration > 0)
 	::LinEventHook("OnGameEvent_player_incapacitated", ::LinGe.Hint.OnGameEvent_player_incapacitated, ::LinGe.Hint);
-::LinGe.Hint.ShowPlayerIncap <- function (player)
+::LinGe.Hint.ShowPlayerIncap <- function (player, activator=null)
 {
 	if (Config.help.duration <= 0)
 		return;
@@ -106,18 +127,10 @@ if (::LinGe.Hint.Config.help.duration > 0)
 	local idx = ::pyinfo.survivorIdx.find(player.GetEntityIndex());
 	if (null == idx)
 		return;
-	if (Config.help.noShowSelf)
-	{
-		local showTo = clone ::pyinfo.survivorIdx;
-		showTo.remove(idx);
-		ShowHint(player.GetPlayerName() + "倒地了", 1, player,
-			showTo, Config.help.duration, "icon_reviving");
-	}
-	else
-	{
-		ShowHint(player.GetPlayerName() + "倒地了", 1, player,
-			null, Config.help.duration, "icon_reviving");
-	}
+	local showTo = clone ::pyinfo.survivorIdx;
+	showTo.remove(idx);
+	ShowHint(player.GetPlayerName() + "倒地了", 1, player,
+		showTo, Config.help.duration, "icon_alert", activator);
 }.bindenv(::LinGe.Hint);
 
 // 玩家挂边
@@ -130,7 +143,7 @@ if (::LinGe.Hint.Config.help.duration > 0)
 }
 if (::LinGe.Hint.Config.help.duration > 0)
 	::LinEventHook("OnGameEvent_player_ledge_grab", ::LinGe.Hint.OnGameEvent_player_ledge_grab, ::LinGe.Hint);
-::LinGe.Hint.ShowPlayerLedge <- function (player)
+::LinGe.Hint.ShowPlayerLedge <- function (player, activator=null)
 {
 	if (Config.help.duration <= 0)
 		return;
@@ -138,18 +151,10 @@ if (::LinGe.Hint.Config.help.duration > 0)
 	local idx = ::pyinfo.survivorIdx.find(player.GetEntityIndex());
 	if (null == idx)
 		return;
-	if (Config.help.noShowSelf)
-	{
-		local showTo = clone ::pyinfo.survivorIdx;
-		showTo.remove(idx);
-		ShowHint("帮助" + player.GetPlayerName(), 2, player,
-			showTo, Config.help.duration, "icon_reviving");
-	}
-	else
-	{
-		ShowHint("帮助" + player.GetPlayerName(), 2, player,
-			null, Config.help.duration, "icon_reviving");
-	}
+	local showTo = clone ::pyinfo.survivorIdx;
+	showTo.remove(idx);
+	ShowHint("帮助" + player.GetPlayerName(), 2, player,
+		showTo, Config.help.duration, "icon_alert", activator);
 }
 
 // 成功救助队友 （倒地拉起、挂边拉起都会触发该事件）
@@ -181,7 +186,7 @@ if (::LinGe.Hint.Config.help.duration > 0)
 if (::LinGe.Hint.Config.help.duration > 0)
 	::LinEventHook("OnGameEvent_heal_success", ::LinGe.Hint.OnGameEvent_heal_success, ::LinGe.Hint);
 
-::LinGe.Hint.ShowPlayerDying <- function (player)
+::LinGe.Hint.ShowPlayerDying <- function (player, activator=null)
 {
 	if (Config.help.duration <= 0)
 		return;
@@ -189,28 +194,20 @@ if (::LinGe.Hint.Config.help.duration > 0)
 	local idx = ::pyinfo.survivorIdx.find(player.GetEntityIndex());
 	if (null == idx)
 		return;
-	if (Config.help.noShowSelf)
-	{
-		local showTo = clone ::pyinfo.survivorIdx;
-		showTo.remove(idx);
-		ShowHint(player.GetPlayerName() + "濒死", 1, player,
-			showTo, Config.help.duration, "icon_medkit");
-	}
-	else
-	{
-		ShowHint(player.GetPlayerName() + "濒死", 1, player,
-			null, Config.help.duration, "icon_medkit");
-	}
+	local showTo = clone ::pyinfo.survivorIdx;
+	showTo.remove(idx);
+	ShowHint(player.GetPlayerName() + "濒死", 1, player,
+		showTo, Config.help.duration, "icon_medkit", activator, HINTMODE_NORMAL);
 }
 
 // 玩家被控
 ::LinGe.Hint.PlayerBeDominating <- function (params)
 {
-	if (!params.rawin("victim"))
+	if (!params.rawin("victim") || !params.rawin("userid"))
 		return;
 	local player = GetPlayerFromUserID(params.victim);
 	if (Config.help.dominateDelay > 0)
-		::VSLib.Timers.AddTimerByName(::LinGe.GetEntityTargetname(player),
+		::VSLib.Timers.AddTimerByName("BeDominating_" + ::LinGe.GetEntityTargetname(player),
 			Config.help.dominateDelay, false, ShowPlayerBeDominating, player);
 	else
 		ShowPlayerBeDominating(player);
@@ -223,28 +220,39 @@ if (::LinGe.Hint.Config.help.duration > 0 && ::LinGe.Hint.Config.help.dominateDe
 	::LinEventHook("OnGameEvent_jockey_ride", ::LinGe.Hint.PlayerBeDominating, ::LinGe.Hint); // Jockey
 }
 
-::LinGe.Hint.ShowPlayerBeDominating <- function (player)
+::LinGe.Hint.ShowPlayerBeDominating <- function (player, activator=null)
 {
 	if (Config.help.duration <= 0)
 		return;
-	if (!player.IsValid() || ::LinGe.GetPlayerTeam(player) != 2
-	|| player.GetSpecialInfectedDominatingMe()==null)
+	if (!player.IsValid() || ::LinGe.GetPlayerTeam(player) != 2)
+		return;
+	local dominator = player.GetSpecialInfectedDominatingMe();
+	if (!dominator || !dominator.IsValid())
 		return;
 	local idx = ::pyinfo.survivorIdx.find(player.GetEntityIndex());
 	if (null == idx)
 		return;
-	if (Config.help.noShowSelf)
+	local showTo = clone ::pyinfo.survivorIdx;
+	showTo.remove(idx);
+	local text = "", name = player.GetPlayerName();
+	switch (dominator.GetZombieType())
 	{
-		local showTo = clone ::pyinfo.survivorIdx;
-		showTo.remove(idx);
-		ShowHint(player.GetPlayerName() + "被控了", 3, player,
-			showTo, Config.help.duration, "icon_blank");
+	case 1: // Smoker
+		text = name + "被捆绑Play";
+		break;
+	case 3: // Hunter
+		text = name + "被扑倒了";
+		break;
+	case 5: // Jockey
+		text = name + "要被玩坏了";
+		break;
+	case 6: // Charger
+		text = name + "被牛牛顶了";
+		break;
+	default:
+		throw "不可预见的错误";
 	}
-	else
-	{
-		ShowHint(player.GetPlayerName() + "被控了", 3, player,
-			null, Config.help.duration, "icon_blank");
-	}
+	ShowHint(text, 3, player, showTo, Config.help.duration, "icon_blank", activator);
 }.bindenv(::LinGe.Hint);
 
 // 被控解除
@@ -272,7 +280,7 @@ if (::LinGe.Hint.Config.help.duration > 0)
 {
 	local bot = GetPlayerFromUserID(params.bot);
 	local player = GetPlayerFromUserID(params.player);
-	if (::LinGe.GetPlayerTeam(bot) == 2 && FindHintIndex(player)!=null)
+	if (::LinGe.GetPlayerTeam(bot) == 2 && HintIndex(player)!=null)
 	{
 		::VSLib.Timers.AddTimerByName(::LinGe.GetEntityTargetname(bot),
 			0.1, false, CheckSurvivor, bot);
@@ -286,7 +294,7 @@ if (::LinGe.Hint.Config.help.duration > 0)
 {
 	local bot = GetPlayerFromUserID(params.bot);
 	local player = GetPlayerFromUserID(params.player);
-	if (::LinGe.GetPlayerTeam(player) == 2 && FindHintIndex(bot)!=null)
+	if (::LinGe.GetPlayerTeam(player) == 2 && HintIndex(bot)!=null)
 	{
 		::VSLib.Timers.AddTimerByName(::LinGe.GetEntityTargetname(player),
 			0.1, false, CheckSurvivor, player);
@@ -296,20 +304,20 @@ if (::LinGe.Hint.Config.help.duration > 0)
 	::LinEventHook("OnGameEvent_bot_player_replace", ::LinGe.Hint.OnGameEvent_bot_player_replace, ::LinGe.Hint);
 
 // 检查并在生还者身上出现状态提示，若其状态一切正常则返回true
-::LinGe.Hint.CheckSurvivor <- function (player)
+::LinGe.Hint.CheckSurvivor <- function (player, activator=null)
 {
 	if (!player.IsValid() || ::LinGe.GetPlayerTeam(player) != 2
 	|| !::LinGe.IsAlive(player))
 		return false;
 
 	if (player.GetSpecialInfectedDominatingMe())
-		ShowPlayerBeDominating(player);
+		ShowPlayerBeDominating(player, activator);
 	else if (player.IsIncapacitated())
-		ShowPlayerIncap(player);
+		ShowPlayerIncap(player, activator);
 	else if (player.IsHangingFromLedge())
-		ShowPlayerLedge(player);
+		ShowPlayerLedge(player, activator);
 	else if (::LinGe.GetReviveCount(player) >= 2)
-		ShowPlayerDying(player);
+		ShowPlayerDying(player, activator);
 	else
 		return true;
 	return false;
@@ -350,72 +358,125 @@ if (::LinGe.Hint.Config.help.duration > 0)
 }
 ::LinEventHook("OnGameEvent_player_team", ::LinGe.Hint.OnGameEvent_player_team, ::LinGe.Hint);
 
-::LinGe.Hint.ShowHint <- function ( text, level=0, target = "", showTo = null,
-	duration = 0.0, icon = "icon_tip", color = "255 255 255")
+local hintTemplateTbl = {
+	classname = "env_instructor_hint",
+	hint_allow_nodraw_target = "1",
+	hint_auto_start = "0",
+	hint_binding = "",
+	hint_caption = "",
+	hint_color = "255 255 255",
+	hint_forcecaption = "1",
+	hint_suppress_rest = "0",
+	hint_nooffscreen = "0",
+	hint_icon_offscreen = "",
+	hint_icon_offset = "0",
+	hint_icon_onscreen = "",
+	hint_instance_type = "0",
+	hint_alphaoption = 0, // alphapulse 图标会变透明和可见的速度 0~3
+	hint_pulseoption = 0, // 图标效果，图标收缩的速度 0~3
+	hint_shakeoption = 0,	// shaking 图标会抖动 0~2
+	hint_range = "0",
+	hint_static = "0", // 跟随实体目标
+	hint_target = "",
+	hint_timeout = 0.0, // 持续时间，若为0则需要通过EndHint来关闭
+						// 不设置其为 duration 提示的关闭统一由本脚本用EndHint来控制
+	origin = Vector(0, 0, 0),
+	angles = QAngle(0, 0, 0),
+	targetname = ""
+};
+::LinGe.Hint.ShowHint <- function ( text, level=0, target = "", showTo = null, duration = 0.0,
+	icon = "icon_tip", activator = null, hintMode=HINTMODE_AUTO, color = "255 255 255")
 {
-	if (typeof showTo == "array" && showTo.len() == 0)
-		return;
+	if (typeof showTo == "array")
+	{
+		if (showTo.len() == 0)
+			return;
+	}
+	else if (null != showTo)
+		throw "showTo 非法";
+	local targetEnt = null;
 	if (typeof target == "instance")
+	{
+		targetEnt = target;
 		target = ::LinGe.GetEntityTargetname(target);
+	}
+	else if (typeof target == "string")
+	{
+		targetEnt = Entities.FindByName(null, target);
+	}
+	else
+		throw "target 参数类型非法";
+
+	if (!targetEnt || !targetEnt.IsValid())
+		throw "targetEnt 无效";
+
 	EndHint(target); // 不允许同一目标上存在两个提示
 	if (!AtLeastOne(level))
 		return false;
 
-	local hinttbl =
-	{
-		classname = "env_instructor_hint",
-		hint_allow_nodraw_target = "1",
-		hint_auto_start = "0",
-		hint_binding = "",
-		hint_caption = text.tostring(),
-		hint_color = color,
-		hint_forcecaption = "1",
-		hint_suppress_rest = icon==NONE_ICON ? "1" : "0", // 是否关闭图标
-		hint_icon_offscreen = icon,
-		hint_icon_offset = "0",
-		hint_icon_onscreen = icon,
-		hint_instance_type = "0",
-		hint_nooffscreen = Config.offscreenShow ? "0" : "1",
-		hint_alphaoption = level>2 ? 1 : 0, // alphapulse 图标会变透明和可见的速度 0~3
-		hint_pulseoption = level>2 ? 1 : 0, // 图标效果，图标收缩的速度 0~3
-		hint_shakeoption = 0,	// shaking 图标会抖动 0~2
-		hint_range = "0",
-		hint_static = "0", // 跟随实体目标
-		hint_target = target,
-		hint_timeout = 0.0, // 持续时间，若为0则需要通过EndHint来关闭
-							// 不设置其为 duration 提示的关闭统一由本脚本用EndHint来控制
-		origin = Vector(0, 0, 0),
-		angles = QAngle(0, 0, 0),
-		targetname = "LinGe_" + UniqueString(),
-	};
+	local _showTo = null;
+	if (null != showTo)
+		_showTo = SurvivorArrayIndexToEnt(showTo);
+	else
+		_showTo = SurvivorArrayIndexToEnt(::pyinfo.survivorIdx);
 
-	local ent = g_ModeScript.CreateSingleSimpleEntityFromTable(hinttbl);
-	if (!ent)
-	{
-		printl("[LinGe] 创建 env_instructor_hint 实体失败");
-		return false;
-	}
-	ent.ValidateScriptScope();
+	local hinttbl = clone hintTemplateTbl;
+	hinttbl.hint_target = target;
+	hinttbl.hint_icon_onscreen = icon,
+	hinttbl.hint_icon_offscreen = icon,
+	hinttbl.hint_alphaoption = level>2 ? 1 : 0; // alphapulse 图标会变透明和可见的速度 0~3
+	hinttbl.hint_pulseoption = level>2 ? 1 : 0; // 图标效果，图标收缩的速度 0~3
+	hinttbl.hint_caption = text.tostring();
+	hinttbl.hint_color = color;
 
-	if (null == showTo)
+	local hintEnt = {};
+	if (hintMode == HINTMODE_AUTO)
 	{
-		DoEntFire("!self", "ShowHint", "", 0, null, ent);
+		local targetIsPlayer = false;
+		if (targetEnt.IsPlayer() || targetEnt.GetClassname() == "witch")
+			targetIsPlayer = true;
+		foreach (val in _showTo)
+		{
+			hintEnt.rawset(val.GetEntityIndex(), {
+				ent = null,
+				time = 9999,
+				count = 0,
+			});
+		}
+		CurrentHint.push({ level=level, hintEnt=hintEnt, targetname=target, hinttbl=hinttbl, showTo=_showTo,
+			targetEnt=targetEnt, targetIsPlayer=targetIsPlayer, activator=activator });
+		local idx = CurrentHint.len() - 1;
+		::VSLib.Timers.AddTimerByName("AutoHint_" + target,
+			0.1, true, Timer_AutoHint, CurrentHint[idx]);
+		Timer_AutoHint(CurrentHint[idx]);
 	}
 	else
 	{
-		foreach (val in showTo)
+		foreach (val in _showTo)
 		{
-			if (typeof val == "integer")
-				DoEntFire("!self", "ShowHint", "", 0, PlayerInstanceFromIndex(val), ent);
-			else if (typeof val == "instance")
-				DoEntFire("!self", "ShowHint", "", 0, val, ent);
+			if (!Config.offscreenShow || hintMode == HINTMODE_SCREEN) // 对于主动发出该标记的人来说，总是不在屏幕之外显示这个标记
+				hinttbl.hint_nooffscreen = "1";
 			else
-				throw "参数类型非法";
+				hinttbl.hint_nooffscreen = "0";
+			if (activator && val == activator)
+			{
+				hinttbl.hint_nooffscreen = "1";
+				hinttbl.hint_forcecaption = "0";
+				hinttbl.hint_suppress_rest = "1";
+			}
+			else
+			{
+				hinttbl.hint_forcecaption = "1";
+				SetSuppressRest(hinttbl, val, targetEnt);
+			}
+			local ent = QuickShowHint(hinttbl, val);
+			if (ent)
+				hintEnt.rawset(val.GetEntityIndex(), {ent=ent});
 		}
+		CurrentHint.push({ level=level, hintEnt=hintEnt, targetname=target });
 	}
-	CurrentHint.push({ level=level, ent=ent, targetname=target });
 
-	if (duration > 0.0 && !::LinGe.Debug)
+	if (duration > 0)
 	{
 		::VSLib.Timers.AddTimerByName("EndHint_" + target,
 			duration, false, EndHint, target);
@@ -423,7 +484,80 @@ if (::LinGe.Hint.Config.help.duration > 0)
 	return true;
 }
 
-::LinGe.Hint.FindHintIndex <- function (params)
+::LinGe.Hint.Timer_AutoHint <- function (hintInfo)
+{
+	if (!hintInfo.targetEnt || !hintInfo.targetEnt.IsValid())
+	{
+		EndHint(hintInfo.targetname);
+		return;
+	}
+
+	local showCountLimit = hintInfo.targetIsPlayer ? 2 : 1;
+	local tolerance = hintInfo.targetIsPlayer ? 40 : 15;
+	local distance = hintInfo.targetIsPlayer ? 800.0 : 250.0; // 多少距离以内注意到提示了才会自动消除
+	local radius = hintInfo.targetIsPlayer ? 0.0 : 15.0;
+	local mask = hintInfo.targetIsPlayer ? MASK_SHOT_HULL : (MASK_SHOT_HULL&(~CONTENTS_WINDOW));
+	local hinttbl = hintInfo.hinttbl;
+
+	foreach (idx, player in hintInfo.showTo)
+	{
+		local pyIdx = player.GetEntityIndex();
+		if (player && player.IsValid())
+		{
+			local hintEnt = hintInfo.hintEnt[pyIdx];
+			local length = (player.GetOrigin() - hintInfo.targetEnt.GetOrigin()).Length();
+			hintEnt.time++;
+			if (player == hintInfo.activator)
+			{
+				// 对于主动发出该标记的人来说，提示应一直存在
+				if (!hintEnt.ent)
+				{
+					hinttbl.hint_nooffscreen = "1";
+					hinttbl.hint_forcecaption = "0";
+					hinttbl.hint_suppress_rest = "1";
+					local ent = QuickShowHint(hinttbl, player);
+					if (ent)
+					{
+						hintEnt.ent = ent;
+						hintEnt.time = 0;
+					}
+					hintEnt.count++; // 即便创建实体失败也进行计数，避免反复创建导致游戏崩溃
+				}
+			}
+			else if (hintEnt.ent && hintEnt.time > 10 && length < distance
+			&& ::LinGe.IsPlayerNoticeEntity(player, hintInfo.targetEnt, tolerance, mask, radius))
+			{
+				DoEntFire("!self", "Kill", "", 0, player, hintEnt.ent);
+				hintEnt.ent = null;
+				hintEnt.time = 0;
+			}
+			else if (hintEnt.count < showCountLimit && !hintEnt.ent && hintEnt.time > 10)
+			{
+				if (hintInfo.targetIsPlayer && ::LinGe.IsPlayerNoticeEntity(player, hintInfo.targetEnt, tolerance, mask, radius))
+					continue;
+				if (hintEnt.count > 0)
+				{
+					if (length < distance)
+						continue;
+					else if (::LinGe.IsPlayerSeeHere(player, hintInfo.targetEnt, 60))
+						continue;
+				}
+				hinttbl.hint_nooffscreen = Config.offscreenShow ? "0" : "1";
+				hinttbl.hint_forcecaption = "1";
+				SetSuppressRest(hinttbl, player, hintInfo.targetEnt);
+				local ent = QuickShowHint(hinttbl, player);
+				if (ent)
+				{
+					hintEnt.ent = ent;
+					hintEnt.time = 0;
+				}
+				hintEnt.count++;
+			}
+		}
+	}
+}.bindenv(::LinGe.Hint);
+
+::LinGe.Hint.HintIndex <- function (params)
 {
 	local index = null;
 	if (typeof params == "instance")
@@ -457,13 +591,17 @@ if (::LinGe.Hint.Config.help.duration > 0)
 // EndHint 去除提示
 ::LinGe.Hint.EndHint <- function (params)
 {
-	local idx = FindHintIndex(params);
+	local idx = HintIndex(params);
 	if (null == idx)
 		return;
-	local hint = CurrentHint[idx];
-	::VSLib.Timers.RemoveTimerByName("EndHint_" + hint.targetname);
-	// DoEntFire("!self", "EndHint", "", 0, null, hint.ent);
-	DoEntFire("!self", "Kill", "", 0, null, hint.ent);
+	local hintEnt = CurrentHint[idx].hintEnt;
+	::VSLib.Timers.RemoveTimerByName("EndHint_" + CurrentHint[idx].targetname);
+	::VSLib.Timers.RemoveTimerByName("AutoHint_" + CurrentHint[idx].targetname);
+	foreach (val in hintEnt)
+	{
+		if (val.ent)
+			DoEntFire("!self", "Kill", "", 0, null, val.ent);
+	}
 	CurrentHint.remove(idx);
 }.bindenv(::LinGe.Hint);
 
@@ -501,6 +639,49 @@ if (::LinGe.Hint.Config.help.duration > 0)
 	}
 	else
 		return false;
+}
+
+// targetEnt == null 时则不会对 hint_suppress_rest 进行设置
+::LinGe.Hint.QuickShowHint <- function (tbl, player)
+{
+	tbl.rawset("targetname", "LinGe_" + UniqueString());
+	local ent = g_ModeScript.CreateSingleSimpleEntityFromTable(tbl);
+	if (!ent)
+	{
+		printl("[LinGe] CreateEntity 创建实体失败");
+		return null;
+	}
+	ent.ValidateScriptScope();
+	DoEntFire("!self", "ShowHint", "", 0.0, player, ent);
+	return ent;
+}
+
+// 根据玩家的视角来设置 hint_suppress_rest
+::LinGe.Hint.SetSuppressRest <- function (tbl, player, targetEnt)
+{
+	if (targetEnt && player)
+	{
+		if (::LinGe.IsPlayerSeeHere(player, targetEnt, 60))
+			tbl.rawset("hint_suppress_rest", "1");
+		else
+			tbl.rawset("hint_suppress_rest", "0");
+	}
+}
+
+::LinGe.Hint.SurvivorArrayIndexToEnt <- function (array)
+{
+	local newArray = [];
+	foreach (val in array)
+	{
+		local player = null;
+		if (typeof val == "integer")
+			player = PlayerInstanceFromIndex(val);
+		else if (typeof val == "instance")
+			player = val;
+		if (!IsPlayerABot(player))
+			newArray.append(player);
+	}
+	return newArray;
 }
 
 // 实现玩家使用按键发出信号
@@ -710,8 +891,6 @@ foreach ( k, v in weaponModelPath )
 local zombieType = ["Smoker", "Boomer", "Hunter", "Spitter",
 	"Jockey", "Charger", "Witch", "Tank"];
 
-const IN_ALT1 = 0x4000;
-const IN_ALT2 = 0x8000;
 const MAX_COORD_FLOAT	= 16384.0;
 const MAX_TRACE_LENGTH	= 56755.840862417;
 
@@ -727,13 +906,13 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 		if (!::LinGe.IsAlive(player))
 			continue;
 		// 判断绑定的按键是否松开
-		local curPressed = player.GetButtonMask() & IN_ALT1;
-		if ( curPressed != val)
+		local curPressed = player.GetButtonMask();
+		if ((curPressed & BUTTON_ALT1) != (val & BUTTON_ALT1))
 		{
-			buttonState[key] = curPressed;
-			if (!curPressed) // 松开触发
+			if (!(curPressed & BUTTON_ALT1)) // 松开触发
 				::LinGe.Hint.PlayerPing(player);
 		}
+		buttonState[key] = curPressed;
 	}
 }
 
@@ -802,32 +981,36 @@ else
 		{
 			local type = pEnt.GetZombieType();
 			if (type == 8)
-				ShowHint("Tank!", 1, pEnt, null, Config.ping.duration, "icon_alert_red");
+				ShowHint("Tank!", 1, pEnt, null, Config.ping.duration, "icon_alert_red", player);
 			else if (type > 0 && type < 8) // 除Tank外其余特感不显示图标，因为容易遮挡住特感
-				ShowHint(zombieType[type-1] + "!", 1, pEnt, null, Config.ping.duration, NONE_ICON);
+				ShowHint(zombieType[type-1] + "!", 1, pEnt, null, Config.ping.duration, LINGE_NONE_ICON, player);
 		}
 		else if (::LinGe.GetPlayerTeam(pEnt) == 2)
 		{
-			if (Config.help.duration <= 0 || CheckSurvivor(pEnt))
+			if (Config.help.duration <= 0 || CheckSurvivor(pEnt, player))
 			{
 				// 如果不允许玩家状态标记，或者队友是健康的，则单独给发出标记的玩家提示血量
-				ShowHint("当前血量:" + ceil(pEnt.GetHealth() + pEnt.GetHealthBuffer()), -1, pEnt, [player], 2.0, NONE_ICON);
+				ShowHint("当前血量:" + ceil(pEnt.GetHealth() + pEnt.GetHealthBuffer()), -1,
+					pEnt, [player], 2.0, LINGE_NONE_ICON, player, HINTMODE_NORMAL);
 			}
 		}
 		break;
 	case "witch":
-		ShowHint("当心Witch!", 1, pEnt, null, Config.ping.duration, NONE_ICON); // 为了避免影响视线，对Witch的标记不显示图标
+		ShowHint("当心Witch!", 1, pEnt, null, Config.ping.duration, LINGE_NONE_ICON, player);
 		break;
 // case "infected": // 小僵尸
 // 		break;
 	case "prop_physics":
 		local model = pEnt.GetModelName();
 		if (weaponModel.rawin(model))
-			ShowHint(weaponName[weaponModel[model]], 0, pEnt, null, Config.ping.duration, weaponIcon[weaponModel[model]]);
+			ShowHint(weaponName[weaponModel[model]], 0, pEnt, null,
+				Config.ping.duration, weaponIcon[weaponModel[model]], player);
+		else
+			ShowRunHint(vecPingPos, player);
 		break;
-	case "prop_dynamic": // 很多地方都会有这种实体，所以用了一个稍微有点意义不明的提示（
-		ShowHint("这里!", 0, pEnt, null, Config.ping.duration, "icon_run");
-		break;
+	// case "prop_dynamic":
+	// 	ShowRunHint(vecPingPos, player);
+	// 	break;
 	case "prop_health_cabinet": // 医疗箱
 		if ( NetProps.GetPropInt( pEnt, "m_isUsed" ) == 1 )
 		{
@@ -846,30 +1029,30 @@ else
 				return;
 			}
 		}
-		ShowHint("医疗箱", 0, pEnt, null, Config.ping.duration, "icon_interact");
+		ShowHint("医疗箱", 0, pEnt, null, Config.ping.duration, "icon_interact", player);
 		break;
 	case "prop_car_alarm":
 		if (!NetProps.GetPropInt( pEnt, "m_bDisabled" ) )
-			ShowHint("注意警报!", 0, pEnt, null, Config.ping.duration, "icon_alert_red");
+			ShowHint("注意警报!", 0, pEnt, null, Config.ping.duration, "icon_alert_red", player, HINTMODE_SCREEN);
 		else
-			ShowHint("警报不会触发", -1, pEnt, [player], 2, "icon_tip");
+			ShowHint("警报不会触发", -1, pEnt, [player], 2, "icon_tip", player, HINTMODE_NORMAL);
 		break;
 	case "prop_door_rotating":
-		ShowHint("走这里吧", 0, pEnt, null, Config.ping.duration, "icon_door");
+		ShowHint("走这里吧", 0, pEnt, null, Config.ping.duration, "icon_door", player, HINTMODE_NORMAL);
 		break;
 	case "prop_door_rotating_checkpoint":
-		ShowHint("安全屋", 0, pEnt, null, Config.ping.duration, "icon_door");
+		ShowHint("安全屋", 0, pEnt, null, Config.ping.duration, "icon_door", player, HINTMODE_NORMAL);
 		break;
 	// case "prop_fuel_barrel":
 	// 	break;
 	case "upgrade_ammo_explosive":
-		ShowHint("高爆弹药", 0, pEnt, null, Config.ping.duration, "icon_explosive_ammo");
+		ShowHint("高爆弹药", 0, pEnt, null, Config.ping.duration, "icon_explosive_ammo", player);
 		break;
 	case "upgrade_ammo_incendiary":
-		ShowHint("燃烧弹药", 0, pEnt, null, Config.ping.duration, "icon_incendiary_ammo");
+		ShowHint("燃烧弹药", 0, pEnt, null, Config.ping.duration, "icon_incendiary_ammo", player);
 		break;
 	case "upgrade_laser_sight":
-		ShowHint("激光瞄准", 0, pEnt, null, Config.ping.duration, "icon_laser_sight");
+		ShowHint("激光瞄准", 0, pEnt, null, Config.ping.duration, "icon_laser_sight", player);
 		break;
 	// case "worldspawn":
 	// 	break;
@@ -880,11 +1063,14 @@ else
 		{
 			local model = pEnt.GetModelName();
 			if (weaponModel.rawin(model))
-				ShowHint(weaponName[weaponModel[model]], 0, pEnt, null, Config.ping.duration, weaponIcon[weaponModel[model]]);
+				ShowHint(weaponName[weaponModel[model]], 0, pEnt, null,
+					Config.ping.duration, weaponIcon[weaponModel[model]], player);
 			else if (weaponEntity.rawin(szClassname))
-				ShowHint(weaponName[weaponEntity[szClassname]], 0, pEnt, null, Config.ping.duration, weaponIcon[weaponEntity[szClassname]]);
+				ShowHint(weaponName[weaponEntity[szClassname]], 0, pEnt, null,
+					Config.ping.duration, weaponIcon[weaponEntity[szClassname]], player);
 			else if (weaponSpawn.rawin(szClassname))
-				ShowHint(weaponName[weaponSpawn[szClassname]], 0, pEnt, null, Config.ping.duration, weaponIcon[weaponSpawn[szClassname]]);
+				ShowHint(weaponName[weaponSpawn[szClassname]], 0, pEnt, null,
+					Config.ping.duration, weaponIcon[weaponSpawn[szClassname]], player);
 		}
 		else
 		{
@@ -900,32 +1086,30 @@ else
 			}
 			// 如果查找不到就标记普通路径点
 			if (Config.ping.emptySpace)
-			{
-				local entInfo = SetInfoTarget(vecPingPos);
-				if (entInfo)
-				{
-					ShowHint("这里!", -1, entInfo, null, Config.ping.duration, "icon_run");
-				}
-			}
+				ShowRunHint(vecPingPos, player);
 		}
 		break;
 	}
 }
 
-// 创建路径点标记实体
+// 通用路径标记
 local infoTargetEnt = null;
-::LinGe.Hint.SetInfoTarget <- function (origin)
+::LinGe.Hint.ShowRunHint <- function (pos, activator)
 {
 	if (null == infoTargetEnt)
-		infoTargetEnt = SpawnEntityFromTable("info_target_instructor_hint", { targetname = "LinGe_Hint_infoTarget" });
+	{
+		infoTargetEnt = SpawnEntityFromTable("info_target_instructor_hint",
+			{ targetname = "LinGe_Hint_infoTarget" } );
+	}
 	if (null == infoTargetEnt)
 	{
 		printl("[LinGe] 无法创建 info_target_instructor_hint");
-		return null;
+		return false;
 	}
 
-	infoTargetEnt.SetLocalOrigin(origin);
-	return infoTargetEnt;
+	infoTargetEnt.SetLocalOrigin(pos);
+	ShowHint("这里!", -1, infoTargetEnt, null, Config.ping.duration, "icon_run", activator, HINTMODE_NORMAL);
+	return true;
 }
 
 // 启用按键监控
