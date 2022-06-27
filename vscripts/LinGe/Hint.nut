@@ -100,6 +100,7 @@ getconsttable()["LINGE_NONE_ICON"] <- "";
 const HINTMODE_AUTO		= 0; // 当玩家已经注意到提示时会自动关闭
 const HINTMODE_NORMAL	= 1; // 会一直持续到设定的提示时间
 const HINTMODE_SCREEN	= 2; // 不管配置文件如何设定，提示都只显示在屏幕内
+const HINTMODE_SIGHT	= 3; // 提示只显示在视野内（不会在屏幕外和墙体后显示）
 
 // 事件：玩家倒地
 ::LinGe.Hint.OnGameEvent_player_incapacitated <- function (params)
@@ -467,22 +468,23 @@ local hintTemplateTbl = {
 	{
 		foreach (val in _showTo)
 		{
-			if (!Config.offscreenShow || hintMode == HINTMODE_SCREEN)
+			local isActivator = (activator && val == activator);
+			// 设置 hint_nooffscreen 1:屏幕外不显示 0:屏幕外显示
+			if (!Config.offscreenShow || hintMode == HINTMODE_SCREEN
+			|| hintMode == HINTMODE_SIGHT || isActivator)
 				hinttbl.hint_nooffscreen = "1";
 			else
 				hinttbl.hint_nooffscreen = "0";
-			if (activator && val == activator)
-			{
-				// 对于主动发出该标记的人来说，总是不在屏幕之外、墙体之后显示这个标记
-				hinttbl.hint_nooffscreen = "1";
-				hinttbl.hint_forcecaption = "0";
-				hinttbl.hint_suppress_rest = "1";
-			}
-			else
-			{
+			// 设置 hint_forcecaption 1:墙体后显示 0:墙体后不显示
+			if (hintMode != HINTMODE_SIGHT)
 				hinttbl.hint_forcecaption = "1";
+			else
+				hinttbl.hint_forcecaption = "0";
+			// 设置 hint_suppress_rest 1:提示直接出现在标记点 0:提示先出现在屏幕中央
+			if (isActivator)
+				hinttbl.hint_suppress_rest = "1";
+			else
 				SetSuppressRest(hinttbl, val, targetEnt);
-			}
 			local ent = QuickShowHint(hinttbl, val);
 			if (ent)
 				hintEnt.rawset(val.GetEntityIndex(), {ent=ent});
@@ -1094,7 +1096,7 @@ else
 		break;
 	case "prop_car_alarm":
 		if (!NetProps.GetPropInt( pEnt, "m_bDisabled" ) )
-			ShowHint("注意警报!", 0, pEnt, null, Config.ping.duration, "icon_alert_red", player, HINTMODE_SCREEN);
+			ShowHint("注意警报!", 0, pEnt, null, Config.ping.duration, "icon_alert_red", player, HINTMODE_SIGHT);
 		else
 			ShowHint("警报不会触发", -1, pEnt, [player], 2, "icon_tip", player, HINTMODE_NORMAL);
 		break;
