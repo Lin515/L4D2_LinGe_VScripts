@@ -10,7 +10,7 @@ printl("[LinGe] 标记提示 正在载入");
 	limit = 4, // 队友状态与普通标记提示的总数量上限，若设置为<=0则彻底关闭提示系统
 	offscreenShow = true, // 提示在画面之外是否也要显示
 	help = { // 队友需要帮助时出现提示 包括 倒地、挂边、黑白、被控
-		duration = 12, // 提示持续时间，若<=0则彻底关闭所有队友需要帮助的提示
+		duration = 15, // 提示持续时间，若<=0则彻底关闭所有队友需要帮助的提示
 		dominateDelay = 0, // 被控延迟，玩家被控多少秒后才会出现提示，若设置为0则无延迟立即显示
 						// 若<0，则不会自动提示玩家被控，但是玩家可以用按键自己发出呼救
 	},
@@ -95,6 +95,7 @@ if (::LinGe.Hint.Config.limit > 8)
 if (::LinGe.Hint.Config.limit > 0) {
 
 local CurrentHint = [];
+local CurrentHintCount = 0;
 getconsttable()["LINGE_NONE_ICON"] <- "";
 const HINTMODE_AUTO		= 0; // 当玩家已经注意到提示时会自动关闭
 const HINTMODE_NORMAL	= 1; // 会一直持续到设定的提示时间
@@ -384,13 +385,13 @@ local hintTemplateTbl = {
 	angles = QAngle(0, 0, 0),
 	targetname = ""
 };
-::LinGe.Hint.ShowHint <- function ( text, level=0, target = "", showTo = null, duration = 0.0,
+::LinGe.Hint.ShowHint <- function ( text, level=0, target = "", showTo = null, duration = 8.0,
 	icon = "icon_tip", activator = null, hintMode=HINTMODE_AUTO, color = "255 255 255")
 {
 	if (typeof showTo == "array")
 	{
 		if (showTo.len() == 0)
-			return;
+			return false;
 	}
 	else if (null != showTo)
 		throw "showTo 非法";
@@ -429,37 +430,50 @@ local hintTemplateTbl = {
 	hinttbl.hint_caption = text.tostring();
 	hinttbl.hint_color = color;
 
+	if (level >= 0)
+		CurrentHintCount++;
 	local hintEnt = {};
 	if (hintMode == HINTMODE_AUTO)
 	{
-		local targetIsPlayer = false;
-		if (targetEnt.IsPlayer() || targetEnt.GetClassname() == "witch")
-			targetIsPlayer = true;
 		foreach (val in _showTo)
 		{
 			hintEnt.rawset(val.GetEntityIndex(), {
 				ent = null,
-				time = 9999,
+				time = 9999.0,
 				count = 0,
 			});
 		}
-		CurrentHint.push({ level=level, hintEnt=hintEnt, targetname=target, hinttbl=hinttbl, showTo=_showTo,
-			targetEnt=targetEnt, targetIsPlayer=targetIsPlayer, activator=activator });
-		local idx = CurrentHint.len() - 1;
+
+		local hintInfo = {
+			level = level,
+			hintEnt = hintEnt,
+			targetname = target,
+			hinttbl = hinttbl,
+			showTo = _showTo,
+			stidx = 0,
+			targetEnt = targetEnt,
+			targetIsPlayer = false,
+			activator = activator,
+		};
+		if (targetEnt.IsPlayer() || targetEnt.GetClassname() == "witch")
+			hintInfo.targetIsPlayer = true;
+
+		CurrentHint.push(hintInfo);
 		::VSLib.Timers.AddTimerByName("AutoHint_" + target,
-			0.1, true, Timer_AutoHint, CurrentHint[idx]);
-		Timer_AutoHint(CurrentHint[idx]);
+			0.1, true, Timer_AutoHint, hintInfo);
+		Timer_AutoHint(hintInfo);
 	}
 	else
 	{
 		foreach (val in _showTo)
 		{
-			if (!Config.offscreenShow || hintMode == HINTMODE_SCREEN) // 对于主动发出该标记的人来说，总是不在屏幕之外显示这个标记
+			if (!Config.offscreenShow || hintMode == HINTMODE_SCREEN)
 				hinttbl.hint_nooffscreen = "1";
 			else
 				hinttbl.hint_nooffscreen = "0";
 			if (activator && val == activator)
 			{
+				// 对于主动发出该标记的人来说，总是不在屏幕之外、墙体之后显示这个标记
 				hinttbl.hint_nooffscreen = "1";
 				hinttbl.hint_forcecaption = "0";
 				hinttbl.hint_suppress_rest = "1";
@@ -476,11 +490,10 @@ local hintTemplateTbl = {
 		CurrentHint.push({ level=level, hintEnt=hintEnt, targetname=target });
 	}
 
-	if (duration > 0)
-	{
-		::VSLib.Timers.AddTimerByName("EndHint_" + target,
-			duration, false, EndHint, target);
-	}
+	if (duration <= 0.0) // 不允许设置永远存在的提示，避免实体一直不被Kill
+		duration = 8.0;
+	::VSLib.Timers.AddTimerByName("EndHint_" + target,
+		duration, false, EndHint, target);
 	return true;
 }
 
@@ -492,24 +505,33 @@ local hintTemplateTbl = {
 		return;
 	}
 
-	local showCountLimit = hintInfo.targetIsPlayer ? 2 : 1;
-	local tolerance = hintInfo.targetIsPlayer ? 40 : 15;
-	local distance = hintInfo.targetIsPlayer ? 800.0 : 250.0; // 多少距离以内注意到提示了才会自动消除
-	local radius = hintInfo.targetIsPlayer ? 0.0 : 15.0;
-	local mask = hintInfo.targetIsPlayer ? MASK_SHOT_HULL : (MASK_SHOT_HULL&(~CONTENTS_WINDOW));
-	local hinttbl = hintInfo.hinttbl;
+	/*	tickProcessLimit 根据当前提示的数量来限制每个 Timer_AutoHint 函数每次处理最多多少个玩家的 hint
+		虽然 Timer_AutoHint 里这点代码应该不至于会让服务器变卡
+		但是实现这个方案肯定没有太大的坏处，在玩家人数和提示都很多时，它也只会增加一点点的功能触发延迟
+		人数较少或提示较少时，这个限制其实是相当于没有的
+	*/
+	local tickProcessLimit = 40;
+	if (CurrentHintCount > 0)
+		tickProcessLimit = ceil(40 / CurrentHintCount);
+	else
+		printl("[LinGe] CurrentHintCount 异常");
 
-	foreach (idx, player in hintInfo.showTo)
+	local hinttbl = hintInfo.hinttbl;
+	local idx = 0;
+	for (idx=hintInfo.stidx; idx < hintInfo.showTo.len() && idx < (hintInfo.stidx+tickProcessLimit); idx++)
 	{
-		local pyIdx = player.GetEntityIndex();
+		local player = hintInfo.showTo[idx];
 		if (player && player.IsValid())
 		{
-			local hintEnt = hintInfo.hintEnt[pyIdx];
-			local length = (player.GetOrigin() - hintInfo.targetEnt.GetOrigin()).Length();
-			hintEnt.time++;
+			local hintEnt = hintInfo.hintEnt[player.GetEntityIndex()];
+			hintEnt.time += 0.1;
+			if (hintEnt.time < 1.0) // 提示最少要存在一秒才会改变状态
+				continue;
+
 			if (player == hintInfo.activator)
 			{
-				// 对于主动发出该标记的人来说，提示应一直存在
+				// 对于主动发出该标记的人来说，提示总是一直存在
+				// 但是不会在屏幕外显示，也会被墙体挡住
 				if (!hintEnt.ent)
 				{
 					hinttbl.hint_nooffscreen = "1";
@@ -519,42 +541,79 @@ local hintTemplateTbl = {
 					if (ent)
 					{
 						hintEnt.ent = ent;
-						hintEnt.time = 0;
+						hintEnt.time = 0.0;
 					}
 					hintEnt.count++; // 即便创建实体失败也进行计数，避免反复创建导致游戏崩溃
 				}
+				continue;
 			}
-			else if (hintEnt.ent && hintEnt.time > 10 && length < distance
-			&& ::LinGe.IsPlayerNoticeEntity(player, hintInfo.targetEnt, tolerance, mask, radius))
+
+			local length = (player.GetOrigin() - hintInfo.targetEnt.GetOrigin()).Length();
+			if (hintEnt.ent)
 			{
+				// 如果提示已经存在，则判断是否要隐藏
+				if (hintInfo.targetIsPlayer) // 如果提示在玩家实体上
+				{
+					if (length >= 800.0) // 距离大于800不隐藏
+						continue;
+					if (!::LinGe.IsPlayerSeeHere(player, hintInfo.targetEnt, 40)) // 没看以40的角度差看向这个方向不隐藏
+						continue;
+					if ( !::LinGe.ChainTraceToEntity(player, hintInfo.targetEnt, MASK_SHOT_HULL,
+							["player", "infected", "witch"]) ) // 无法链式追踪到实体不隐藏
+						continue;
+				}
+				else
+				{
+					// 提示不在玩家实体上，即物品或其它
+					if (length >= 250.0)
+						continue;
+					if (!::LinGe.IsPlayerNoticeEntity(player, hintInfo.targetEnt, 15,
+						MASK_SHOT_HULL & (~CONTENTS_WINDOW), 15.0))
+						continue;
+				}
 				DoEntFire("!self", "Kill", "", 0, player, hintEnt.ent);
 				hintEnt.ent = null;
-				hintEnt.time = 0;
+				hintEnt.time = 0.0;
+				continue;
 			}
-			else if (hintEnt.count < showCountLimit && !hintEnt.ent && hintEnt.time > 10)
+
+			// 提示不存在，判断是否要显示
+			if (hintInfo.targetIsPlayer)
 			{
-				if (hintInfo.targetIsPlayer && ::LinGe.IsPlayerNoticeEntity(player, hintInfo.targetEnt, tolerance, mask, radius))
+				if (hintEnt.count >= 2) // 已经提示过2次则不再显示
 					continue;
-				if (hintEnt.count > 0)
-				{
-					if (length < distance)
-						continue;
-					else if (::LinGe.IsPlayerSeeHere(player, hintInfo.targetEnt, 60))
-						continue;
-				}
-				hinttbl.hint_nooffscreen = Config.offscreenShow ? "0" : "1";
-				hinttbl.hint_forcecaption = "1";
-				SetSuppressRest(hinttbl, player, hintInfo.targetEnt);
-				local ent = QuickShowHint(hinttbl, player);
-				if (ent)
-				{
-					hintEnt.ent = ent;
-					hintEnt.time = 0;
-				}
-				hintEnt.count++;
+				if (::LinGe.IsPlayerSeeHere(player, hintInfo.targetEnt, 40)) // 已经看向该角度时不显示
+					continue;
+				if (hintEnt.count > 0 && length < 800) // 已经注意到过这个提示一次，并且距离小于500时不显示
+					continue;
+				// 如果没有看向提示实体的角度，且没有显示过这个提示或者距离大于800，则会显示提示
 			}
+			else
+			{
+				// 物品类提示总是只显示一次
+				// 但没有其它判断条件，标记刚发出的时候总是马上显示
+				if (hintEnt.count >= 1)
+					continue;
+			}
+			hinttbl.hint_nooffscreen = Config.offscreenShow ? "0" : "1";
+			hinttbl.hint_forcecaption = "1";
+			SetSuppressRest(hinttbl, player, hintInfo.targetEnt);
+			local ent = QuickShowHint(hinttbl, player);
+			if (ent)
+			{
+				hintEnt.ent = ent;
+				hintEnt.time = 0.0;
+			}
+			hintEnt.count++;
 		}
 	}
+
+	// 如果没处理完所有玩家的 hint，则留下个循环处理
+	// 如果处理完了，就重置索引
+	if (idx < hintInfo.showTo.len())
+		hintInfo.stidx = idx;
+	else
+		hintInfo.stidx = 0;
 }.bindenv(::LinGe.Hint);
 
 ::LinGe.Hint.HintIndex <- function (params)
@@ -594,14 +653,16 @@ local hintTemplateTbl = {
 	local idx = HintIndex(params);
 	if (null == idx)
 		return;
-	local hintEnt = CurrentHint[idx].hintEnt;
 	::VSLib.Timers.RemoveTimerByName("EndHint_" + CurrentHint[idx].targetname);
 	::VSLib.Timers.RemoveTimerByName("AutoHint_" + CurrentHint[idx].targetname);
+	local hintEnt = CurrentHint[idx].hintEnt;
 	foreach (val in hintEnt)
 	{
 		if (val.ent)
 			DoEntFire("!self", "Kill", "", 0, null, val.ent);
 	}
+	if (CurrentHint[idx].level >= 0)
+		CurrentHintCount--;
 	CurrentHint.remove(idx);
 }.bindenv(::LinGe.Hint);
 

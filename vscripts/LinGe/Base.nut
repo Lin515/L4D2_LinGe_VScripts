@@ -303,33 +303,40 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 		return false;
 }
 
-::LinGe.TraceToEntity <- function (origin, entity, mask=MASK_SHOT_HULL & (~CONTENTS_WINDOW))
+::LinGe.TraceToLocation <- function (origin, location, mask=MASK_SHOT_HULL & (~CONTENTS_WINDOW), ignore=null)
 {
 	// 获取出发点
-	local _origin = null;
+	local start = null;
 	if (typeof origin == "instance")
 	{
 		if ("EyePosition" in origin)
-			_origin = origin.EyePosition(); // 如果对象是有眼睛的则获取眼睛位置
+			start = origin.EyePosition(); // 如果对象是有眼睛的则获取眼睛位置
 		else
-			_origin = origin.GetOrigin();
+			start = origin.GetOrigin();
 	}
 	else if (typeof origin == "Vector")
-		_origin = origin;
+		start = origin;
 	else
 		throw "origin 参数类型非法";
 
 	// 获取终点
 	local end = null;
-	if ("EyePosition" in entity)
-		end = entity.EyePosition();
+	if (typeof location == "instance")
+	{
+		if ("EyePosition" in location)
+			end = location.EyePosition();
+		else
+			end = location.GetOrigin();
+	}
+	else if (typeof location == "Vector")
+		end = location;
 	else
-		end = entity.GetOrigin();
+		throw "location 参数类型非法";
 
 	local tr = {
-		start = _origin,
+		start = start,
 		end =  end,
-		ignore = (typeof origin == "instance" ? origin : null),
+		ignore = (ignore ? ignore : (typeof origin == "instance" ? origin : null) ),
 		mask = mask,
 	};
 	TraceLine(tr);
@@ -341,7 +348,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 {
 	if (!IsPlayerSeeHere(player, entity, tolerance))
 		return false;
-	local tr = TraceToEntity(player, entity, mask);
+	local tr = TraceToLocation(player, entity, mask);
 	if (tr.rawin("enthit") && tr.enthit == entity)
 		return true;
 	if (radius <= 0.0)
@@ -352,6 +359,62 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 	{
 		if (_entity == entity)
 			return true;
+	}
+	return false;
+}
+
+// 链式射线追踪，当命中到类型为 ignoreClass 中的实体时，从其位置往前继续射线追踪
+// ignoreClass 中可以有 entity 的类型，判断时总会先判断定位到的是否是 entity
+// 如果最终能命中 entity，则返回 true
+::LinGe.ChainTraceToEntity <- function (origin, entity, mask, ignoreClass, limit=4)
+{
+	local tr = {
+		start = null,
+		end = null,
+		ignore = null,
+		mask = mask,
+	};
+
+	// 获取起始点
+	if (typeof origin == "instance")
+	{
+		if ("EyePosition" in origin)
+			tr.start = origin.EyePosition();
+		else
+			tr.start = origin.GetOrigin();
+		tr.ignore = origin;
+	}
+	else if (typeof origin == "Vector")
+		tr.start = origin;
+	else
+		throw "origin 参数类型非法";
+
+	if ("EyePosition" in entity)
+		tr.end = entity.EyePosition();
+	else
+		tr.end = entity.GetOrigin();
+	if (limit < 1)
+		limit = 4; // 不允许无限制的链式探测
+	local start = tr.start; // 保留最初的起点
+
+	local count = 0;
+	while (true)
+	{
+		count++;
+		TraceLine(tr);
+		if (!tr.rawin("enthit"))
+			break;
+		if (tr.enthit == entity)
+			return true;
+		if (count >= limit)
+			break;
+		// 如果命中位置已经比目标位置要更远离起始点，则终止
+		if ((tr.pos-start).Length() > (tr.end-start).Length())
+			break;
+		if (ignoreClass.find(tr.enthit.GetClassname()) == null)
+			break;
+		tr.start = tr.pos;
+		tr.ignore = tr.enthit;
 	}
 	return false;
 }
