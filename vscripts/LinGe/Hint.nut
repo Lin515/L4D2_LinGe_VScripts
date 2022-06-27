@@ -527,8 +527,6 @@ local hintTemplateTbl = {
 		{
 			local hintEnt = hintInfo.hintEnt[player.GetEntityIndex()];
 			hintEnt.time += 0.1;
-			if (hintEnt.time < 1.0) // 提示最少要存在一秒才会改变状态
-				continue;
 
 			if (player == hintInfo.activator)
 			{
@@ -556,8 +554,6 @@ local hintTemplateTbl = {
 				// 如果提示已经存在，则判断是否要隐藏
 				if (hintInfo.targetIsPlayer) // 如果提示在玩家实体上
 				{
-					if (length >= 800.0) // 距离大于800不隐藏
-						continue;
 					if (!::LinGe.IsPlayerSeeHere(player, hintInfo.targetEnt, 40)) // 没看以40的角度差看向这个方向不隐藏
 						continue;
 					if ( !::LinGe.ChainTraceToEntity(player, hintInfo.targetEnt, MASK_SHOT_HULL,
@@ -582,11 +578,13 @@ local hintTemplateTbl = {
 			// 提示不存在，判断是否要显示
 			if (hintInfo.targetIsPlayer)
 			{
+				if (hintEnt.time < 1.0) // 如果上次隐藏时间不超过1s，则暂时不再提示
+					continue;
 				if (hintEnt.count >= 2) // 已经提示过2次则不再显示
 					continue;
 				if (::LinGe.IsPlayerSeeHere(player, hintInfo.targetEnt, 40)) // 已经看向该角度时不显示
 					continue;
-				if (hintEnt.count > 0 && length < 800) // 已经注意到过这个提示一次，并且距离小于500时不显示
+				if (hintEnt.count > 0 && length < 500) // 已经注意到过这个提示一次，并且距离小于500时不显示
 					continue;
 				// 如果没有看向提示实体的角度，且没有显示过这个提示或者距离大于800，则会显示提示
 			}
