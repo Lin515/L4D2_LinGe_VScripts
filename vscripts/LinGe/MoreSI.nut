@@ -13,7 +13,7 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 	sinoci = false // 是否清除小僵尸
 };
 ::LinGe.Config.Add("MoreSI", ::LinGe.MoreSI.Config);
-::LinGe.Cache.MoreSI_Cache <- ::LinGe.MoreSI.Config;
+::LinGe.Cache.MoreSI_Config <- ::LinGe.MoreSI.Config;
 // 在配置未生效之前将 Config.enabled 临时设置为 false
 local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配置文件中的值
 ::LinGe.MoreSI.Config.enabled = false;
@@ -185,9 +185,9 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 ::LinGe.MoreSI.cache_restore <- function (params)
 {
 	// 如果有有效Cache存在 则使用Cache中的配置
-	if (params.isValidCache && ::LinGe.Cache.rawin("MoreSI_Cache"))
+	if (params.isValidCache && ::LinGe.Cache.rawin("MoreSI_Config"))
 	{
-		_enabled = ::LinGe.Cache.MoreSI_Cache.enabled;
+		_enabled = ::LinGe.Cache.MoreSI_Config.enabled;
 	}
 	Config.enabled = false;
 }

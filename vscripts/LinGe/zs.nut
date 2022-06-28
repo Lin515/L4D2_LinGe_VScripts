@@ -10,7 +10,7 @@
 ::LinGe.Config.Add("zs", ::LinGe.zs.Config);
 //::LinGe.Cache.zs_Config <- ::LinGe.zs.Config;
 
-if ("coop" == g_BaseMode && ::LinGe.zs.Config.enabled) {
+if (!::LinGe.isVersus && ::LinGe.zs.Config.enabled) {
 printl("[LinGe] 自杀指令 正在载入");
 // !zs 自杀指令
 ::LinGe.zs.Cmd_zs <- function (player, args)
