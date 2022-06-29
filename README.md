@@ -1,5 +1,1 @@
-[使用说明](https://lin515.com/linge-vscripts/)
-
-[创意工坊](https://steamcommunity.com/sharedfiles/filedetails/?id=2587952986)
-
-![Rena](doc/0Rena.png)
+这是开发分支，这个分支下的代码功能不保证随时都是可用的，最新可用的代码请转到 Release 分支。
