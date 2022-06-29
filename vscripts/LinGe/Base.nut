@@ -1325,7 +1325,7 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 		text += "已离开";
 		break;
 	case 1:
-		if (LinGe.IsPlayerIdle(params.entityIndex))
+		if (params.oldteam == 2 && ::LinGe.IsPlayerIdle(params.entityIndex))
 			text += "已闲置";
 		else
 			text += "进入旁观";
