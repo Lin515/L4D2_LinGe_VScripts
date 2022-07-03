@@ -7,7 +7,7 @@ printl("[LinGe] 标记提示 正在载入");
 ::LinGe.Hint <- {};
 
 ::LinGe.Hint.Config <- {
-	limit = 3, // 玩家屏幕上能同时显示的提示数量上限
+	limit = 4, // 玩家屏幕上能同时显示的提示数量上限
 	offscreenShow = true, // 提示在画面之外是否也要显示
 	help = { // 队友需要帮助时出现提示 包括 倒地、挂边、黑白、被控
 		duration = 15, // 提示持续时间，若<=0则彻底关闭所有队友需要帮助的提示
@@ -358,8 +358,17 @@ local humanIndex = 0;
 				RemoveHint(targetname);
 				continue;
 			}
-			local hintTbl = eventInfo.hintTbl;
 
+			local hintMode = eventInfo.hintMode;
+			if (hintMode == HINTMODE.WEAPON
+			&& eventInfo.targetEnt.GetMoveParent() != null)
+			{
+				// 如果是物资标记，该物资若为有主，则移除该标记
+				RemoveHint(targetname);
+				continue;
+			}
+
+			local hintTbl = eventInfo.hintTbl;
 			// 对于主动发出标记的人来说，这个标记总是可见的
 			// 但是不会透过墙体显示，也不会在屏幕外显示，且总是不占用显示位
 			if (eventInfo.activator == player)
@@ -373,7 +382,6 @@ local humanIndex = 0;
 				continue;
 			}
 
-			local hintMode = eventInfo.hintMode;
 			if (entTbl.rawin(targetname))
 			{
 				// 对于第一次出现的不紧急的信息，4秒后玩家不看向这个方向时就将其隐藏
@@ -386,7 +394,7 @@ local humanIndex = 0;
 						continue;
 					}
 				}
-				switch (eventInfo.hintMode)
+				switch (hintMode)
 				{
 				case HINTMODE.REVIVE:
 					local owner = NetProps.GetPropEntity(eventInfo.targetEnt, "m_reviveOwner");
@@ -438,7 +446,7 @@ local humanIndex = 0;
 			}
 			else
 			{
-				switch (eventInfo.hintMode)
+				switch (hintMode)
 				{
 				case HINTMODE.SPECIAL:
 					if (count >= 1)
