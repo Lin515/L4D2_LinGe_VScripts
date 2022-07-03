@@ -447,13 +447,15 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 }
 
 // 如果source中某个key在dest中也存在，则将其赋值给dest中的key
+// 如果 reserveKey 为 true，则dest中没用该key也会被赋值
 // key无视大小写
-::LinGe.Merge <- function (dest, source, typeMatch=true)
+::LinGe.Merge <- function (dest, source, typeMatch=true, reserveKey=false)
 {
 	if ("table" == typeof dest && "table" == typeof source)
 	{
 		foreach (key, val in source)
 		{
+			local keyIsExist = true;
 			if (!dest.rawin(key))
 			{
 				// 为什么有些保存到 Cache 会产生大小写转换？？
@@ -467,13 +469,19 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 					}
 				}
 				if (!dest.rawin(key))
-					break;
+					keyIsExist = false;
+			}
+			if (!keyIsExist)
+			{
+				if (reserveKey)
+					dest.rawset(key, val);
+				continue;
 			}
 			local type_dest = typeof dest[key];
 			local type_src = typeof val;
 			// 如果指定key也是table，则进行递归
 			if ("table" == type_dest && "table" == type_src)
-				::LinGe.Merge(dest[key], val);
+				::LinGe.Merge(dest[key], val, typeMatch, reserveKey);
 			else if (type_dest != type_src)
 			{
 				if (!typeMatch)
@@ -646,10 +654,10 @@ class ::LinGe.ConfigManager
 		table = {};
 	}
 	// 添加表到配置管理 若表名重复则会覆盖
-	function Add(tableName, _table)
+	function Add(tableName, _table, reserveKey=false)
 	{
 		table.rawset(tableName, _table.weakref());
-		Load(tableName);
+		Load(tableName, reserveKey);
 	}
 
 	// 从配置管理中删除表
@@ -658,8 +666,9 @@ class ::LinGe.ConfigManager
 		table.rawdelete(tableName);
 	}
 	// 载入指定表的配置
-	// 注意，配置载入只会载入已创建的key，配置文件中有但脚本代码未创建的key不会被载入
-	function Load(tableName)
+	// reserveKey为false时，配置载入只会载入已创建的key，配置文件中有但脚本代码未创建的key不会被载入
+	// 反之则配置文件中的key会被保留
+	function Load(tableName, reserveKey=false)
 	{
 		if (!table.rawin(tableName))
 			throw "未找到表";
@@ -672,7 +681,7 @@ class ::LinGe.ConfigManager
 		}
 		if (null != fromFile && fromFile.rawin(tableName))
 		{
-			::LinGe.Merge(table[tableName], fromFile[tableName]);
+			::LinGe.Merge(table[tableName], fromFile[tableName], true, reserveKey);
 		}
 		Save(tableName); // 保持文件配置和已载入配置的一致性
 	}
@@ -697,11 +706,11 @@ class ::LinGe.ConfigManager
 	}
 
 	// 载入所有表
-	function LoadAll()
+	function LoadAll(reserveKey=false)
 	{
 		local fromFile = ::VSLib.FileIO.LoadTable(filePath);
 		if (null != fromFile)
-			::LinGe.Merge(table, fromFile);
+			::LinGe.Merge(table, fromFile, true, reserveKey);
 		SaveAll();
 	}
 	// 保存所有表
@@ -1164,9 +1173,9 @@ local isExistMaxplayers = true;
 
 // 已知玩家列表 存储加入过服务器玩家的SteamID与名字
 const FILE_KNOWNPLAYERS = "LinGe/playerslist";
-::LinGe.Base.known <- { list = [] };
+::LinGe.Base.known <- { };
 ::LinGe.Base.knownManager <- ::LinGe.ConfigManager(FILE_KNOWNPLAYERS);
-::LinGe.Base.knownManager.Add("known", ::LinGe.Base.known);
+::LinGe.Base.knownManager.Add("playerslist", ::LinGe.Base.known, true);
 
 // 玩家信息
 ::LinGe.Base.info <- {
@@ -1219,25 +1228,16 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 	if (Config.isShowTeamChange)
 		ClientPrint(null, 3, "\x03"+ playerName + "\x04 正在连接");
 
-	// 判断是否加入过服务器 未加入过则将其信息存入knownPlayers
 	if (Config.recordPlayerInfo)
 	{
-		local isExist = false;
-		foreach (idx, val in known.list)
+		local uniqueID = params.networkid;
+		uniqueID = ::VSLib.Utils.StringReplace(uniqueID, "STEAM_1:", "S");
+		uniqueID = ::VSLib.Utils.StringReplace(uniqueID, "STEAM_0:", "S");
+		uniqueID = ::VSLib.Utils.StringReplace(uniqueID, ":", "");
+		if (uniqueID != "S00")
 		{
-			if (val.id == params.networkid)
-			{
-				if (val.name == playerName)
-					isExist = true;
-				else
-					knownPlayers.remove[idx]; // 如果id存在但玩家名变化了则删除重新更新
-				break;
-			}
-		}
-		if (!isExist)
-		{
-			known.list.append( { id=params.networkid, name=playerName } );
-			knownManager.Save("known");
+			known.rawset(uniqueID, { SteamID=params.networkid, Name=playerName });
+			knownManager.Save("playerslist");
 		}
 	}
 }
@@ -1328,7 +1328,7 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 		if (LinGe.IsPlayerIdle(params.entityIndex))
 			text += "已闲置";
 		else
-			text += "加入了旁观者";
+			text += "进入旁观";
 		break;
 	case 2:
 		text += "加入了生还者";
