@@ -171,7 +171,11 @@ local hintEvent = {};
 		lastChanged.rawset(targetname, -9999);
 	}
 }
-
+local timeout = 0;
+if (::LinGe.Hint.Config.help.duration > ::LinGe.Hint.Config.ping.duration)
+	timeout = ::LinGe.Hint.Config.help.duration;
+else
+	timeout = ::LinGe.Hint.Config.ping.duration;
 local hintTemplateTbl = {
 	classname = "env_instructor_hint",
 	hint_allow_nodraw_target = "1",
@@ -192,11 +196,12 @@ local hintTemplateTbl = {
 	hint_range = "0",
 	hint_static = "0", // 跟随实体目标
 	hint_target = "",
-	hint_timeout = 0.0, // 持续时间一律为0，全部由脚本来管理关闭，禁止自动关闭
+	hint_timeout = timeout, // 避免BUG情况下提示一直不关闭
 	origin = Vector(0, 0, 0),
 	angles = QAngle(0, 0, 0),
 	targetname = ""
 };
+
 // 添加提示事件
 ::LinGe.Hint.AddHint <- function (target, icon, text, level, duration, hintMode, activator = null)
 {
@@ -280,7 +285,7 @@ local hintTemplateTbl = {
 	else
 		throw "参数非法";
 
-	if (!hintEvent.rawin(targetname))
+	if (targetname == "" || !hintEvent.rawin(targetname))
 		return;
 	::VSLib.Timers.RemoveTimerByName("RemoveHint_" + targetname);
 	foreach (tbl in playerHint)
