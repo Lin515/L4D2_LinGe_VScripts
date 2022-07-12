@@ -374,16 +374,24 @@ local humanIndex = 0;
 			}
 
 			local hintTbl = eventInfo.hintTbl;
-			// 对于主动发出标记的人来说，这个标记总是可见的
-			// 但是不会透过墙体显示，也不会在屏幕外显示，且总是不占用显示位
+			// 对于主动发出标记的人来说，这个标记总是显示2s后自动消失
+			// 不会透过墙体显示，也不会在屏幕外显示，且总是不占用显示位
 			if (eventInfo.activator == player)
 			{
-				if (entTbl.rawin(targetname) || countTbl[targetname] > 0)
-					continue;
-				hintTbl.hint_nooffscreen = "1";
-				hintTbl.hint_forcecaption = "0";
-				hintTbl.hint_suppress_rest = "1";
-				PlayerHint_Show(targetname, player);
+				if (countTbl[targetname] == 0)
+				{
+					hintTbl.hint_nooffscreen = "1";
+					hintTbl.hint_forcecaption = "0";
+					hintTbl.hint_suppress_rest = "1";
+					PlayerHint_Show(targetname, player);
+				}
+				else
+				{
+					if (entTbl.rawin(targetname) && (Time() - lastChanged[targetname]) > 2)
+					{
+						PlayerHint_Kill(targetname, player);
+					}
+				}
 				continue;
 			}
 
