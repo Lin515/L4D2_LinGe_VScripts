@@ -110,9 +110,9 @@ PLUGIN_RESULT LinGe_VScripts::ClientCommand(edict_t *pEntity, const CCommand &ar
 		return PLUGIN_CONTINUE;
 	if (m_bPlayerPingLoaded && g_bLookPing)
 	{
-		if ( Q_stricmp(args[0], "vocalize") == 0
+		if (args.ArgC() >= 2 && Q_stricmp(args[0], "vocalize") == 0
 		&& Q_stricmp(args[1], "smartlook") == 0
-		&& (args.ArgC() == 2 || Q_stricmp(args[2], "auto") != 0))
+		&& (args.ArgC() == 2 || Q_stricmp(args[2], "auto") != 0) )
 		// 游戏自动让人物发出该指令时，第三个参数会为 auto
 		{
 			IPlayerInfo *player = SDKAPI::iPlayerInfoManager->GetPlayerInfo(pEntity);
