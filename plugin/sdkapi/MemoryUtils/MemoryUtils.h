@@ -105,7 +105,10 @@ public:
 #ifdef WIN32
 		return reinterpret_cast<Fn>(FindPattern(signature.Windows));
 #elif defined PLATFORM_LINUX
-		return reinterpret_cast<Fn>(ResolveSymbol(signature.Linux));
+	if (signature.Linux[0] == '@')
+		return reinterpret_cast<Fn>(ResolveSymbol(&signature.Linux[1]));
+	else
+		return reinterpret_cast<Fn>(FindPattern(signature.Linux));
 #endif
 	}
 };

@@ -7,6 +7,7 @@ set(HL2SDKL4D2 ../../L4D2_Dev/hl2sdk-l4d2)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(HL2PUB ${HL2SDKL4D2}/public)
 set(HL2GAME ${HL2SDKL4D2}/game)
@@ -50,7 +51,7 @@ elseif(UNIX)
         -mfpmath=sse -msse -DHAVE_STDINT_H \
         -Wno-non-virtual-dtor -fno-rtti -fno-threadsafe-statics \
         -Wno-overloaded-virtual -fpermissive \
-        -m32 -ldl -lm -static-libgcc -static-libstdc++ -shared"
+        -m32 -ldl -lm -static-libgcc -static-libstdc++"
     )
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -funroll-loops -pipe -fno-strict-aliasing")
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}")
@@ -67,7 +68,6 @@ target_sources(LinGe_VScripts PRIVATE
     LinGe_VScripts.cpp
     sdkapi/MemoryUtils/MemoryUtils.cpp
     sdkapi/sdkapi.cpp
-    sdkapi/signature.cpp
 )
 
 target_include_directories(LinGe_VScripts PRIVATE
