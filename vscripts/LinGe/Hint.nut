@@ -221,7 +221,7 @@ local hintTemplateTbl = {
 	if (!targetEnt || !targetEnt.IsValid())
 		throw "targetEnt 无效";
 
-	if (hintMode < 0 || hintMode > HINTMODE.__MAX__)
+	if (hintMode < 0 || hintMode >= HINTMODE.__MAX__)
 		throw "hintMode 参数非法";
 
 	local hintTbl = clone hintTemplateTbl;
@@ -401,7 +401,7 @@ local humanIndex = 0;
 				if (eventInfo.level < 2 && count == 1)
 				{
 					if (Time() - lastChanged[targetname] > 4
-					&& !::LinGe.IsPlayerSeeHere(player, eventInfo.targetEnt, 50))
+					&& !::LinGe.IsPlayerSeeHere(player, eventInfo.targetEnt, 60))
 					{
 						PlayerHint_Kill(targetname, player);
 						continue;
@@ -411,31 +411,31 @@ local humanIndex = 0;
 				{
 				case HINTMODE.REVIVE:
 					local owner = NetProps.GetPropEntity(eventInfo.targetEnt, "m_reviveOwner");
+					// 如果玩家受到救助了，则隐藏
 					if (owner && owner.IsValid())
 					{
 						PlayerHint_Kill(targetname, player);
 						continue;
 					}
-					// 如果玩家受到救助了，则隐藏，否则按玩家被控处理
+					// 未受到救助，则按玩家被控处理
 				case HINTMODE.SPECIAL:
 				case HINTMODE.DOMINATE:
-					// 没看以40的角度差看向这个方向不隐藏
 					if (!::LinGe.IsPlayerSeeHere(player, eventInfo.targetEnt, 40))
 						continue;
-					// 无法链式追踪到实体不隐藏
 					if (!::LinGe.ChainTraceToEntity(player, eventInfo.targetEnt, MASK_SHOT_HULL,
 							["player", "infected", "witch"]) )
 						continue;
+					// 以40的角度差看向这个方向，且能链式追踪到实体（能够看到而无墙体遮挡物），则隐藏
 					PlayerHint_Kill(targetname, player);
 					continue;
 				case HINTMODE.DYING:
-					// 如果正在受到治疗则隐藏
 					local owner = NetProps.GetPropEntity(eventInfo.targetEnt, "m_useActionOwner");
 					if (!owner || !owner.IsValid() || !owner.IsSurvivor())
 						continue;
 					local weapon = owner.GetActiveWeapon();
 					if (!weapon || !weapon.IsValid() || weapon.GetClassname() != "weapon_first_aid_kit")
 						continue;
+					// 正在受到治疗则隐藏
 					PlayerHint_Kill(targetname, player);
 					continue;
 				case HINTMODE.WEAPON:
