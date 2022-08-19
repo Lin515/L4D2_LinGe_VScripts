@@ -102,10 +102,13 @@ namespace SDKAPI {
 			void *ptr = mu_server->FindSignature<void *>(Sig_gEntList);
 			if (!ptr)
 				SDKAPI_Warning("gEntList signature not found!\n");
-		#ifdef WIN32
-			ptr = *(reinterpret_cast<void **>((char *)ptr + Offset_gEntList_windows));
-		#endif
-			gEntList = reinterpret_cast<FCGlobalEntityList *>(ptr);
+			else
+			{
+			#ifdef WIN32
+				ptr = *(reinterpret_cast<void **>((char *)ptr + Offset_gEntList_windows));
+			#endif
+				gEntList = reinterpret_cast<FCGlobalEntityList *>(ptr);
+			}
 		}
 	}
 
