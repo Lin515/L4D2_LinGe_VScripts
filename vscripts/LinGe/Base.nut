@@ -114,11 +114,11 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 	return count;
 }
 
-// 获取 targetname，若其为空，则给它设置一个
+// 获取 targetname，并确保它在本脚本系统中独一无二
 ::LinGe.GetEntityTargetname <- function (entity)
 {
 	local targetname = entity.GetName();
-	if (targetname == "")
+	if (targetname.find("LinGe_") != 0)
 	{
 		targetname = "LinGe_" + UniqueString();
 		entity.__KeyValueFromString("targetname", targetname);
