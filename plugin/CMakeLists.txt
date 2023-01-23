@@ -23,7 +23,9 @@ if(WIN32)
         mathlib
         legacy_stdio_definitions # vc++2015及以上需链接此库
     )
-    add_compile_options(/wd4819) # 禁止字符集警告
+    add_compile_options(/source-charset:windows-1250)
+    add_compile_options(/execution-charset:utf-8)
+    add_compile_options(/MP)
     # 静态链接到CRT库
     string(REPLACE "/MD" "/MT" 	CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG})
     string(REPLACE "/MD" "/MT" 	CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE})
@@ -46,12 +48,12 @@ elseif(UNIX)
     set(CMAKE_CXX_FLAGS	"${CMAKE_CXX_FLAGS} -D_LINUX -DL4D2 -m32 \
         -Dstricmp=strcasecmp -D_stricmp=strcasecmp -D_strnicmp=strncasecmp \
         -Dstrnicmp=strncasecmp -D_snprintf=snprintf -D_vsnprintf=vsnprintf \
-        -D_alloca=alloca -Dstrcmpi=strcasecmp -Wall -Wno-switch \
+        -D_alloca=alloca -Dstrcmpi=strcasecmp -DHAVE_STDINT_H -Wall -Wno-switch \
         -Wno-error=uninitialized -Wno-unused -Wno-error=delete-non-virtual-dtor \
-        -mfpmath=sse -msse -DHAVE_STDINT_H \
+        -Wno-class-memaccess -Wno-packed-not-aligned -mfpmath=sse -msse \
         -Wno-non-virtual-dtor -fno-rtti -fno-threadsafe-statics \
         -Wno-overloaded-virtual -fpermissive \
-        -m32 -ldl -lm -static-libgcc -static-libstdc++"
+        -ldl -lm -static-libgcc -static-libstdc++"
     )
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -funroll-loops -pipe -fno-strict-aliasing")
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}")

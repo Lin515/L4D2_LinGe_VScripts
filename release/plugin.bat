@@ -1,7 +1,7 @@
 @echo off
 set main=..\plugin\
 set _7z="D:\Program Files\7-Zip\7z.exe"
-set linux_user=ubuntu
+set linux_user=arch
 
 mkdir addons\LinGe_VScripts
 

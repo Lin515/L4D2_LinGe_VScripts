@@ -192,9 +192,9 @@ local isExistTime = false;
 	for (local i=0; i<=32; i++)
 	{
 		// ksi=击杀的特感数量 kci=击杀的小丧失数量
-		// si=对特感伤害 atk=对别人的友伤 vct=自己受到的友伤
+		// si=对特感伤害 atk=对别人的友伤 vct=自己受到的友伤 tank=对tank伤害
 		hurtData.append( { ksi=0, kci=0, si=0, atk=0, vct=0, tank=0 } );
-		// 对特感数据默认不统计对特感的火烧伤害与对Tank的伤害 对Tank伤害会单独列出
+		// 对特感伤害中不包含对Tank和Witch的伤害 对Tank伤害会单独列出
 	}
 
 	// 如果linge_time变量不存在则显示回合时间
