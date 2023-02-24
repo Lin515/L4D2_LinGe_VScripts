@@ -1068,29 +1068,30 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 		player = GetPlayerFromUserID(player);
 	if (typeof player != "instance")
 		throw "player 无效";
+	// 如果允许发出求救信号，则先判断发出者是否处于指定状态
 	if (Config.help.duration > 0)
 	{
 		if (player.GetSpecialInfectedDominatingMe())
 		{
 			ShowPlayerBeDominating(player);
 			ClientPrint(player, 3, "\x05已发出被控求救信号");
+			return;
 		}
 		// 如果玩家处于虚弱状态，则发出求救信号
 		else if (player.IsIncapacitated())
 		{
 			ShowPlayerIncap(player);
 			ClientPrint(player, 3, "\x05已发出倒地求救信号");
+			return;
 		}
 		else if (player.IsHangingFromLedge())
 		{
 			ShowPlayerLedge(player);
 			ClientPrint(player, 3, "\x05已发出挂边求救信号");
+			return;
 		}
-		else
-			PingTrace(player);
 	}
-	// else
-	// 	PingTrace(player);
+	PingTrace(player);
 }.bindenv(::LinGe.Hint);
 if (::LinGe.Hint.Config.ping.duration > 0)
 	::LinPlayerPing <- ::LinGe.Hint.PlayerPing.weakref(); // 这是留给插件调用的
