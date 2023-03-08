@@ -114,6 +114,14 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 	return count;
 }
 
+::LinGe.SteamIDCastUniqueID <- function (steamid)
+{
+	local uniqueID = ::VSLib.Utils.StringReplace(steamid, "STEAM_1:", "S");
+	uniqueID = ::VSLib.Utils.StringReplace(uniqueID, "STEAM_0:", "S");
+	uniqueID = ::VSLib.Utils.StringReplace(uniqueID, ":", "");
+	return uniqueID;
+}
+
 // 获取 targetname，并确保它在本脚本系统中独一无二
 ::LinGe.GetEntityTargetname <- function (entity)
 {
@@ -464,6 +472,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 				{
 					if (_key.tolower() == key.tolower())
 					{
+						source[_key] <- source[key];
 						key = _key;
 						break;
 					}
@@ -1143,7 +1152,7 @@ if (null == ::LinGe.Admin.adminslist)
 	{
 		if (temp.isValidCache)
 		{
-			::LinGe.Merge(Cache, temp);
+			::LinGe.Merge(Cache, temp, true, true);
 			Cache.rawset("isValidCache", false); // 开局时保存一个Cache 并且设置为无效
 			SaveTable("LinGe_Cache", Cache);
 			_params.isValidCache = true;
@@ -1183,7 +1192,7 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 	survivor = 0, // 生还者玩家数量
 	special = 0, // 特感玩家数量
 	ob = 0, // 旁观者玩家数量
-	survivorIdx = [] // 生还者实体索引（实际上还包括了旁观者的）
+	survivorIdx = [] // 生还者实体索引
 };
 ::pyinfo <- ::LinGe.Base.info.weakref();
 
@@ -1230,10 +1239,7 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 
 	if (Config.recordPlayerInfo)
 	{
-		local uniqueID = params.networkid;
-		uniqueID = ::VSLib.Utils.StringReplace(uniqueID, "STEAM_1:", "S");
-		uniqueID = ::VSLib.Utils.StringReplace(uniqueID, "STEAM_0:", "S");
-		uniqueID = ::VSLib.Utils.StringReplace(uniqueID, ":", "");
+		local uniqueID = ::LinGe.SteamIDCastUniqueID(params.networkid);
 		if (uniqueID != "S00")
 		{
 			known.rawset(uniqueID, { SteamID=params.networkid, Name=playerName });
@@ -1250,6 +1256,8 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 {
 	if (!_params.rawin("userid"))
 		return;
+	if (_params.oldteam == _params.team) // 这种情况可能出现吗？
+		return;
 
 	local params = clone _params;
 	params.player <- GetPlayerFromUserID(params.userid);
@@ -1260,11 +1268,9 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 	params.entityIndex <- params.player.GetEntityIndex();
 
 	local idx = ::pyinfo.survivorIdx.find(params.entityIndex);
-	// 如果是离开或者加入特感就将其从生还者实体索引数组删除
-	// 如果是加入生还者就将其索引加入
-	if ( (params.disconnect || 3 == params.team) && null != idx )
+	if ( 2 == params.oldteam && null != idx )
 		::pyinfo.survivorIdx.remove(idx);
-	else if ( (2 == params.team) && null == idx)
+	else if (2 == params.team && null == idx)
 		::pyinfo.survivorIdx.append(params.entityIndex);
 
 	// 当不是BOT时，对当前玩家人数进行更新
@@ -1307,6 +1313,7 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 			throw "未知情况发生";
 		}
 		// 触发真实玩家变更事件
+		::LinEventTrigger("human_team_nodelay", params);
 		::LinEventTrigger("human_team", params, 0.1); // 延时0.1s触发
 	}
 }

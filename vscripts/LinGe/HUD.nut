@@ -1,6 +1,5 @@
 printl("[LinGe] HUD 正在载入");
 ::LinGe.HUD <- {};
-
 ::LinGe.HUD.Config <- {
 	HUDShow = {
 		all = true,
@@ -13,11 +12,12 @@ printl("[LinGe] HUD 正在载入");
 	hurt = {
 		HUDRank = 3, // HUD排行榜最多显示多少人，范围0~8 设置为0则关闭排行显示
 		rankTitle = "特感/丧尸击杀：",
-		rankStyle = "{ksi}/{kci}",
+		rankStyle2 = "[{rank}] {ksi}/{kci} <- {name}",
 		teamHurtInfo = 2, // 友伤即时提示 0:关闭 1:公开处刑 2:仅攻击者和被攻击者可见
 		autoPrint = 0, // 每间隔多少s在聊天窗输出一次数据统计，若为0则只在本局结束时输出，若<0则永远不输出
 		chatRank = 4, // 聊天窗输出时除了最高友伤、最高被黑 剩下显示最多多少人的数据
-		chatStyle = "特:{ksi}({si}伤害) 尸:{kci} 黑:{atk} 被黑:{vct}"
+		chatStyle2 = "特:{ksi}({si}伤害) 尸:{kci} 黑:{atk} 被黑:{vct} <- {name}",
+		discardLostRound = false // 累计数据中是否不统计败局的数据
 	},
 	textHeight = 0.025, // 一行文字通用高度
 	position = {
@@ -35,41 +35,62 @@ printl("[LinGe] HUD 正在载入");
 ::LinGe.Cache.HUD_Config <- ::LinGe.HUD.Config;
 
 ::LinGe.HUD.hurtData <- []; // 伤害与击杀数据
+::LinGe.HUD.hurtData_bak <- {}; // 以UniqueID为key保存数据，已经离开的玩家与过关时所有玩家的数据会在此保存
+::LinGe.Cache.hurtData_bak <- ::LinGe.HUD.hurtData_bak;
+local hurtDataTemplate = { tank=0 };
+local item_key = ["ksi", "hsi", "kci", "hci", "si", "atk", "vct"];
+local ex_str = "";
+foreach (key in item_key)
+{
+	hurtDataTemplate[key] <- 0;
+	hurtDataTemplate["t_" + key] <- 0;
+	ex_str += format("|%s|t_%s", key, key);
+}
+// ksi=击杀的特感数量 hsi=爆头击杀特感的数量 kci=击杀的丧尸数量 hci=爆头击杀丧尸的数量
+// si=对特感伤害 atk=对别人的友伤 vct=自己受到的友伤 tank=对tank伤害
+// 对特感伤害中不包含对Tank和Witch的伤害 对Tank伤害会单独列出
+// 以 t_ 开头的代表整局游戏的累计数据
 
 // 预处理文本处理函数
 ::LinGe.HUD.Pre <- {};
-::LinGe.HUD.Pre.ex <- regexp("{(ksi|kci|si|atk|vct)}");
-::LinGe.HUD.Pre.GetKeyAndReplace <- function (oldStr, tr)
+::LinGe.HUD.Pre.ex <- regexp(
+	"{(rank|name" + ex_str + ")}"
+); // rank为排名，name为玩家名，其它对应为hurtDataTemplate中数据
+::LinGe.HUD.Pre.GetKeyAndReplace <- function (oldStr, format_str)
 {
 	local ret = { key=[], str=oldStr};
 	local res = ex.capture(oldStr); // index=0 带{}的完整匹配 index=1 不带{}的分组1
+
 	if (res != null)
 	{
-		ret = GetKeyAndReplace(oldStr.slice(0, res[0].begin) + tr + oldStr.slice(res[0].end), tr);
-		ret.key.insert(0, oldStr.slice(res[1].begin, res[1].end));
+		local key = oldStr.slice(res[1].begin, res[1].end);
+		if (key == "rank")
+		{
+			ret = GetKeyAndReplace(format(format_str, oldStr.slice(0, res[0].begin), "vargv[0]", oldStr.slice(res[0].end)), format_str);
+		}
+		else if (key == "name")
+		{
+			ret = GetKeyAndReplace(format(format_str, oldStr.slice(0, res[0].begin), "vargv[1]", oldStr.slice(res[0].end)), format_str);
+		}
+		else
+		{
+			ret = GetKeyAndReplace(format(format_str, oldStr.slice(0, res[0].begin), "vargv[2]." + key, oldStr.slice(res[0].end)), format_str);
+			ret.key.insert(0, key);
+		}
 	}
 	return ret;
-}
-
-::LinGe.HUD.Pre.BuildFuncStr <- function (formatAndKey)
-{
-	local funcStr = "return format(\"" + formatAndKey.str + "\"";
-	foreach (val in formatAndKey.key)
-		funcStr += ", hurtData[vargv[0]]." + val;
-	funcStr += ");";
-	return funcStr;
 }
 
 ::LinGe.HUD.Pre.CompileFunc <- function ()
 {
 	// 预处理HUD排行榜相关
-	local result = GetKeyAndReplace(::LinGe.HUD.Config.hurt.rankStyle, "%d");
+	local result = GetKeyAndReplace("\"" + ::LinGe.HUD.Config.hurt.rankStyle2 + "\"", "%s\" + %s + \"%s");
 	::LinGe.HUD.Pre.HUDKey <- result.key; // key列表需要保存下来，用于排序
-	::LinGe.HUD.Pre.HUDFunc <- compilestring(BuildFuncStr(result)).bindenv(::LinGe.HUD);
+	::LinGe.HUD.Pre.HUDFunc <- compilestring("return " + result.str);
 	// 预处理聊天窗排行榜相关
-	result = GetKeyAndReplace(::LinGe.HUD.Config.hurt.chatStyle, "\\x03%d\\x04");
+	result = GetKeyAndReplace("\"" + ::LinGe.HUD.Config.hurt.chatStyle2+ "\"", "%s\\x03\" + %s + \"\\x04%s");
 	::LinGe.HUD.Pre.ChatKey <- result.key;
-	::LinGe.HUD.Pre.ChatFunc <- compilestring(BuildFuncStr(result)).bindenv(::LinGe.HUD);
+	::LinGe.HUD.Pre.ChatFunc <- compilestring("return " + result.str);
 }
 ::LinGe.HUD.Pre.CompileFunc();
 
@@ -185,18 +206,97 @@ local isExistTime = false;
 	::LinGe.Base.UpdateMaxplayers(); // 如果存在更新则会触发 maxplayers_changed
 }.bindenv(::LinGe.HUD);
 
+// 将玩家的伤害数据从 hurtData 备份到 hurtData_bak
+::LinGe.HUD.BackupAllHurtData <- function ()
+{
+	for (local i=1; i<=32; i++)
+	{
+		local player = PlayerInstanceFromIndex(i);
+		if (player && player.IsValid()
+		&& player.GetNetworkIDString() != "BOT"
+		&& 3 != ::LinGe.GetPlayerTeam(player))
+		{
+			local id = ::LinGe.SteamIDCastUniqueID(player.GetNetworkIDString());
+			hurtData_bak.rawset(id, clone hurtData[i]);
+		}
+	}
+}
+
+::LinGe.HUD.GetPlayerBakHurtData <- function (player)
+{
+	if (typeof player != "instance")
+		throw "player 类型非法";
+	if (!player.IsValid())
+		return null;
+	if (player.GetNetworkIDString() == "BOT")
+		return null;
+	local id = ::LinGe.SteamIDCastUniqueID(player.GetNetworkIDString());
+	if (!hurtData_bak.rawin(id))
+		return null;
+	return hurtData_bak[id];
+}
+
+::LinGe.HUD.On_cache_restore <- function (params)
+{
+	// 将HurtData_bak中的非累计数据置为0
+	foreach (id, d in hurtData_bak)
+	{
+		if (!d.rawin("hsi")) // Cache 还原后，小写h总是会被改写为大写h，大坑
+			d.hsi <- 0;
+		if (!d.rawin("hci"))
+			d.hci <- 0;
+		foreach (key in item_key)
+			d[key] = 0;
+		d.tank = 0;
+	}
+
+	// 初始化 hurtData
+	for (local i=0; i<=32; i++)
+	{
+		local d = clone hurtDataTemplate;
+		hurtData.append(d);
+
+		local player = PlayerInstanceFromIndex(i);
+		if (player && player.IsValid() && 3 != ::LinGe.GetPlayerTeam(player)
+		&& params.isValidCache)
+		{
+			local last_data = GetPlayerBakHurtData(player);
+			if (last_data)
+			{
+				foreach (key in item_key)
+					d["t_" + key] = last_data["t_" + key];
+			}
+		}
+	}
+}
+::LinEventHook("cache_restore", ::LinGe.HUD.On_cache_restore, ::LinGe.HUD);
+
+// 回合失败
+::LinGe.HUD.SaveHurt_RoundLost <- function (params)
+{
+	// 如果不统计回合失败时的累计数据，则需从累计数据中减去本局的数据
+	BackupAllHurtData();
+	if (Config.hurt.discardLostRound)
+	{
+		foreach (id, d in hurtData_bak)
+		{
+			foreach (key in item_key)
+				d["t_" + key] -= d[key];
+		}
+	}
+}
+::LinEventHook("OnGameEvent_round_end", ::LinGe.HUD.SaveHurt_RoundLost, ::LinGe.HUD);
+
+// 成功过关
+::LinGe.HUD.SaveHurt_RoundWin <- function (params)
+{
+	BackupAllHurtData();
+}
+::LinEventHook("OnGameEvent_map_transition", ::LinGe.HUD.SaveHurt_RoundWin, ::LinGe.HUD);
+
 // 事件：回合开始
 ::LinGe.HUD.OnGameEvent_round_start <- function (params)
 {
-	// 初始化数组
-	for (local i=0; i<=32; i++)
-	{
-		// ksi=击杀的特感数量 kci=击杀的小丧失数量
-		// si=对特感伤害 atk=对别人的友伤 vct=自己受到的友伤 tank=对tank伤害
-		hurtData.append( { ksi=0, kci=0, si=0, atk=0, vct=0, tank=0 } );
-		// 对特感伤害中不包含对Tank和Witch的伤害 对Tank伤害会单独列出
-	}
-
 	// 如果linge_time变量不存在则显示回合时间
 	if (null == Convars.GetStr("linge_time"))
 	{
@@ -220,21 +320,24 @@ local isExistTime = false;
 // team=1：旁观者 team=2：生还者 team=3：特感
 ::LinGe.HUD.human_team <- function (params)
 {
-	// 如果是离开或加入特感方就将其数据清空
+	// 如果是离开生还者方就将其数据备份至 hurtData_bak 中，然后清空其当前数据
 	local entityIndex = params.entityIndex;
-	if (params.disconnect || 3 == params.team)
+	if (2 == params.oldteam)
 	{
-		hurtData[entityIndex].ksi = 0;
-		hurtData[entityIndex].kci = 0;
-		hurtData[entityIndex].si = 0;
-		hurtData[entityIndex].atk = 0;
-		hurtData[entityIndex].vct = 0;
-		hurtData[entityIndex].tank = 0;
+		local id = ::LinGe.SteamIDCastUniqueID(params.steamid);
+		hurtData_bak.rawset(id, clone hurtData[entityIndex]);
+		hurtData[entityIndex] = clone hurtDataTemplate;
+	}
+	else if (params.team == 2)
+	{
+		local last_data = GetPlayerBakHurtData(params.player);
+		if (last_data)
+			hurtData[entityIndex] = clone last_data;
 	}
 	UpdatePlayerHUD();
 	UpdateRankHUD();
 }
-::LinEventHook("human_team", ::LinGe.HUD.human_team, ::LinGe.HUD);
+::LinEventHook("human_team_nodelay", ::LinGe.HUD.human_team, ::LinGe.HUD);
 
 // 事件：玩家受伤 友伤信息提示、伤害数据统计
 // 对witch伤害和对小僵尸伤害不会触发这个事件
@@ -282,7 +385,9 @@ local isExistTime = false;
 		if (attacker != victim)
 		{
 			hurtData[attacker.GetEntityIndex()].atk += dmg;
+			hurtData[attacker.GetEntityIndex()].t_atk += dmg;
 			hurtData[victim.GetEntityIndex()].vct += dmg;
+			hurtData[victim.GetEntityIndex()].t_vct += dmg;
 		}
 
 		// 若开启了友伤提示，则计入临时数据统计
@@ -313,6 +418,7 @@ local isExistTime = false;
 			if (vctHp < 0)
 				dmg += vctHp; // 修正溢出伤害
 			hurtData[attacker.GetEntityIndex()].si += dmg;
+			hurtData[attacker.GetEntityIndex()].t_si += dmg;
 		}
 	}
 }
@@ -432,9 +538,25 @@ local isExistTime = false;
 		if (attackerEntity && attackerEntity.IsSurvivor())
 		{
 			if (params.victimname == "Infected")
+			{
 				hurtData[attackerEntity.GetEntityIndex()].kci++;
+				hurtData[attackerEntity.GetEntityIndex()].t_kci++;
+				if (params.headshot)
+				{
+					hurtData[attackerEntity.GetEntityIndex()].hci++;
+					hurtData[attackerEntity.GetEntityIndex()].t_hci++;
+				}
+			}
 			else
+			{
 				hurtData[attackerEntity.GetEntityIndex()].ksi++;
+				hurtData[attackerEntity.GetEntityIndex()].t_ksi++;
+				if (params.headshot)
+				{
+					hurtData[attackerEntity.GetEntityIndex()].hsi++;
+					hurtData[attackerEntity.GetEntityIndex()].t_hsi++;
+				}
+			}
 			// UpdateRankHUD();
 		}
 	}
@@ -640,8 +762,8 @@ local reHudCmd = regexp("^(all|time|players|hostname)$");
 		{
 			rank++;
 			name = player.GetPlayerName();
-			HUD_table.Fields["rank" + rank].dataval = format("[%d] %s <- %s",
-				rank, Pre.HUDFunc(survivorIdx[i]), name);
+			HUD_table.Fields["rank" + rank].dataval =
+				Pre.HUDFunc(rank, name, hurtData[survivorIdx[i]]);
 		}
 	}
 	// 清空可能存在的多余的显示
@@ -746,8 +868,7 @@ local killTank = 0;
 			for (local i=0; i<player && i<len; i++)
 			{
 				name = PlayerInstanceFromIndex(survivorIdx[i]).GetPlayerName();
-				ClientPrint(null, 3, format("\x04%s <- \x03%s"
-					, Pre.ChatFunc(survivorIdx[i]), name));
+				ClientPrint(null, 3, "\x04" + Pre.ChatFunc(i+1, name, hurtData[survivorIdx[i]]));
 			}
 		}
 
