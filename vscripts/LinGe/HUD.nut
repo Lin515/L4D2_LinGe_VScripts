@@ -17,7 +17,10 @@ printl("[LinGe] HUD 正在载入");
 		autoPrint = 0, // 每间隔多少s在聊天窗输出一次数据统计，若为0则只在本局结束时输出，若<0则永远不输出
 		chatRank = 4, // 聊天窗输出时除了最高友伤、最高被黑 剩下显示最多多少人的数据
 		chatStyle2 = "特:{ksi}({si}伤害) 尸:{kci} 黑:{atk} 被黑:{vct} <- {name}",
-		discardLostRound = false // 累计数据中是否不统计败局的数据
+		discardLostRound = false, // 累计数据中是否不统计败局的数据
+		chatAtkMaxStyle = "队友鲨手:{name}({hurt})", // 友伤最高与受到友伤最高
+		chatVctMaxStyle = "都欺负我:{name}({hurt})",
+		chatTeamHurtPraise = "大家真棒，没有友伤的世界达成了~",
 	},
 	textHeight = 0.025, // 一行文字通用高度
 	position = {
@@ -81,16 +84,52 @@ foreach (key in item_key)
 	return ret;
 }
 
+::LinGe.HUD.Pre.teamHurtEx <- regexp("{(name|hurt)}");
+::LinGe.HUD.Pre.GetKeyAndReplace_TeamHurt <- function (oldStr, format_str)
+{
+	local ret = oldStr;
+	local res = teamHurtEx.capture(ret);
+	if (res != null)
+	{
+		local key = oldStr.slice(res[1].begin, res[1].end);
+		if (key == "name")
+		{
+			ret = GetKeyAndReplace_TeamHurt(format(format_str, oldStr.slice(0, res[0].begin), "vargv[0]", oldStr.slice(res[0].end)), format_str);
+		}
+		else if (key == "hurt")
+		{
+			ret = GetKeyAndReplace_TeamHurt(format(format_str, oldStr.slice(0, res[0].begin), "vargv[1]", oldStr.slice(res[0].end)), format_str);
+		}
+	}
+	return ret;
+}
+
 ::LinGe.HUD.Pre.CompileFunc <- function ()
 {
+	local wrapstr = @(str) "\""+str+"\"";
 	// 预处理HUD排行榜相关
-	local result = GetKeyAndReplace("\"" + ::LinGe.HUD.Config.hurt.rankStyle2 + "\"", "%s\" + %s + \"%s");
+	local result = GetKeyAndReplace(wrapstr(::LinGe.HUD.Config.hurt.rankStyle2), "%s\" + %s + \"%s");
 	::LinGe.HUD.Pre.HUDKey <- result.key; // key列表需要保存下来，用于排序
 	::LinGe.HUD.Pre.HUDFunc <- compilestring("return " + result.str);
 	// 预处理聊天窗排行榜相关
-	result = GetKeyAndReplace("\"" + ::LinGe.HUD.Config.hurt.chatStyle2+ "\"", "%s\\x03\" + %s + \"\\x04%s");
+	result = GetKeyAndReplace(wrapstr(::LinGe.HUD.Config.hurt.chatStyle2), "%s\\x03\" + %s + \"\\x04%s");
 	::LinGe.HUD.Pre.ChatKey <- result.key;
 	::LinGe.HUD.Pre.ChatFunc <- compilestring("return " + result.str);
+
+	if (::LinGe.HUD.Config.hurt.chatAtkMaxStyle)
+	{
+		local str = GetKeyAndReplace_TeamHurt(wrapstr(::LinGe.HUD.Config.hurt.chatAtkMaxStyle), "%s\\x03\" + %s + \"\\x04%s");
+		::LinGe.HUD.Pre.AtkMaxFunc <- compilestring("return " + str);
+	}
+	else
+		::LinGe.HUD.Pre.AtkMaxFunc <- null;
+	if (::LinGe.HUD.Config.hurt.chatVctMaxStyle)
+	{
+		local str = GetKeyAndReplace_TeamHurt(wrapstr(::LinGe.HUD.Config.hurt.chatVctMaxStyle), "%s\\x03\" + %s + \"\\x04%s");
+		::LinGe.HUD.Pre.VctMaxFunc <- compilestring("return " + str);
+	}
+	else
+		::LinGe.HUD.Pre.VctMaxFunc <- null;
 }
 ::LinGe.HUD.Pre.CompileFunc();
 
@@ -873,25 +912,19 @@ local killTank = 0;
 		}
 
 		// 显示最高黑枪和最高被黑
-		if (0 == atkMax.hurt && 0 == vctMax.hurt)
-			ClientPrint(null, 3, "\x05大家真棒，没有友伤的世界达成了~");
-		else if (0 == atkMax.hurt && 0 < vctMax.hurt)
+		if (0 == atkMax.hurt && 0 == vctMax.hurt && Config.hurt.chatTeamHurtPraise)
 		{
-			ClientPrint(null, 3,
-				format("\x04可怜的 \x03%s\x04 被跑掉的黑心人欺负了 \x03%d \x04血",
-					vctMax.name, vctMax.hurt));
-		}
-		else if (0 < atkMax.hurt && 0 == vctMax.hurt)
-		{
-			ClientPrint(null, 3,
-				format("\x04大魔王 \x03%s\x04 打出了 \x03%d\x04 的友伤，把人都打跑了呢",
-					atkMax.name, atkMax.hurt));
+			ClientPrint(null, 3, "\x05" + Config.hurt.chatTeamHurtPraise);
 		}
 		else
 		{
-			ClientPrint(null, 3,
-				format("\x04队友鲨手:\x03%s\x04(\x03%d\x04) 都欺负我:\x03%s\x04(\x03%d\x04)",
-					atkMax.name, atkMax.hurt, vctMax.name, vctMax.hurt));
+			local text = "\x04";
+			if (atkMax.hurt > 0 && Pre.AtkMaxFunc)
+				text += Pre.AtkMaxFunc(atkMax.name, atkMax.hurt) + " ";
+			if (vctMax.hurt > 0 && Pre.VctMaxFunc)
+				text += Pre.VctMaxFunc(vctMax.name, vctMax.hurt);
+			if (text != "\x04")
+				ClientPrint(null, 3, text);
 		}
 	}
 }.bindenv(::LinGe.HUD);
