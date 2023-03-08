@@ -374,7 +374,7 @@ local humanIndex = 0;
 			}
 
 			local hintTbl = eventInfo.hintTbl;
-			// 对于主动发出标记的人来说，这个标记总是显示2s后自动消失
+			// 对于主动发出标记的人来说，这个标记总是显示4s后自动消失
 			// 不会透过墙体显示，也不会在屏幕外显示，且总是不占用显示位
 			if (eventInfo.activator == player)
 			{
@@ -387,7 +387,7 @@ local humanIndex = 0;
 				}
 				else
 				{
-					if (entTbl.rawin(targetname) && (Time() - lastChanged[targetname]) > 2)
+					if (entTbl.rawin(targetname) && (Time() - lastChanged[targetname]) > 4)
 					{
 						PlayerHint_Kill(targetname, player);
 					}
