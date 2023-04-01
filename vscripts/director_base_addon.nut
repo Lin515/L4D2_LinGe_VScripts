@@ -8,3 +8,4 @@ IncludeScript("LinGe/HUD");		// 可选 HUD 击杀与伤害统计 友伤提示等
 IncludeScript("LinGe/MoreSI"); // 可选 简易的多特控制
 IncludeScript("LinGe/zs"); 	// 可选 自杀指令
 IncludeScript("LinGe/Hint"); // 可选 玩家状态提示与物品标记功能
+IncludeScript("LinGe/RewardHP"); // 可选 击杀回复血量

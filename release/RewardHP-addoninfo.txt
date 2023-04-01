@@ -1,0 +1,10 @@
+"AddonInfo"
+{
+	addonSteamAppID	550
+	addontitle	"击杀回血，可设置回复虚血或实血"
+	addonDescription "仅战役类模式下可用"
+	addonauthor	"LinGe"
+	addonURL0	"https://github.com/Lin515/L4D2_LinGe_VScripts"
+
+	addonContent_Script 1
+}

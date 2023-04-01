@@ -6,6 +6,7 @@ set HUD=HUD
 set MoreSI=MoreSI
 set Hint=Hint
 set zs=zs
+set RewardHP=RewardHP
 set vpk="D:\Program Files (x86)\Steam\steamapps\common\Left 4 Dead 2\bin\vpk.exe"
 
 :: 全套
@@ -65,5 +66,13 @@ copy %zs%-addoninfo.txt %zs%\addoninfo.txt
 copy %zs%-addonimage.jpg %zs%\addonimage.jpg
 copy %main%\LinGe\zs.nut %zs%\scripts\vscripts\LinGe\zs.nut
 %vpk% %zs%
+
+::RewardHP
+rd /s /q %RewardHP%
+mkdir %RewardHP%\scripts\vscripts\LinGe
+copy %RewardHP%-addoninfo.txt %RewardHP%\addoninfo.txt
+copy %RewardHP%-addonimage.jpg %RewardHP%\addonimage.jpg
+copy %main%\LinGe\RewardHP.nut %RewardHP%\scripts\vscripts\LinGe\RewardHP.nut
+%vpk% %RewardHP%
 
 pause
