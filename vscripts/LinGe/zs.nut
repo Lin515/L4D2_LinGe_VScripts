@@ -1,6 +1,6 @@
+// 自杀功能脚本
 ::LinGe.zs <- {};
 
-// 服务器控制 附加功能脚本
 ::LinGe.zs.Config <- {
 	enabled = true,
 	hint = true,
