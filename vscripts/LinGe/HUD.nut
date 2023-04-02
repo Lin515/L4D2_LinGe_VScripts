@@ -12,7 +12,7 @@ printl("[LinGe] HUD 正在载入");
 	hurt = {
 		HUDRank = 3, // HUD排行榜最多显示多少人，范围0~8 设置为0则关闭排行显示
 		rankTitle = "特感/丧尸击杀：",
-		rankStyle2 = "[{rank}] {ksi}/{kci} <- {name}",
+		rankStyle2 = "[{rank}] {ksi}/{kci} <- {name}({state})",
 		teamHurtInfo = 2, // 友伤即时提示 0:关闭 1:公开处刑 2:仅攻击者和被攻击者可见
 		autoPrint = 0, // 每间隔多少s在聊天窗输出一次数据统计，若为0则只在本局结束时输出，若<0则永远不输出
 		chatRank = 4, // 聊天窗输出时除了最高友伤、最高被黑 剩下显示最多多少人的数据
@@ -21,6 +21,7 @@ printl("[LinGe] HUD 正在载入");
 		chatAtkMaxStyle = "队友鲨手:{name}({hurt})", // 友伤最高与受到友伤最高
 		chatVctMaxStyle = "都欺负我:{name}({hurt})",
 		chatTeamHurtPraise = "大家真棒，没有友伤的世界达成了~",
+		HUDRankShowBot = false
 	},
 	textHeight = 0.025, // 一行文字通用高度
 	position = {
@@ -37,6 +38,7 @@ printl("[LinGe] HUD 正在载入");
 ::LinGe.Config.Add("HUD", ::LinGe.HUD.Config);
 ::LinGe.Cache.HUD_Config <- ::LinGe.HUD.Config;
 
+::LinGe.HUD.playersIndex <- []; // 排行榜玩家实体索引列表 包括生还者（含BOT）与本局从生还者进入闲置或旁观的玩家
 ::LinGe.HUD.hurtData <- []; // 伤害与击杀数据
 ::LinGe.HUD.hurtData_bak <- {}; // 以UniqueID为key保存数据，已经离开的玩家与过关时所有玩家的数据会在此保存
 ::LinGe.Cache.hurtData_bak <- ::LinGe.HUD.hurtData_bak;
@@ -57,76 +59,138 @@ foreach (key in item_key)
 // 预处理文本处理函数
 ::LinGe.HUD.Pre <- {};
 ::LinGe.HUD.Pre.ex <- regexp(
-	"{(rank|name" + ex_str + ")}"
-); // rank为排名，name为玩家名，其它对应为hurtDataTemplate中数据
-::LinGe.HUD.Pre.GetKeyAndReplace <- function (oldStr, format_str)
+	"{(rank|name|state" + ex_str + ")((:%)([-\\w]+))?}"
+);
+// rank为排名，name为玩家名，state为玩家当前血量与状态，若无异常状态则只显示血量
+// 其它对应为hurtDataTemplate中数据，按先后顺序影响排名
+// 可以指定格式化方式，以对齐数据。例如 {kci:%-4d} 设定丧尸击杀数最小宽度为4并且左对齐。
+// 设置方式参考 https://www.runoob.com/cprogramming/c-function-printf.html 有编程基础的话应该都懂这个
+// 需要注意数据类型相匹配，例如 {name:%4d} 会出错，同时也不推荐对字符串数据自定义格式化方式
+::LinGe.HUD.Pre.BuildFuncCode <- function (result, wrap=@(str) str)
 {
-	local ret = { key=[], str=oldStr};
-	local res = ex.capture(oldStr); // index=0 带{}的完整匹配 index=1 不带{}的分组1
+	local res = ex.capture(result.format_str); // index=0 带{}的完整匹配 index=1 不带{}的分组1
 
 	if (res != null)
 	{
-		local key = oldStr.slice(res[1].begin, res[1].end);
+		result.format_args += ",";
+		local key = result.format_str.slice(res[1].begin, res[1].end);
+		local format_str = null;
+		if (res.len() >= 5 && res[3].begin>=0 && res[3].end > res[3].begin
+		&& res[3].end <= result.format_str.len())
+		{
+			if (result.format_str.slice(res[3].begin, res[3].end).find(":%") == 0)
+				format_str = "%" + result.format_str.slice(res[4].begin, res[4].end);
+			else
+				format_str = null;
+		}
+
 		if (key == "rank")
 		{
-			ret = GetKeyAndReplace(format(format_str, oldStr.slice(0, res[0].begin), "vargv[0]", oldStr.slice(res[0].end)), format_str);
+			if (format_str == null)
+				format_str = "%d";
+			result.format_args += "vargv[0]";
 		}
 		else if (key == "name")
 		{
-			ret = GetKeyAndReplace(format(format_str, oldStr.slice(0, res[0].begin), "vargv[1]", oldStr.slice(res[0].end)), format_str);
+			if (format_str == null)
+				format_str = "%s";
+			result.format_args += "vargv[1]";
+		}
+		else if (key == "state")
+		{
+			if (format_str == null)
+				format_str = "%s";
+			result.format_args += "vargv[3]";
 		}
 		else
 		{
-			ret = GetKeyAndReplace(format(format_str, oldStr.slice(0, res[0].begin), "vargv[2]." + key, oldStr.slice(res[0].end)), format_str);
-			ret.key.insert(0, key);
+			if (format_str == null)
+				format_str = "%d";
+			result.format_args += "vargv[2]." + key;
+			result.key.append(key);
 		}
+		result.format_str = result.format_str.slice(0, res[0].begin) + wrap(format_str) + result.format_str.slice(res[0].end);
+		BuildFuncCode(result, wrap);
 	}
-	return ret;
+	else
+	{
+		result.funcCode = format("return format(\"%s\"%s);", result.format_str, result.format_args);
+	}
 }
 
 ::LinGe.HUD.Pre.teamHurtEx <- regexp("{(name|hurt)}");
-::LinGe.HUD.Pre.GetKeyAndReplace_TeamHurt <- function (oldStr, format_str)
+::LinGe.HUD.Pre.BuildFuncCode_TeamHurt <- function (result, wrap=@(str) str)
 {
-	local ret = oldStr;
-	local res = teamHurtEx.capture(ret);
+	local res = teamHurtEx.capture(result.format_str);
+
 	if (res != null)
 	{
-		local key = oldStr.slice(res[1].begin, res[1].end);
+		result.format_args += ",";
+		local key = result.format_str.slice(res[1].begin, res[1].end);
+		local format_str = null;
+		if (res.len() >= 5 && res[3].begin>=0 && res[3].end > res[3].begin
+		&& res[3].end <= result.format_str.len())
+		{
+			if (result.format_str.slice(res[3].begin, res[3].end).find(":%") == 0)
+				format_str = "%" + result.format_str.slice(res[4].begin, res[4].end);
+			else
+				format_str = null;
+		}
+
 		if (key == "name")
 		{
-			ret = GetKeyAndReplace_TeamHurt(format(format_str, oldStr.slice(0, res[0].begin), "vargv[0]", oldStr.slice(res[0].end)), format_str);
+			if (format_str == null)
+				format_str = "%s";
+			result.format_args += "vargv[0]";
 		}
 		else if (key == "hurt")
 		{
-			ret = GetKeyAndReplace_TeamHurt(format(format_str, oldStr.slice(0, res[0].begin), "vargv[1]", oldStr.slice(res[0].end)), format_str);
+			if (format_str == null)
+				format_str = "%d";
+			result.format_args += "vargv[1]";
 		}
+		result.format_str = result.format_str.slice(0, res[0].begin) + wrap(format_str) + result.format_str.slice(res[0].end);
+		BuildFuncCode_TeamHurt(result, wrap);
 	}
-	return ret;
+	else
+	{
+		result.funcCode = format("return format(\"%s\"%s);", result.format_str, result.format_args);
+	}
 }
 
 ::LinGe.HUD.Pre.CompileFunc <- function ()
 {
-	local wrapstr = @(str) "\""+str+"\"";
 	// 预处理HUD排行榜相关
-	local result = GetKeyAndReplace(wrapstr(::LinGe.HUD.Config.hurt.rankStyle2), "%s\" + %s + \"%s");
+	local empty_table = {key=[], format_str="", format_args="", funcCode=""};
+	local result = clone empty_table;
+	result.format_str = ::LinGe.HUD.Config.hurt.rankStyle2;
+	BuildFuncCode(result);
 	::LinGe.HUD.Pre.HUDKey <- result.key; // key列表需要保存下来，用于排序
-	::LinGe.HUD.Pre.HUDFunc <- compilestring("return " + result.str);
-	// 预处理聊天窗排行榜相关
-	result = GetKeyAndReplace(wrapstr(::LinGe.HUD.Config.hurt.chatStyle2), "%s\\x03\" + %s + \"\\x04%s");
-	::LinGe.HUD.Pre.ChatKey <- result.key;
-	::LinGe.HUD.Pre.ChatFunc <- compilestring("return " + result.str);
+	::LinGe.HUD.Pre.HUDFunc <- compilestring(result.funcCode);
 
+	// 预处理聊天窗排行榜相关
+	result = clone empty_table;
+	result.format_str = ::LinGe.HUD.Config.hurt.chatStyle2;
+	BuildFuncCode(result, @(str) "\x03" + str + "\x04");
+	::LinGe.HUD.Pre.ChatKey <- result.key;
+	::LinGe.HUD.Pre.ChatFunc <- compilestring(result.funcCode);
+
+	// 预处理最高友伤与受到最高友伤相关
 	if (::LinGe.HUD.Config.hurt.chatAtkMaxStyle)
 	{
-		local str = GetKeyAndReplace_TeamHurt(wrapstr(::LinGe.HUD.Config.hurt.chatAtkMaxStyle), "%s\\x03\" + %s + \"\\x04%s");
-		::LinGe.HUD.Pre.AtkMaxFunc <- compilestring("return " + str);
+		result = clone empty_table;
+		result.format_str = ::LinGe.HUD.Config.hurt.chatAtkMaxStyle;
+		BuildFuncCode_TeamHurt(result, @(str) "\x03"+str+"\x04");
+		::LinGe.HUD.Pre.AtkMaxFunc <- compilestring(result.funcCode);
 	}
 	else
 		::LinGe.HUD.Pre.AtkMaxFunc <- null;
 	if (::LinGe.HUD.Config.hurt.chatVctMaxStyle)
 	{
-		local str = GetKeyAndReplace_TeamHurt(wrapstr(::LinGe.HUD.Config.hurt.chatVctMaxStyle), "%s\\x03\" + %s + \"\\x04%s");
-		::LinGe.HUD.Pre.VctMaxFunc <- compilestring("return " + str);
+		result = clone empty_table;
+		result.format_str = ::LinGe.HUD.Config.hurt.chatVctMaxStyle;
+		BuildFuncCode_TeamHurt(result, @(str) "\x03"+str+"\x04");
+		::LinGe.HUD.Pre.VctMaxFunc <- compilestring(result.funcCode);
 	}
 	else
 		::LinGe.HUD.Pre.VctMaxFunc <- null;
@@ -256,7 +320,8 @@ local isExistTime = false;
 		&& 3 != ::LinGe.GetPlayerTeam(player))
 		{
 			local id = ::LinGe.SteamIDCastUniqueID(player.GetNetworkIDString());
-			hurtData_bak.rawset(id, clone hurtData[i]);
+			if (id != "S00")
+				hurtData_bak.rawset(id, clone hurtData[i]);
 		}
 	}
 }
@@ -348,6 +413,8 @@ local isExistTime = false;
 		HUD_table.Fields.time.dataval <- "";
 	}
 
+	playersIndex = clone ::pyinfo.survivorIdx;
+
 	ApplyAutoHurtPrint();
 	ApplyConfigHUD();
 	::VSLib.Timers.AddTimerByName("Timer_HUD", 1.0, true, Timer_HUD);
@@ -357,26 +424,47 @@ local isExistTime = false;
 // 玩家队伍更换事件
 // team=0：玩家刚连接、和断开连接时会被分配到此队伍 不统计此队伍的人数
 // team=1：旁观者 team=2：生还者 team=3：特感
-::LinGe.HUD.human_team <- function (params)
+::LinGe.HUD.OnGameEvent_player_team <- function (params)
 {
-	// 如果是离开生还者方就将其数据备份至 hurtData_bak 中，然后清空其当前数据
-	local entityIndex = params.entityIndex;
-	if (2 == params.oldteam)
+	if (!params.rawin("userid"))
+		return;
+
+	local player = GetPlayerFromUserID(params.userid);
+	local entityIndex = player.GetEntityIndex();
+	local steamid = player.GetNetworkIDString();
+	local isHuman = steamid != "BOT";
+	local uniqueID = ::LinGe.SteamIDCastUniqueID(steamid);
+	local idx = playersIndex.find(entityIndex);
+
+	if ( (params.disconnect || 3 == params.team) && null != idx )
 	{
-		local id = ::LinGe.SteamIDCastUniqueID(params.steamid);
-		hurtData_bak.rawset(id, clone hurtData[entityIndex]);
-		hurtData[entityIndex] = clone hurtDataTemplate;
+		playersIndex.remove(idx);
+		if (isHuman)
+		{
+			if (uniqueID != "S00")
+			{
+				hurtData_bak.rawset(uniqueID, clone hurtData[entityIndex]);
+				hurtData[entityIndex] = clone hurtDataTemplate;
+			}
+			UpdatePlayerHUD();
+			UpdateRankHUD();
+		}
 	}
-	else if (params.team == 2)
+	else if (2 == params.team && null == idx)
 	{
-		local last_data = GetPlayerBakHurtData(params.player);
-		if (last_data)
-			hurtData[entityIndex] = clone last_data;
+		playersIndex.append(entityIndex);
+		if (isHuman)
+		{
+			if (hurtData_bak.rawin(uniqueID))
+			{
+				hurtData[entityIndex] = clone hurtData_bak[uniqueID];
+			}
+			UpdatePlayerHUD();
+			UpdateRankHUD();
+		}
 	}
-	UpdatePlayerHUD();
-	UpdateRankHUD();
 }
-::LinEventHook("human_team_nodelay", ::LinGe.HUD.human_team, ::LinGe.HUD);
+::LinEventHook("OnGameEvent_player_team", ::LinGe.HUD.OnGameEvent_player_team, ::LinGe.HUD);
 
 // 事件：玩家受伤 友伤信息提示、伤害数据统计
 // 对witch伤害和对小僵尸伤害不会触发这个事件
@@ -430,7 +518,7 @@ local isExistTime = false;
 		}
 
 		// 若开启了友伤提示，则计入临时数据统计
-		if (Config.hurt.teamHurtInfo > 0)
+		if (Config.hurt.teamHurtInfo >= 1 && Config.hurt.teamHurtInfo <= 2)
 		{
 			local key = params.attacker + "_" + params.userid;
 			if (!tempTeamHurt.rawin(key))
@@ -635,31 +723,22 @@ local isExistTime = false;
 {
 	if (2 == args.len())
 	{
-		local style = LinGe.TryStringToInt(args[1], -1);
-		if (style < 0 || style > 2)
-		{
-			ClientPrint(player, 3, "\x04!thi 0:关闭友伤提示 1:公开处刑 2:仅双方可见");
-			return;
-		}
-		else
-			Config.hurt.teamHurtInfo = style;
-		switch (Config.hurt.teamHurtInfo)
-		{
-		case 0:
-			ClientPrint(player, 3, "\x04服务器已关闭友伤提示");
-			break;
-		case 1:
-			ClientPrint(player, 3, "\x04服务器已开启友伤提示 \x03公开处刑");
-			break;
-		case 2:
-			ClientPrint(player, 3, "\x04服务器已开启友伤提示 \x03仅双方可见");
-			break;
-		default:
-			throw "未知异常情况";
-		}
+		local style = LinGe.TryStringToInt(args[1], 0);
+		Config.hurt.teamHurtInfo = style;
 	}
-	else
-		ClientPrint(player, 3, "\x04!thi 0:关闭友伤提示 1:公开处刑 2:仅双方可见");
+	switch (Config.hurt.teamHurtInfo)
+	{
+	case 1:
+		ClientPrint(null, 3, "\x04服务器已开启友伤提示 \x03公开处刑");
+		break;
+	case 2:
+		ClientPrint(null, 3, "\x04服务器已开启友伤提示 \x03仅双方可见");
+		break;
+	default:
+		ClientPrint(null, 3, "\x04服务器已关闭友伤提示");
+		break;
+	}
+	ClientPrint(player, 3, "\x04!thi 0:关闭友伤提示 1:公开处刑 2:仅双方可见");
 }
 ::LinCmdAdd("thi", ::LinGe.HUD.Cmd_thi, ::LinGe.HUD, "0:关闭友伤提示 1:公开处刑 2:仅双方可见");
 
@@ -779,30 +858,49 @@ local reHudCmd = regexp("^(all|time|players|hostname)$");
 }
 ::LinEventHook("maxplayers_changed", ::LinGe.HUD.UpdatePlayerHUD, ::LinGe.HUD);
 
-::LinGe.HUD.UpdateRankHUD <- function (params=null)
+::LinGe.HUD.GetPlayerState <- function (player)
+{
+	if (::LinGe.GetPlayerTeam(player) == 1)
+		return "摸鱼";
+	else if (!::LinGe.IsAlive(player))
+		return "死亡";
+	else
+	{
+		local hp = player.GetHealth() + player.GetHealthBuffer().tointeger();
+		local text = format("%d", hp);
+		if (player.GetSpecialInfectedDominatingMe())
+			text += ",被控";
+		else if (player.IsIncapacitated())
+			text += ",倒地";
+		else if (player.IsHangingFromLedge())
+			text += ",挂边";
+		else if (::LinGe.GetReviveCount(player) >= 2)
+			text += ",濒死";
+		return text;
+	}
+}
+
+::LinGe.HUD.UpdateRankHUD <- function ()
 {
 	if (Config.hurt.HUDRank < 1)
 		return;
 	if (::LinGe.isVersus && Config.HUDShow.versusNoHUDRank)
 		return;
 
-	// 如果不想改变 ::pyinfo.survivorIdx 的顺序 这里应使用 clone 克隆数组
-	local survivorIdx = ::pyinfo.survivorIdx;
-	local len = survivorIdx.len();
-
+	local len = playersIndex.len();
 	// 将生还者实体索引数组按特感击杀数量由大到小进行排序
 	// 如果特感击杀数量相等，则按丧尸击杀数
-	hurtDataSort(survivorIdx, Pre.HUDKey);
+	hurtDataSort(playersIndex, Pre.HUDKey);
 	local rank = 0, name = "";
 	for (local i=0; i<len && rank<Config.hurt.HUDRank; i++)
 	{
-		local player = PlayerInstanceFromIndex(survivorIdx[i]);
-		if (!IsPlayerABot(player) || ::LinGe.Debug) // HUD排行榜正常情况下不显示BOT数据
+		local player = PlayerInstanceFromIndex(playersIndex[i]);
+		if (!IsPlayerABot(player) || Config.hurt.HUDRankShowBot)
 		{
 			rank++;
 			name = player.GetPlayerName();
 			HUD_table.Fields["rank" + rank].dataval =
-				Pre.HUDFunc(rank, name, hurtData[survivorIdx[i]]);
+				Pre.HUDFunc(rank, name, hurtData[playersIndex[i]], GetPlayerState(player));
 		}
 	}
 	// 清空可能存在的多余的显示
@@ -836,7 +934,7 @@ local killTank = 0;
 ::LinGe.HUD.PrintTankHurtData <- function ()
 {
 	local player = Config.hurt.chatRank;
-	local idx = clone ::pyinfo.survivorIdx;
+	local idx = clone playersIndex;
 	local name = "", len = idx.len();
 
 	if (player > 0 && len > 0)
@@ -878,8 +976,8 @@ local killTank = 0;
 // params是预留参数位置 为方便关联事件和定时器
 ::LinGe.HUD.PrintChatRank <- function (params=0)
 {
-	local player = Config.hurt.chatRank;
-	local survivorIdx = clone ::pyinfo.survivorIdx;
+	local maxRank = Config.hurt.chatRank;
+	local survivorIdx = clone playersIndex;
 	local name = "", len = survivorIdx.len();
 	if (len > 0)
 	{
@@ -900,14 +998,17 @@ local killTank = 0;
 				vctMax.name = PlayerInstanceFromIndex(survivorIdx[i]).GetPlayerName();
 			}
 		}
-		if (player > 0)
+		if (maxRank > 0)
 		{
 			hurtDataSort(survivorIdx, Pre.ChatKey);
 			// 按照对特感伤害，依次输出伤害数据
-			for (local i=0; i<player && i<len; i++)
+			for (local i=0; i<maxRank && i<len; i++)
 			{
-				name = PlayerInstanceFromIndex(survivorIdx[i]).GetPlayerName();
-				ClientPrint(null, 3, "\x04" + Pre.ChatFunc(i+1, name, hurtData[survivorIdx[i]]));
+				local player = PlayerInstanceFromIndex(survivorIdx[i]);
+				local state = GetPlayerState(player);
+				name = player.GetPlayerName();
+				ClientPrint(null, 3, "\x04" +
+					Pre.ChatFunc(i+1, name, hurtData[survivorIdx[i]], state));
 			}
 		}
 

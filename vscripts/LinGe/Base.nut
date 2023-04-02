@@ -169,11 +169,6 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 	return NetProps.GetPropInt(player, "m_currentReviveCount");
 }
 
-::LinGe.IsIncapacitated <- function (ent)
-{
-	return NetProps.GetPropInt(ent, "m_isIncapacitated") != 0;
-}
-
 // 从网络属性判断一个实体是否存活
 ::LinGe.IsAlive <- function (ent)
 {
@@ -1256,8 +1251,6 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 {
 	if (!_params.rawin("userid"))
 		return;
-	if (_params.oldteam == _params.team) // 这种情况可能出现吗？
-		return;
 
 	local params = clone _params;
 	params.player <- GetPlayerFromUserID(params.userid);
@@ -1372,7 +1365,7 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 		// 判断搜索到的实体有效性
 		if ( player.IsValid() )
 		{
-			local team = ::LinGe.GetPlayerTeam(player)
+			local team = ::LinGe.GetPlayerTeam(player);
 			if (2 == team)
 				table.survivorIdx.append(player.GetEntityIndex());
 			if ("BOT" != player.GetNetworkIDString())
