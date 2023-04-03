@@ -1,4 +1,7 @@
-// 特感击杀回复血量
+// 仅在非对抗类模式生效
+if (!::LinGe.isVersus) {
+printl("[LinGe] 击杀回复血量 正在载入");
+
 ::LinGe.RewardHP <- {};
 
 ::LinGe.RewardHP.Config <- {
@@ -17,10 +20,6 @@
 };
 ::LinGe.Config.Add("RewardHP", ::LinGe.RewardHP.Config);
 ::LinGe.Cache.RewardHP_Config <- ::LinGe.RewardHP.Config;
-
-// 仅在非对抗类模式生效
-if (!::LinGe.isVersus) {
-printl("[LinGe] 击杀回复血量 正在载入");
 
 ::LinGe.RewardHP.OnGameEvent_player_death <- function (params)
 {
