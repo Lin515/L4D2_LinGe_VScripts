@@ -870,10 +870,10 @@ local reHudCmd = regexp("^(all|time|players|hostname)$");
 		local text = format("%d", hp);
 		if (player.GetSpecialInfectedDominatingMe())
 			text += ",被控";
-		else if (player.IsIncapacitated())
-			text += ",倒地";
 		else if (player.IsHangingFromLedge())
 			text += ",挂边";
+		else if (player.IsIncapacitated())
+			text += ",倒地";
 		else if (::LinGe.GetReviveCount(player) >= 2)
 			text += ",濒死";
 		return text;

@@ -837,10 +837,10 @@ if (::LinGe.Hint.Config.help.duration > 0)
 
 	if (player.GetSpecialInfectedDominatingMe())
 		ShowPlayerBeDominating(player, activator);
-	else if (player.IsIncapacitated())
-		ShowPlayerIncap(player, activator);
 	else if (player.IsHangingFromLedge())
 		ShowPlayerLedge(player, activator);
+	else if (player.IsIncapacitated())
+		ShowPlayerIncap(player, activator);
 	else if (::LinGe.GetReviveCount(player) >= 2)
 		ShowPlayerDying(player, activator);
 	else
@@ -1077,17 +1077,17 @@ const MAX_TRACE_LENGTH	= 56755.840862417;
 			ClientPrint(player, 3, "\x05已发出被控求救信号");
 			return;
 		}
+		else if (player.IsHangingFromLedge())
+		{
+			ShowPlayerLedge(player);
+			ClientPrint(player, 3, "\x05已发出挂边求救信号");
+			return;
+		}
 		// 如果玩家处于虚弱状态，则发出求救信号
 		else if (player.IsIncapacitated())
 		{
 			ShowPlayerIncap(player);
 			ClientPrint(player, 3, "\x05已发出倒地求救信号");
-			return;
-		}
-		else if (player.IsHangingFromLedge())
-		{
-			ShowPlayerLedge(player);
-			ClientPrint(player, 3, "\x05已发出挂边求救信号");
 			return;
 		}
 	}
