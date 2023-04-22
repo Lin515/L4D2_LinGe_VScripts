@@ -213,9 +213,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	// 根据生还者人数调整特感数量
 	if ( Config.enabled && Config.sibase >= 0 && Config.siauto > 0 )
 	{
-		// 只有新加入生还者或生还者完全离开时才更新特感数量
-		if ( (0 == params.oldteam && 2 == params.team)
-		|| (2 == params.oldteam && 0 == params.team) )
+		if (2 == params.team || 2 == params.oldteam)
 		{
 			local oldmax = ::SessionOptions.cm_MaxSpecials;
 			// 延迟1.2秒再更新特感数量，避免短时间内多次数量刷新
