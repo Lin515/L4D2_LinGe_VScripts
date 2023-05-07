@@ -95,9 +95,9 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	 	::SessionOptions.rawdelete("ChargerLimit");
 	 	::SessionOptions.rawdelete("JockeyLimit");
 	 	if (!ctrlNum)
-	 	{
-		 	::SessionOptions.rawdelete("cm_BaseSpecialLimit");
-		 	::SessionOptions.rawdelete("DominatorLimit");
+		{
+			::SessionOptions.rawdelete("cm_BaseSpecialLimit");
+			::SessionOptions.rawdelete("DominatorLimit");
 		}
 	}
 

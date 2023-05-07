@@ -436,31 +436,27 @@ local isExistTime = false;
 	local uniqueID = ::LinGe.SteamIDCastUniqueID(steamid);
 	local idx = playersIndex.find(entityIndex);
 
+	if (isHuman)
+	{
+		UpdatePlayerHUD();
+		UpdateRankHUD();
+	}
+
 	if ( (params.disconnect || 3 == params.team) && null != idx )
 	{
 		playersIndex.remove(idx);
-		if (isHuman)
+		if (isHuman && uniqueID != "S00")
 		{
-			if (uniqueID != "S00")
-			{
-				hurtData_bak.rawset(uniqueID, clone hurtData[entityIndex]);
-				hurtData[entityIndex] = clone hurtDataTemplate;
-			}
-			UpdatePlayerHUD();
-			UpdateRankHUD();
+			hurtData_bak.rawset(uniqueID, clone hurtData[entityIndex]);
+			hurtData[entityIndex] = clone hurtDataTemplate;
 		}
 	}
 	else if (2 == params.team && null == idx)
 	{
 		playersIndex.append(entityIndex);
-		if (isHuman)
+		if (isHuman && hurtData_bak.rawin(uniqueID))
 		{
-			if (hurtData_bak.rawin(uniqueID))
-			{
-				hurtData[entityIndex] = clone hurtData_bak[uniqueID];
-			}
-			UpdatePlayerHUD();
-			UpdateRankHUD();
+			hurtData[entityIndex] = clone hurtData_bak[uniqueID];
 		}
 	}
 }

@@ -1238,7 +1238,7 @@ else
 		{
 			// 有些实体模型比较小，准星没对准很容易标记不到
 			local weapon = null;
-			while ( weapon = Entities.FindByClassnameWithin(weapon, "weapon_*", vecPingPos, 15.0) )
+			while ( weapon = Entities.FindByClassnameWithin(weapon, "weapon_*", vecPingPos, 25.0) )
 			{
 				if ( weapon.IsValid() && weapon.GetMoveParent() == null) // 查找到的实体必须是有效且无主的
 				{
