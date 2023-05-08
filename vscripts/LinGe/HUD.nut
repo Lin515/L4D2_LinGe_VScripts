@@ -10,9 +10,35 @@ printl("[LinGe] HUD 正在载入");
 		playersStyle = 0,
 	},
 	hurt = {
-		HUDRank = 3, // HUD排行榜最多显示多少人，范围0~8 设置为0则关闭排行显示
-		rankTitle = "特感/丧尸击杀：",
-		rankStyle2 = "[{rank}] {ksi}/{kci} <- {name}({state})",
+		HUDRank = 4, // HUD排行榜最多显示多少人，范围0~8 设置为0则关闭排行显示
+		HUDRankMode = 1, // 0:紧凑式 1:分列式
+		rankCompact = {
+			title = "特感/丧尸击杀：",
+			style = "[{rank}] {ksi}/{kci} <- {name}({state})",
+		},
+		rankColumnAlign = [ // 最多只允许8列数据
+			{
+				title = "特感/爆头",
+				style = "{ksi}/{hsi}",
+				width = 0.1,
+			},
+			{
+				title = "丧尸/爆头",
+				style = "{kci}/{hci}",
+				width = 0.1,
+			},
+			{
+				title = "血量状态",
+				style = "{state}",
+				width = 0.1,
+
+			},
+			{
+				title = "玩家",
+				style = "{name}",
+				width = 0.4,
+			}
+		],
 		teamHurtInfo = 2, // 友伤即时提示 0:关闭 1:公开处刑 2:仅攻击者和被攻击者可见
 		autoPrint = 0, // 每间隔多少s在聊天窗输出一次数据统计，若为0则只在本局结束时输出，若<0则永远不输出
 		chatRank = 4, // 聊天窗输出时除了最高友伤、最高被黑 剩下显示最多多少人的数据
@@ -37,6 +63,7 @@ printl("[LinGe] HUD 正在载入");
 };
 ::LinGe.Config.Add("HUD", ::LinGe.HUD.Config);
 ::LinGe.Cache.HUD_Config <- ::LinGe.HUD.Config;
+local rankColumnAlign = clone ::LinGe.HUD.Config.hurt.rankColumnAlign; // 避免缓存还原后影响数组顺序
 
 ::LinGe.HUD.playersIndex <- []; // 排行榜玩家实体索引列表 包括生还者（含BOT）与本局从生还者进入闲置或旁观的玩家
 ::LinGe.HUD.hurtData <- []; // 伤害与击杀数据
@@ -63,8 +90,7 @@ foreach (key in item_key)
 );
 // rank为排名，name为玩家名，state为玩家当前血量与状态，若无异常状态则只显示血量
 // 其它对应为hurtDataTemplate中数据，按先后顺序影响排名
-// 可以指定格式化方式，以对齐数据。例如 {kci:%-4d} 设定丧尸击杀数最小宽度为4并且左对齐。
-// 设置方式参考 https://www.runoob.com/cprogramming/c-function-printf.html 有编程基础的话应该都懂这个
+// 可以指定格式化方式，设置方式参考 https://www.runoob.com/cprogramming/c-function-printf.html
 // 需要注意数据类型相匹配，例如 {name:%4d} 会出错，同时也不推荐对字符串数据自定义格式化方式
 ::LinGe.HUD.Pre.BuildFuncCode <- function (result, wrap=@(str) str)
 {
@@ -94,13 +120,13 @@ foreach (key in item_key)
 		{
 			if (format_str == null)
 				format_str = "%s";
-			result.format_args += "vargv[1]";
+			result.format_args += "vargv[1].GetPlayerName()";
 		}
 		else if (key == "state")
 		{
 			if (format_str == null)
 				format_str = "%s";
-			result.format_args += "vargv[3]";
+			result.format_args += "::LinGe.HUD.GetPlayerState(vargv[1])";
 		}
 		else
 		{
@@ -163,10 +189,32 @@ foreach (key in item_key)
 	// 预处理HUD排行榜相关
 	local empty_table = {key=[], format_str="", format_args="", funcCode=""};
 	local result = clone empty_table;
-	result.format_str = ::LinGe.HUD.Config.hurt.rankStyle2;
+	result.format_str = ::LinGe.HUD.Config.hurt.rankCompact.style;
 	BuildFuncCode(result);
-	::LinGe.HUD.Pre.HUDKey <- result.key; // key列表需要保存下来，用于排序
-	::LinGe.HUD.Pre.HUDFunc <- compilestring(result.funcCode);
+	::LinGe.HUD.Pre.HUDCompactKey <- result.key; // key列表需要保存下来，用于排序
+	::LinGe.HUD.Pre.HUDCompactFunc <- compilestring(result.funcCode);
+
+	// 列对齐风格的预处理
+	::LinGe.HUD.Pre.HUDColumnKey <- [];
+	::LinGe.HUD.Pre.HUDColumnFunc <- [];
+	::LinGe.HUD.Pre.HUDColumnNameIndex <- -1;
+	foreach (val in rankColumnAlign)
+	{
+		result = clone empty_table;
+		result.format_str = val.style;
+		BuildFuncCode(result);
+
+		HUDColumnKey.extend(result.key);
+		if (result.key.find("name") != null)
+		{
+			if (HUDColumnNameIndex != -1)
+				printl("[LinGe] HUD 排行榜多列数据包含玩家名，不推荐这么做。因为玩家名占用容量较大，当一列内容超出127个字节时将被截断。");
+			HUDColumnNameIndex = HUDColumnFunc.len();
+		}
+		HUDColumnFunc.append(compilestring(result.funcCode));
+		if (HUDColumnFunc.len() >= HUD_RANK_MAX) // 最多显示8列，最后一列 HUD_SLOT_RANK_END 用作玩家名列的替补
+			break;
+	}
 
 	// 预处理聊天窗排行榜相关
 	result = clone empty_table;
@@ -197,10 +245,13 @@ foreach (key in item_key)
 }
 ::LinGe.HUD.Pre.CompileFunc();
 
+const HUD_MAX_STRING_LENGTH = 127; // 一个HUD Slot最多只能显示127字节字符
 const HUD_SLOT_HOSTNAME = 10;
 const HUD_SLOT_TIME = 11;
 const HUD_SLOT_PLAYERS = 12;
-const HUD_SLOT_RANK = 1; // 第一个显示标题 后续显示玩家数据
+const HUD_SLOT_RANK_BEGIN = 1; // 紧凑模式下 第一个SLOT显示标题 后续显示每个玩家的数据 分列模式则各自显示不同的数据
+const HUD_SLOT_RANK_END = 9;
+const HUD_RANK_MAX = 8; // 排行榜最多显示8个玩家
 // 服务器每1s内会多次根据HUD_table更新屏幕上的HUD
 // 脚本只需将HUD_table中的数据进行更新 而无需反复执行HUDSetLayout和HUDPlace
 ::LinGe.HUD.HUD_table <- {
@@ -221,42 +272,33 @@ const HUD_SLOT_RANK = 1; // 第一个显示标题 后续显示玩家数据
 			dataval = "",
 			// 无边框 左对齐
 			flags = HUD_FLAG_NOBG | HUD_FLAG_ALIGN_LEFT
-		},
-		rank0 = { // rank0显示标题
-			slot = HUD_SLOT_RANK,
-			dataval = ::LinGe.HUD.Config.hurt.rankTitle,
-			flags = HUD_FLAG_NOBG | HUD_FLAG_ALIGN_LEFT | HUD_FLAG_TEAM_SURVIVORS
 		}
 	}
 };
-// rank1~8显示玩家击杀
-for (local i=1; i<9; i++)
+for (local i=HUD_SLOT_RANK_BEGIN; i<=HUD_SLOT_RANK_END; i++)
 {
 	::LinGe.HUD.HUD_table.Fields["rank" + i] <- {
-		slot = HUD_SLOT_RANK + i,
+		slot = i,
 		dataval = "",
-		flags = HUD_FLAG_NOBG | HUD_FLAG_ALIGN_LEFT | HUD_FLAG_TEAM_SURVIVORS
+		flags = HUD_FLAG_NOBG | HUD_FLAG_ALIGN_LEFT
 	};
 }
 
 // 按照Config配置更新HUD属性信息
 ::LinGe.HUD.ApplyConfigHUD <- function ()
 {
-	local i = 0;
-	if (Config.HUDShow.all)
+	if (!Config.HUDShow.all)
 	{
-		HUDSetLayout(HUD_table);
-		// HUDPlace(slot, x, y, width, height)
-		local height = Config.textHeight;
-		HUDPlace(HUD_SLOT_HOSTNAME, Config.position.hostname_x, Config.position.hostname_y, 1.0, height); // 设置服务器名显示位置
-		HUDPlace(HUD_SLOT_TIME, Config.position.time_x, Config.position.time_y, 1.0, height); // 设置时间显示位置
-		HUDPlace(HUD_SLOT_PLAYERS, Config.position.players_x, Config.position.players_y, 1.0, height); // 设置玩家数量信息显示位置
-		// 设置排行榜显示位置 rank0显示标题 特感/丧尸击杀 rank1~8分别显示前8名玩家击杀数据
-		for (i=0; i<9; i++)
-			HUDPlace(HUD_SLOT_RANK+i, Config.position.rank_x, Config.position.rank_y+height*i, 1.0, height);
-	}
-	else
 		HUDSetLayout( ::VSLib.HUD._hud );
+		return;
+	}
+
+	HUDSetLayout(HUD_table);
+	// HUDPlace(slot, x, y, width, height)
+	local height = Config.textHeight;
+	HUDPlace(HUD_SLOT_HOSTNAME, Config.position.hostname_x, Config.position.hostname_y, 1.0, height); // 设置服务器名显示位置
+	HUDPlace(HUD_SLOT_TIME, Config.position.time_x, Config.position.time_y, 1.0, height); // 设置时间显示位置
+	HUDPlace(HUD_SLOT_PLAYERS, Config.position.players_x, Config.position.players_y, 1.0, height); // 设置玩家数量信息显示位置
 
 	if (Config.HUDShow.time)
 		HUD_table.Fields.time.flags = HUD_table.Fields.time.flags & (~HUD_FLAG_NOTVISIBLE);
@@ -273,25 +315,63 @@ for (local i=1; i<9; i++)
 	else
 		HUD_table.Fields.hostname.flags = HUD_table.Fields.hostname.flags | HUD_FLAG_NOTVISIBLE;
 
-	if (::LinGe.isVersus && Config.HUDShow.versusNoHUDRank)
+	local i = 0;
+	if (Config.hurt.HUDRankMode == 0)
 	{
-		for (i=0; i<9; i++)
-			HUD_table.Fields["rank"+i].flags = HUD_table.Fields["rank"+i].flags | HUD_FLAG_NOTVISIBLE;
+		HUD_table.Fields["rank" + HUD_SLOT_RANK_BEGIN].dataval = Config.hurt.rankCompact.title;
+		for (i=HUD_SLOT_RANK_BEGIN; i<=HUD_SLOT_RANK_END; i++)
+			HUDPlace(i, Config.position.rank_x, Config.position.rank_y+height*(i-1), 1.0, height);
+
+		if (::LinGe.isVersus && Config.HUDShow.versusNoHUDRank)
+		{
+			for (i=HUD_SLOT_RANK_BEGIN; i<=HUD_SLOT_RANK_END; i++)
+				HUD_table.Fields["rank"+i].flags = HUD_table.Fields["rank"+i].flags | HUD_FLAG_NOTVISIBLE;
+		}
+		else
+		{
+			local slot_end = Config.hurt.HUDRank + HUD_SLOT_RANK_BEGIN;
+			if (slot_end > HUD_SLOT_RANK_END)
+				slot_end = HUD_SLOT_RANK_END;
+			else if (slot_end <= HUD_SLOT_RANK_BEGIN)
+				slot_end = -1;
+
+			for (i=HUD_SLOT_RANK_BEGIN; i<=slot_end; i++) // 去掉需要显示出来的HUD Slot的隐藏属性
+				HUD_table.Fields["rank"+i].flags = HUD_table.Fields["rank"+i].flags & (~HUD_FLAG_NOTVISIBLE);
+			// 隐藏剩余
+			while (i <= HUD_SLOT_RANK_END)
+			{
+				HUD_table.Fields["rank"+i].flags = HUD_table.Fields["rank"+i].flags | HUD_FLAG_NOTVISIBLE;
+				i++;
+			}
+		}
 	}
 	else
 	{
-		if (Config.hurt.HUDRank > 8)
-			Config.hurt.HUDRank = 8;
-		else if (Config.hurt.HUDRank <= 0)
-			Config.hurt.HUDRank = -1;
-
-		for (i=0; i<=Config.hurt.HUDRank; i++) // 去掉所有排行榜数据HUD的隐藏属性
-			HUD_table.Fields["rank"+i].flags = HUD_table.Fields["rank"+i].flags & (~HUD_FLAG_NOTVISIBLE);
-		// 隐藏 rank>Config.hurt.HUDRank 的HUD
-		while (i < 9)
+		// 清空所有 HUD slot 的内容并设置显示
+		for (i=HUD_SLOT_RANK_BEGIN; i<=HUD_SLOT_RANK_END; i++)
 		{
-			HUD_table.Fields["rank"+i].flags = HUD_table.Fields["rank"+i].flags | HUD_FLAG_NOTVISIBLE;
-			i++;
+			HUD_table.Fields["rank"+i].dataval = "";
+			HUD_table.Fields["rank"+i].flags = HUD_table.Fields["rank"+i].flags & (~HUD_FLAG_NOTVISIBLE);
+		}
+
+		// 将 slot 摆放至指定位置
+		local pos_x = Config.position.rank_x;
+		for (local i=0; i<Pre.HUDColumnFunc.len(); i++)
+		{
+			if (i > 0)
+				pos_x += rankColumnAlign[i-1].width;
+			if (i == Pre.HUDColumnNameIndex)
+			{
+				HUDPlace(HUD_SLOT_RANK_BEGIN + i, pos_x, 0.04,
+					1.0, Config.textHeight * 5);
+				HUDPlace(HUD_SLOT_RANK_END, pos_x, 0.04 + Config.textHeight * 5,
+					1.0, Config.textHeight * 4);
+			}
+			else
+			{
+				HUDPlace(HUD_SLOT_RANK_BEGIN + i, pos_x, Config.position.rank_y,
+					1.0, Config.textHeight * (HUD_RANK_MAX+1));
+			}
 		}
 	}
 
@@ -588,32 +668,39 @@ local isExistTime = false;
 	{
 		if (info.attacker == info.victim)
 		{
-			text = "\x04你对 \x03自己\x04 造成了 \x03" + info.dmg + "\x04 点伤害";
-			if (info.isDead)
-				text += "，并且死亡";
-			else if (info.isIncap)
-				text += "，并且倒地";
 			if (info.attacker.IsValid())
+			{
+				text = "\x04你对 \x03自己\x04 造成了 \x03" + info.dmg + "\x04 点伤害";
+				if (info.isDead)
+					text += "，并且死亡";
+				else if (info.isIncap)
+					text += "，并且倒地";
 				ClientPrint(info.attacker, 3, text);
+			}
 		}
 		else
 		{
-			text = "\x04你对 \x03" + vctName
-				+ "\x04 造成了 \x03" + info.dmg + "\x04 点伤害";
-			if (info.isDead)
-				text += "，并且杀死了他";
-			else if (info.isIncap)
-				text += "，并且击倒了他";
 			if (info.attacker.IsValid())
+			{
+				text = "\x04你对 \x03" + vctName
+					+ "\x04 造成了 \x03" + info.dmg + "\x04 点伤害";
+				if (info.isDead)
+					text += "，并且杀死了他";
+				else if (info.isIncap)
+					text += "，并且击倒了他";
 				ClientPrint(info.attacker, 3, text);
-			text = "\x03" + atkName
-				+ "\x04 对你造成了 \x03" + info.dmg + "\x04 点伤害";
-			if (info.isDead)
-				text += "，并且杀死了你";
-			else if (info.isIncap)
-				text += "，并且打倒了你";
+			}
+
 			if (info.victim.IsValid())
+			{
+				text = "\x03" + atkName
+				+ "\x04 对你造成了 \x03" + info.dmg + "\x04 点伤害";
+				if (info.isDead)
+					text += "，并且杀死了你";
+				else if (info.isIncap)
+					text += "，并且打倒了你";
 				ClientPrint(info.victim, 3, text);
+			}
 		}
 	}
 	tempTeamHurt.rawdelete(key);
@@ -884,24 +971,79 @@ local reHudCmd = regexp("^(all|time|players|hostname)$");
 		return;
 
 	local len = playersIndex.len();
+	local max_rank = Config.hurt.HUDRank > HUD_RANK_MAX ? HUD_RANK_MAX : Config.hurt.HUDRank;
 	// 将生还者实体索引数组按特感击杀数量由大到小进行排序
 	// 如果特感击杀数量相等，则按丧尸击杀数
-	hurtDataSort(playersIndex, Pre.HUDKey);
-	local rank = 0, name = "";
-	for (local i=0; i<len && rank<Config.hurt.HUDRank; i++)
+	if (Config.hurt.HUDRankMode == 0)
 	{
-		local player = PlayerInstanceFromIndex(playersIndex[i]);
-		if (!IsPlayerABot(player) || Config.hurt.HUDRankShowBot)
+		hurtDataSort(playersIndex, Pre.HUDCompactKey);
+		local rank = 1;
+		for (local i=0; i < len && rank <= max_rank; i++)
 		{
+			local player = PlayerInstanceFromIndex(playersIndex[i]);
+			if (!IsPlayerABot(player) || Config.hurt.HUDRankShowBot)
+			{
+				HUD_table.Fields["rank" + (HUD_SLOT_RANK_BEGIN + rank)].dataval =
+					Pre.HUDCompactFunc(rank, player, hurtData[playersIndex[i]]);
+				rank++;
+			}
+		}
+		// 清空可能存在的多余的显示
+		while (rank <= max_rank)
+		{
+			HUD_table.Fields["rank" + (HUD_SLOT_RANK_BEGIN + rank)].dataval = "";
 			rank++;
-			name = player.GetPlayerName();
-			HUD_table.Fields["rank" + rank].dataval =
-				Pre.HUDFunc(rank, name, hurtData[playersIndex[i]], GetPlayerState(player));
 		}
 	}
-	// 清空可能存在的多余的显示
-	while ((rank++) < Config.hurt.HUDRank)
-		HUD_table.Fields["rank" + rank].dataval = "";
+	else
+	{
+		hurtDataSort(playersIndex, Pre.HUDColumnKey);
+		// 重新设置每列的内容
+		HUD_table.Fields["rank"+HUD_SLOT_RANK_END].dataval = "";
+		for (local i=0; i<Pre.HUDColumnFunc.len(); i++)
+		{
+			HUD_table.Fields["rank"+(HUD_SLOT_RANK_BEGIN + i)].dataval = rankColumnAlign[i].title;
+		}
+
+		local rank = 1;
+		for (local i=0; i<len && rank<=max_rank; i++)
+		{
+			local player = PlayerInstanceFromIndex(playersIndex[i]);
+			if (!IsPlayerABot(player) || Config.hurt.HUDRankShowBot)
+			{
+				foreach (index, func in Pre.HUDColumnFunc)
+				{
+					if (index == Pre.HUDColumnNameIndex && rank > 4)
+					{
+						HUD_table.Fields["rank" + HUD_SLOT_RANK_END].dataval += "\n" +
+							func(rank, player, hurtData[playersIndex[i]]);
+					}
+					else
+					{
+						HUD_table.Fields["rank" + (HUD_SLOT_RANK_BEGIN + index)].dataval += "\n" +
+							func(rank, player, hurtData[playersIndex[i]]);
+					}
+				}
+				rank++;
+			}
+		}
+		// 填充剩下的行，否则会居中显示
+		while (rank <= HUD_RANK_MAX)
+		{
+			foreach (index, func in Pre.HUDColumnFunc)
+			{
+				if (index == Pre.HUDColumnNameIndex && rank > 4)
+				{
+					HUD_table.Fields["rank" + HUD_SLOT_RANK_END].dataval += "\n";
+				}
+				else
+				{
+					HUD_table.Fields["rank" + (HUD_SLOT_RANK_BEGIN + index)].dataval += "\n";
+				}
+			}
+			rank++;
+		}
+	}
 }.bindenv(::LinGe.HUD);
 
 // Tank 事件控制
@@ -997,14 +1139,11 @@ local killTank = 0;
 		if (maxRank > 0)
 		{
 			hurtDataSort(survivorIdx, Pre.ChatKey);
-			// 按照对特感伤害，依次输出伤害数据
 			for (local i=0; i<maxRank && i<len; i++)
 			{
 				local player = PlayerInstanceFromIndex(survivorIdx[i]);
-				local state = GetPlayerState(player);
-				name = player.GetPlayerName();
 				ClientPrint(null, 3, "\x04" +
-					Pre.ChatFunc(i+1, name, hurtData[survivorIdx[i]], state));
+					Pre.ChatFunc(i+1, player, hurtData[survivorIdx[i]]));
 			}
 		}
 
