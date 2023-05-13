@@ -910,17 +910,17 @@ if (null == ::LinGe.Admin.adminslist)
 	callOf	回调函数执行所在的表
 	isAdminCmd 是否是管理员指令
 */
-::LinGe.Admin.CmdAdd <- function (command, func, callOf=null, remarks="", isAdminCmd=true)
+::LinGe.Admin.CmdAdd <- function (command, func, callOf=null, remarks="", isAdminCmd=true, ignoreCase=true)
 {
 	local _callOf = (callOf==null) ? null : callOf.weakref();
-	local table = { func=func.weakref(), callOf=_callOf, remarks=remarks, isAdminCmd=isAdminCmd };
-	cmdTable.rawset(command, table);
+	local table = { func=func.weakref(), callOf=_callOf, remarks=remarks, isAdminCmd=isAdminCmd, ignoreCase=ignoreCase };
+	cmdTable.rawset(command.tolower(), table);
 }.bindenv(::LinGe.Admin);
 
 // 删除指令 成功删除返回其值 否则返回null
 ::LinGe.Admin.CmdDelete <- function (command)
 {
-	return cmdTable.rawdelete(command);
+	return cmdTable.rawdelete(command.tolower());
 }.bindenv(::LinGe.Admin);
 ::LinCmdAdd <- ::LinGe.Admin.CmdAdd.weakref();
 ::LinCmdDelete <- ::LinGe.Admin.CmdDelete.weakref();
@@ -957,22 +957,30 @@ if (null == ::LinGe.Admin.adminslist)
 // 消息指令触发 通过 player_say
 ::LinGe.Admin.OnGameEvent_player_say <- function (params)
 {
-	local args = split(params.text.tolower(), " ");
-	if (args[0].len() < 2)
+	local args = split(params.text, " ");
+	local cmd = args[0];
+	if (cmd.len() < 2)
 		return;
 	local player = GetPlayerFromUserID(params.userid);
 	if (null == player || !player.IsValid())
 		return;
-	local firstChar = args[0].slice(0, 1); // 取第一个字符
+	local firstChar = cmd.slice(0, 1); // 取第一个字符
 	// 判断前缀有效性
 	if (firstChar != "!"
 	&& firstChar != "/"
 	&& firstChar != "." )
 		return;
 
-	args[0] = args[0].slice(1); // 设置 args 第一个元素为指令名
-	if (cmdTable.rawin(args[0]))
-		CmdExec(args[0], player, args);
+	local text = params.text.slice(1);
+	args = split(text, " ");
+	cmd = args[0].tolower(); // 设置 args 第一个元素为指令名
+	if (cmdTable.rawin(cmd))
+	{
+		if (cmdTable[cmd].ignoreCase)
+			CmdExec(cmd, player, split(text.tolower(), " "));
+		else
+			CmdExec(cmd, player, args);
+	}
 }
 ::LinEventHook("OnGameEvent_player_say", ::LinGe.Admin.OnGameEvent_player_say, ::LinGe.Admin);
 
@@ -980,12 +988,15 @@ if (null == ::LinGe.Admin.adminslist)
 ::LinGe.Admin.OnUserCommand <- function (vplayer, args, text)
 {
 	local _args = split(text, ",");
-	local cmdstr = _args[0];
+	local cmdstr = _args[0].tolower();
 	local cmdTable = ::LinGe.Admin.cmdTable;
-	if (!cmdTable.rawin(cmdstr))
-		cmdstr = cmdstr.tolower();
 	if (cmdTable.rawin(cmdstr))
-		::LinGe.Admin.CmdExec(cmdstr, vplayer._ent, _args);
+	{
+		if (cmdTable[cmdstr].ignoreCase)
+			::LinGe.Admin.CmdExec(cmdstr, vplayer._ent, split(text.tolower(), ","));
+		else
+			::LinGe.Admin.CmdExec(cmdstr, vplayer._ent, _args);
+	}
 }
 ::EasyLogic.OnUserCommand.LinGeCommands <- ::LinGe.Admin.OnUserCommand.weakref();
 
@@ -1098,6 +1109,49 @@ if (null == ::LinGe.Admin.adminslist)
 }
 ::LinCmdAdd("lshelp", ::LinGe.Admin.Cmd_lshelp, ::LinGe.Admin, "", false);
 
+::LinGe.Admin.Cmd_config <- function (player, args)
+{
+	if (args.len() == 2)
+	{
+		local func = compilestring("return ::LinGe.Config.table." + args[1]);
+		try {
+			ClientPrint(player, 3, "\x04" + args[1] + " = \x05" + func());
+		} catch (e) {
+			ClientPrint(player, 3, "\x04读取配置失败： \x05" + args[1]);
+		}
+	}
+	else if (args.len() == 3)
+	{
+		try {
+			local type = compilestring("return typeof ::LinGe.Config.table." + args[1])();
+			switch (type)
+			{
+			case "bool":
+			case "integer":
+			case "float":
+				compilestring("::LinGe.Config.table." + args[1] + " = " + args[2])();
+				break;
+			case "string":
+				compilestring("::LinGe.Config.table." + args[1] + " = \"" + args[2] + "\"")();
+				break;
+			default:
+				ClientPrint(player, 3, "\x04不支持设置该类数据： \x05" + type);
+				return;
+			}
+		} catch (e) {
+			ClientPrint(player, 3, "\x04设置配置失败： \x05" + args[1]);
+			return;
+		}
+		ClientPrint(player, 3, "\x04配置修改成功");
+	}
+	else
+	{
+		ClientPrint(player, 3, "\x05!config [配置项目] [修改值]");
+		ClientPrint(player, 3, "\x05例：!config HUD.textHeight2 0.03 不过针对不同的配置项目，修改后可能不能立即产生效果");
+	}
+}
+::LinCmdAdd("config", ::LinGe.Admin.Cmd_config, ::LinGe.Admin, "", true, false);
+
 // 开启Debug模式
 ::LinGe.Admin.Cmd_lsdebug <- function (player, args)
 {
@@ -1160,7 +1214,7 @@ if (null == ::LinGe.Admin.adminslist)
 ::LinGe.CacheSave <- function ()
 {
 	Cache.rawset("isValidCache", true);
-	SaveTable("LinGe_Cache", Cache);
+	SaveTable("LinGe_Cache", clone Cache);
 	::LinEventTrigger("cache_save");
 }
 
