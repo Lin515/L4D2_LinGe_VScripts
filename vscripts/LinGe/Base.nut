@@ -886,7 +886,7 @@ local FILE_CONFIG = "LinGe/Config_" + ::LinGe.hostport;
 // ------------------------------Admin---START--------------------------------------
 ::LinGe.Admin <- {};
 ::LinGe.Admin.Config <- {
-	enabled = true,
+	enabled = false,
 	takeOverAdminSystem = false, // 是否接管adminsystem的权限判断
 	adminsFile = "linge/admins_simple.ini"
 };
