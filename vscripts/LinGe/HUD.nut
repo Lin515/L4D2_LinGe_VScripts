@@ -13,7 +13,7 @@ printl("[LinGe] HUD 正在载入");
 		// ob,idle,vac,max 为特殊关键词，当包含该类关键词时其它所有关键词无效
 		// 除队伍可同时包含 sur 与 si 外，其它类型的关键词若同时出现则只有最后一个有效
 		coop = "活跃:{sur,human}  摸鱼:{ob}  空位:{vac}  特感:{si,alive}",
-		versus = "生还:{si,human}  VS  特感:{si,human}"
+		versus = "生还:{sur,human}  VS  特感:{si,human}"
 	},
 	hurt = {
 		HUDRank = 4, // HUD排行榜最多显示多少人，范围0~8 设置为0则关闭排行显示
