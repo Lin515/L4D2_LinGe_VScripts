@@ -6,8 +6,14 @@ printl("[LinGe] HUD 正在载入");
 		time = true,
 		players = true,
 		hostname = false,
-		versusNoHUDRank = true, // 对抗模式是否永远不显示击杀排行
-		playersStyle = 0,
+		versusNoHUDRank = true // 对抗模式是否永远不显示击杀排行
+	},
+	playersStyle = {
+		// 关键词：{特殊(ob,idle,vac,max),队伍(sur,si),真人或BOT(human,bot),生存或死亡(alive,dead),运算(+,-)} 如果不包含某个关键词则不对其限定
+		// ob,idle,vac,max 为特殊关键词，当包含该类关键词时其它所有关键词无效
+		// 除队伍可同时包含 sur 与 si 外，其它类型的关键词若同时出现则只有最后一个有效
+		coop = "活跃:{sur,human}  摸鱼:{ob}  空位:{vac}  特感:{si,alive}",
+		versus = "生还:{si,human}  VS  特感:{si,human}"
 	},
 	hurt = {
 		HUDRank = 4, // HUD排行榜最多显示多少人，范围0~8 设置为0则关闭排行显示
@@ -79,24 +85,137 @@ foreach (key in item_key)
 	hurtDataTemplate["o_" + key] <- 0;
 	ex_str += format("|%s|t_%s|o_%s", key, key, key);
 }
+local exHurtItem = regexp("{(rank|name|state" + ex_str + ")((:%)([-\\w]+))?}");
+// rank为排名，name为玩家名，state为玩家当前血量与状态，若无异常状态则只显示血量
 // ksi=击杀的特感数量 hsi=爆头击杀特感的数量 kci=击杀的丧尸数量 hci=爆头击杀丧尸的数量
 // si=对特感伤害 atk=对别人的友伤 vct=自己受到的友伤 tank=对tank伤害
 // 对特感伤害中不包含对Tank和Witch的伤害 对Tank伤害会单独列出
 // 以 t_ 开头的代表整局游戏的累计数据
 // 以 o_ 开头的数据总是在最开始的时候初始化为 t_ 的值，与 t_ 不同的是，它不会实时更新
+// 可以指定格式化方式，设置方式参考 https://www.runoob.com/cprogramming/c-function-printf.html
+// 需要注意数据类型相匹配，例如 {name:%4d} 会出错，同时也不推荐对字符串数据自定义格式化方式
+// 最初是想用来设置数据对齐，不过效果太差，所以又做了分列数据的功能。自定义格式化方式的功能保留，但不推荐使用
 
 // 预处理文本处理函数
 ::LinGe.HUD.Pre <- {};
-::LinGe.HUD.Pre.ex <- regexp(
-	"{(rank|name|state" + ex_str + ")((:%)([-\\w]+))?}"
-);
-// rank为排名，name为玩家名，state为玩家当前血量与状态，若无异常状态则只显示血量
-// 其它对应为hurtDataTemplate中数据，按先后顺序影响排名
-// 可以指定格式化方式，设置方式参考 https://www.runoob.com/cprogramming/c-function-printf.html
-// 需要注意数据类型相匹配，例如 {name:%4d} 会出错，同时也不推荐对字符串数据自定义格式化方式
-::LinGe.HUD.Pre.BuildFuncCode <- function (result, wrap=@(str) str)
+
+local exPlayers = regexp("{([a-z\\,\\+\\-]*)}");
+local aliveOrDeadTrigger = false; // 如果players文本中包含需要判断是否存活或死亡的数据，则在player死亡或复活时触发更新
+::LinGe.HUD.Pre.BuildFuncCode_Players <- function (result)
 {
-	local res = ex.capture(result.format_str); // index=0 带{}的完整匹配 index=1 不带{}的分组1
+	local res = exPlayers.capture(result.format_str);
+
+	if (res != null)
+	{
+		local des = split(result.format_str.slice(res[1].begin, res[1].end), ",");
+		result.format_args += ",";
+		local item = [];
+
+		if (des.len() > 0)
+		{
+			local specialKey = 0, humanOrBot = 0, aliveOrDead = 0;
+			local team = [];
+			foreach (key in des)
+			{
+				switch (key)
+				{
+				case "ob":
+					specialKey = 1;
+					break;
+				case "idle":
+					specialKey = 2;
+					break;
+				case "vac":
+					specialKey = 3;
+					break;
+				case "max":
+					specialKey = 4;
+					break;
+				case "sur":
+					team.append(2);
+					break;
+				case "si":
+					team.append(3);
+					break;
+				case "human":
+					humanOrBot = 1;
+					break;
+				case "bot":
+					humanOrBot = 2;
+					break;
+				case "alive":
+					aliveOrDeadTrigger = true;
+					aliveOrDead = 1;
+					break;
+				case "dead":
+					aliveOrDeadTrigger = true;
+					aliveOrDead = 2;
+					break;
+				case "+": case "-":
+					item.append({specialKey=specialKey, humanOrBot=humanOrBot, aliveOrDead=aliveOrDead, team=team, operator=key});
+					specialKey = 0, humanOrBot = 0, aliveOrDead = 0;
+					team = [];
+					break;
+				default:
+					printl("[LinGe] HUD playersStyle 无效关键词：" + key);
+					break;
+				}
+			}
+			item.append({specialKey=specialKey, humanOrBot=humanOrBot, aliveOrDead=aliveOrDead, team=team, operator=""});
+		}
+
+		foreach (val in item)
+		{
+			local team = "";
+			if (val.team.len() > 0)
+			{
+				foreach (i in val.team)
+				{
+					team = format("%d,%s", i, team);
+				}
+				team = format("[%s]", team);
+			}
+			else
+				team = "null";
+
+			if (val.specialKey > 0)
+			{
+				if (val.specialKey == 1)
+				{
+					result.format_args += "::pyinfo.ob";
+				}
+				else if (val.specialKey == 2)
+				{
+					result.format_args += "::LinGe.GetIdlePlayerCount()";
+				}
+				else if (val.specialKey == 3)
+				{
+					result.format_args += "::pyinfo.maxplayers - (::pyinfo.survivor+::pyinfo.ob+::pyinfo.special)";
+				}
+				else if (val.specialKey == 4)
+				{
+					result.format_args += "::pyinfo.maxplayers";
+				}
+			}
+			else
+			{
+				result.format_args += format("::LinGe.GetPlayerCount(%s,%d,%d)", team, val.humanOrBot, val.aliveOrDead);
+			}
+			result.format_args += val.operator;
+		}
+
+		result.format_str = result.format_str.slice(0, res[0].begin) + "%d" + result.format_str.slice(res[0].end);
+		BuildFuncCode_Players(result);
+	}
+	else
+	{
+		result.funcCode = format("return format(\"%s\"%s);", result.format_str, result.format_args);
+	}
+}
+
+::LinGe.HUD.Pre.BuildFuncCode_Rank <- function (result, wrap=@(str) str)
+{
+	local res = exHurtItem.capture(result.format_str); // index=0 带{}的完整匹配 index=1 不带{}的分组1
 
 	if (res != null)
 	{
@@ -138,7 +257,7 @@ foreach (key in item_key)
 			result.key.append(key);
 		}
 		result.format_str = result.format_str.slice(0, res[0].begin) + wrap(format_str) + result.format_str.slice(res[0].end);
-		BuildFuncCode(result, wrap);
+		BuildFuncCode_Rank(result, wrap);
 	}
 	else
 	{
@@ -146,10 +265,10 @@ foreach (key in item_key)
 	}
 }
 
-::LinGe.HUD.Pre.teamHurtEx <- regexp("{(name|hurt)}");
+local exTeamHurt = regexp("{(name|hurt)((:%)([-\\w]+))?}");
 ::LinGe.HUD.Pre.BuildFuncCode_TeamHurt <- function (result, wrap=@(str) str)
 {
-	local res = teamHurtEx.capture(result.format_str);
+	local res = exTeamHurt.capture(result.format_str);
 
 	if (res != null)
 	{
@@ -188,15 +307,29 @@ foreach (key in item_key)
 
 ::LinGe.HUD.Pre.CompileFunc <- function ()
 {
-	// 预处理HUD排行榜相关
 	local empty_table = {key=[], format_str="", format_args="", funcCode=""};
-	local result = clone empty_table;
+	local result;
+
+	// 战役模式 玩家数量显示预处理
+	result = clone empty_table;
+	result.format_str = ::LinGe.HUD.Config.playersStyle.coop;
+	BuildFuncCode_Players(result);
+	::LinGe.HUD.Pre.PlayersCoop <- compilestring(result.funcCode);
+
+	// 对抗模式 玩家数量显示预处理
+	result = clone empty_table;
+	result.format_str = ::LinGe.HUD.Config.playersStyle.versus;
+	BuildFuncCode_Players(result);
+	::LinGe.HUD.Pre.PlayersVersus <- compilestring(result.funcCode);
+
+	// HUD排行榜紧凑模式预处理
+	result = clone empty_table;
 	result.format_str = ::LinGe.HUD.Config.hurt.rankCompact.style;
-	BuildFuncCode(result);
+	BuildFuncCode_Rank(result);
 	::LinGe.HUD.Pre.HUDCompactKey <- result.key; // key列表需要保存下来，用于排序
 	::LinGe.HUD.Pre.HUDCompactFunc <- compilestring(result.funcCode);
 
-	// 列对齐风格的预处理
+	// HUD排行榜列对齐模式预处理
 	::LinGe.HUD.Pre.HUDColumnKey <- [];
 	::LinGe.HUD.Pre.HUDColumnFuncFull <- [];
 	::LinGe.HUD.Pre.HUDColumnFunc <- [];
@@ -205,26 +338,26 @@ foreach (key in item_key)
 	{
 		result = clone empty_table;
 		result.format_str = val.style;
-		BuildFuncCode(result);
+		BuildFuncCode_Rank(result);
 
 		HUDColumnKey.extend(result.key);
 		if (val.style.find("{name}") != null)
 		{
 			if (HUDColumnNameIndex != -1)
-				printl("[LinGe] HUD 排行榜多列数据包含玩家名，不推荐这么做。因为玩家名占用容量较大，当一列内容超出127个字节时将被截断。");
+				printl("[LinGe] HUD 排行榜多列数据包含玩家名，不推荐这样做。");
 			HUDColumnNameIndex = HUDColumnFuncFull.len();
 		}
 		HUDColumnFuncFull.append(compilestring(result.funcCode));
 	}
 
-	// 预处理聊天窗排行榜相关
+	// 聊天窗排行榜预处理
 	result = clone empty_table;
 	result.format_str = ::LinGe.HUD.Config.hurt.chatStyle2;
-	BuildFuncCode(result, @(str) "\x03" + str + "\x04");
+	BuildFuncCode_Rank(result, @(str) "\x03" + str + "\x04");
 	::LinGe.HUD.Pre.ChatKey <- result.key;
 	::LinGe.HUD.Pre.ChatFunc <- compilestring(result.funcCode);
 
-	// 预处理最高友伤与受到最高友伤相关
+	// 最高友伤与受到最高友伤预处理
 	if (::LinGe.HUD.Config.hurt.chatAtkMaxStyle)
 	{
 		result = clone empty_table;
@@ -247,11 +380,11 @@ foreach (key in item_key)
 ::LinGe.HUD.Pre.CompileFunc();
 
 const HUD_MAX_STRING_LENGTH = 127; // 一个HUD Slot最多只能显示127字节字符
-const HUD_SLOT_BEGIN = 1;
+const HUD_SLOT_BEGIN = 0;
 const HUD_SLOT_END = 14;
-const HUD_SLOT_RANK_BEGIN	= 1; // 紧凑模式下 第一个SLOT显示标题 后续显示每个玩家的数据 分列模式则各自显示不同的数据
+const HUD_SLOT_RANK_BEGIN	= 0; // 紧凑模式下 第一个SLOT显示标题 后续显示每个玩家的数据 分列模式则各自显示不同的数据
 local HUD_SLOT_RANK_END		= 0;
-local HUD_RANK_COMPACT_PLAYERS	= 0; // 根据空闲slot数量，紧凑模式最多能显示26个玩家数据
+local HUD_RANK_COMPACT_PLAYERS	= 0; // 根据空闲slot数量，紧凑模式最多能显示28个玩家数据
 const HUD_RANK_COLUMN_PLAYERS	= 16; // 分列模式最多能显示16个玩家的数据，5列数据
 local HUD_RANK_COLUMN_MAX		= 0; // 分列模式最多5列数据
 // 服务器每1s内会多次根据HUD_table更新屏幕上的HUD
@@ -405,25 +538,26 @@ local isExistTime = false;
 
 			for (i=0; i<Pre.HUDColumnFunc.len(); i++)
 			{
+				local width = rankColumnAlign[i].width;
 				if (i > 0)
 					pos_x += rankColumnAlign[i-1].width;
 				if (i == Pre.HUDColumnNameIndex)
 				{
 					HUDPlace(HUD_SLOT_RANK_BEGIN + i, pos_x,
-						Config.position.rank_y,	1.0, height * 5);
+						Config.position.rank_y,	width, height * 5);
 					HUDPlace(HUD_SLOT_RANK_END, pos_x,
-						Config.position.rank_y + height * 5, 1.0, height * 4);
+						Config.position.rank_y + height * 5, width, height * 4);
 					HUDPlace(HUD_SLOT_RANK_BEGIN + HUD_RANK_COLUMN_MAX + i, pos_x,
-						Config.position.rank_y + height * (5 + 4), 1.0, height * 4);
+						Config.position.rank_y + height * (5 + 4), width, height * 4);
 					HUDPlace(HUD_SLOT_RANK_END - 1, pos_x,
-						Config.position.rank_y + height * (5 + 4 + 4), 1.0, height * 4);
+						Config.position.rank_y + height * (5 + 4 + 4), width, height * 4);
 				}
 				else
 				{
 					HUDPlace(HUD_SLOT_RANK_BEGIN + i, pos_x,
-						Config.position.rank_y,	1.0, height * 9);
+						Config.position.rank_y,	width, height * 9);
 					HUDPlace(HUD_SLOT_RANK_BEGIN + HUD_RANK_COLUMN_MAX + i, pos_x,
-						Config.position.rank_y + height * 9, 1.0, height * 8);
+						Config.position.rank_y + height * 9, width, height * 8);
 				}
 			}
 		}
@@ -441,14 +575,14 @@ local isExistTime = false;
 				if (i == Pre.HUDColumnNameIndex)
 				{
 					HUDPlace(HUD_SLOT_RANK_BEGIN + i, pos_x,
-						Config.position.rank_y,	1.0, height * 5);
+						Config.position.rank_y,	width, height * 5);
 					HUDPlace(HUD_SLOT_RANK_END, pos_x,
-						Config.position.rank_y + height * 5, 1.0, height * 4);
+						Config.position.rank_y + height * 5, width, height * 4);
 				}
 				else
 				{
 					HUDPlace(HUD_SLOT_RANK_BEGIN + i, pos_x,
-						Config.position.rank_y,	1.0, height * 9);
+						Config.position.rank_y,	width, height * 9);
 				}
 			}
 		}
@@ -473,7 +607,6 @@ local isExistTime = false;
 		HUD_table.Fields.time.dataval = Convars.GetStr("linge_time");
 	if (Config.hurt.HUDRank > 0)
 		UpdateRankHUD();
-	::LinGe.Base.UpdateMaxplayers(); // 如果存在更新则会触发 maxplayers_changed
 }.bindenv(::LinGe.HUD);
 
 // 将玩家的伤害数据从 hurtData 备份到 hurtData_bak
@@ -512,7 +645,7 @@ local isExistTime = false;
 	// 将HurtData_bak中的非累计数据置为0
 	foreach (id, d in hurtData_bak)
 	{
-		if (!d.rawin("hsi")) // Cache 还原后，小写h总是会被改写为大写h，大坑
+		if (!d.rawin("hsi")) // Cache 还原后，小写h总是会被改写为大写H，大坑
 			d.hsi <- 0;
 		if (!d.rawin("hci"))
 			d.hci <- 0;
@@ -542,6 +675,11 @@ local isExistTime = false;
 			}
 		}
 	}
+
+	// 将 rankColumnAlign 还原为配置文件内容
+	// 因为保存到 Cache 时，array会变成table，顺序会被打乱
+	// 所以需要将其直接还原为配置文件内容，以避免在 !save 时保存成乱序的排行榜配置
+	Config.hurt.rankColumnAlign = clone rankColumnAlign;
 }
 ::LinEventHook("cache_restore", ::LinGe.HUD.On_cache_restore, ::LinGe.HUD);
 
@@ -605,7 +743,6 @@ local isExistTime = false;
 
 	if (isHuman)
 	{
-		UpdatePlayerHUD();
 		UpdateRankHUD();
 	}
 
@@ -996,40 +1133,37 @@ local reHudCmd = regexp("^(all|time|players|hostname)$");
 ::LinCmdAdd("rank", ::LinGe.HUD.Cmd_rank, ::LinGe.HUD);
 
 // 更新玩家信息HUD
+local TimerPlayerHUDFlag = false;
 ::LinGe.HUD.UpdatePlayerHUD <- function (params=null)
 {
+	if (TimerPlayerHUDFlag)
+		return;
 	if (!HUD_table.Fields.rawin("players"))
 		return;
+	// 延迟 0.1 秒，避免同一Tick内多次更新
+	TimerPlayerHUDFlag = true;
+	::VSLib.Timers.AddTimerByName("Timer_UpdatePlayerHUD", 0.1, false, ::LinGe.HUD.Timer_UpdatePlayerHUD);
+}
+::LinEventHook("OnGameEvent_player_team", ::LinGe.HUD.UpdatePlayerHUD, ::LinGe.HUD);
+::LinEventHook("maxplayers_changed", ::LinGe.HUD.UpdatePlayerHUD, ::LinGe.HUD)
+if (aliveOrDeadTrigger)
+{
+	::LinEventHook("OnGameEvent_player_death", ::LinGe.HUD.UpdatePlayerHUD, ::LinGe.HUD);
+	::LinEventHook("OnGameEvent_player_first_spawn", ::LinGe.HUD.UpdatePlayerHUD, ::LinGe.HUD);
+	::LinEventHook("OnGameEvent_respawning", ::LinGe.HUD.UpdatePlayerHUD, ::LinGe.HUD);
+}
 
-	local playerText = "";
-	local style = Config.HUDShow.playersStyle;
-	if (0 == style)
+::LinGe.HUD.Timer_UpdatePlayerHUD <- function (params)
+{
+	if (HUD_table.Fields.rawin("players"))
 	{
 		if (::LinGe.isVersus)
-			style = 2;
+			HUD_table.Fields.players.dataval = Pre.PlayersVersus();
 		else
-			style = 1;
+			HUD_table.Fields.players.dataval = Pre.PlayersCoop();
 	}
-
-	switch (style)
-	{
-	case 1:
-		playerText = "活跃：" + (::pyinfo.survivor + ::pyinfo.special);
-		playerText += " 摸鱼：" + ::pyinfo.ob;
-		playerText += " 空位：" + ( ::pyinfo.maxplayers - (::pyinfo.survivor+::pyinfo.ob+::pyinfo.special) );
-		break;
-	default:
-		playerText = "生还：" + ::pyinfo.survivor + " VS 特感：" + ::pyinfo.special;
-		break;
-//	default:
-//		playerText = "当前玩家：" + (::pyinfo.survivor + ::pyinfo.ob + ::pyinfo.special);
-//		playerText += "/" + ::pyinfo.maxplayers;
-//		break;
-	}
-
-	HUD_table.Fields.players.dataval = playerText;
-}
-::LinEventHook("maxplayers_changed", ::LinGe.HUD.UpdatePlayerHUD, ::LinGe.HUD);
+	TimerPlayerHUDFlag = false;
+}.bindenv(::LinGe.HUD);
 
 ::LinGe.HUD.GetPlayerState <- function (player)
 {

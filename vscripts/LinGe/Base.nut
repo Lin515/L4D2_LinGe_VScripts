@@ -241,6 +241,53 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 	return false;
 }
 
+// 获取所有处于闲置的玩家
+::LinGe.GetIdlePlayers <- function ()
+{
+	local bot = null;
+	local players = [];
+	while ( bot = Entities.FindByClassname(bot, "player") )
+	{
+		if ( bot.IsValid() )
+		{
+			if ( bot.IsSurvivor()
+			&& "BOT" == bot.GetNetworkIDString()
+			&& ::LinGe.IsAlive(bot) )
+			{
+				local human = ::LinGe.GetHumanPlayer(bot);
+				if (human != null)
+				{
+					players.push(human);
+				}
+			}
+		}
+	}
+	return players;
+}
+
+::LinGe.GetIdlePlayerCount <- function ()
+{
+	local bot = null;
+	local count = 0;
+	while ( bot = Entities.FindByClassname(bot, "player") )
+	{
+		if ( bot.IsValid() )
+		{
+			if ( bot.IsSurvivor()
+			&& "BOT" == bot.GetNetworkIDString()
+			&& ::LinGe.IsAlive(bot) )
+			{
+				local human = ::LinGe.GetHumanPlayer(bot);
+				if (human != null)
+				{
+					count++;
+				}
+			}
+		}
+	}
+	return count;
+}
+
 ::LinGe.GetMaxHealth <- function (entity)
 {
 	return NetProps.GetPropInt(victim, "m_iMaxHealth");
@@ -423,10 +470,10 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 }
 
 // 获取玩家实体数组
-// team 指定要获取的队伍
-// bot 是否获取bot
-// alive 是否必须存活
-::LinGe.GetPlayers <- function (team=0, bot=true, alive=false)
+// team 指定要获取的队伍 可以是数组或数字 若为null则忽略队伍
+// humanOrBot 机器人 0:忽略是否是机器人 1:只获取玩家 2:只获取BOT
+// aliveOrDead 存活 0:忽略是否存货 1:只获取存活的 2:只获取死亡的
+::LinGe.GetPlayers <- function (team=null, humanOrBot=0, aliveOrDead=0)
 {
 	local arr = [];
 	// 通过类名查找玩家
@@ -437,16 +484,68 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 		if ( player.IsValid() )
 		{
 			// 判断阵营
-			if (team!=0 && ::LinGe.GetPlayerTeam(player)!=team)
+			if (typeof team == "array")
+			{
+				if (team.find(::LinGe.GetPlayerTeam(player))==null)
+					continue;
+			}
+			else if (typeof team == "integer" && team != ::LinGe.GetPlayerTeam(player))
 				continue;
-			if (!bot && "BOT" == player.GetNetworkIDString())
+			if (humanOrBot == 1)
+			{
+				if ("BOT" == player.GetNetworkIDString())
+					continue;
+			}
+			else if (humanOrBot == 2 && "BOT" != player.GetNetworkIDString())
 				continue;
-			if (alive && !::LinGe.IsAlive(player))
+			if (aliveOrDead == 1)
+			{
+				if (!::LinGe.IsAlive(player))
+					continue;
+			}
+			else if (aliveOrDead == 2 && ::LinGe.IsAlive(player))
 				continue;
 			arr.append(player);
 		}
 	}
 	return arr;
+}
+::LinGe.GetPlayerCount <- function (team=null, humanOrBot=0, aliveOrDead=0)
+{
+	local count = 0;
+	// 通过类名查找玩家
+	local player = null;
+	while ( player = Entities.FindByClassname(player, "player") )
+	{
+		// 判断搜索到的实体有效性
+		if ( player.IsValid() )
+		{
+			// 判断阵营
+			if (typeof team == "array")
+			{
+				if (team.find(::LinGe.GetPlayerTeam(player))==null)
+					continue;
+			}
+			else if (typeof team == "integer" && team != ::LinGe.GetPlayerTeam(player))
+				continue;
+			if (humanOrBot == 1)
+			{
+				if ("BOT" == player.GetNetworkIDString())
+					continue;
+			}
+			else if (humanOrBot == 2 && "BOT" != player.GetNetworkIDString())
+				continue;
+			if (aliveOrDead == 1)
+			{
+				if (!::LinGe.IsAlive(player))
+					continue;
+			}
+			else if (aliveOrDead == 2 && ::LinGe.IsAlive(player))
+				continue;
+			count++;
+		}
+	}
+	return count;
 }
 
 // 如果source中某个key在dest中也存在，则将其赋值给dest中的key
@@ -1179,6 +1278,9 @@ if (null == ::LinGe.Admin.adminslist)
 
 ::LinGe.OnGameEvent_round_start_post_nav <- function (params)
 {
+	if (Convars.GetFloat("sv_maxplayers") != null)
+		::VSLib.Timers.AddTimer(1.0, true, ::LinGe.Base.UpdateMaxplayers);
+
 	CacheRestore();
 	// 以下事件应插入到最后
 	::LinEventHook("OnGameEvent_round_end", ::LinGe.OnGameEvent_round_end, ::LinGe);
@@ -1214,7 +1316,7 @@ if (null == ::LinGe.Admin.adminslist)
 ::LinGe.CacheSave <- function ()
 {
 	Cache.rawset("isValidCache", true);
-	SaveTable("LinGe_Cache", clone Cache);
+	SaveTable("LinGe_Cache", Cache);
 	::LinEventTrigger("cache_save");
 }
 
@@ -1227,7 +1329,6 @@ if (null == ::LinGe.Admin.adminslist)
 };
 ::LinGe.Config.Add("Base", ::LinGe.Base.Config);
 ::LinGe.Cache.Base_Config <- ::LinGe.Base.Config;
-local isExistMaxplayers = true;
 
 // 已知玩家列表 存储加入过服务器玩家的SteamID与名字
 const FILE_KNOWNPLAYERS = "LinGe/playerslist";
@@ -1442,26 +1543,21 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 	}
 }
 
-::LinGe.Base.UpdateMaxplayers <- function ()
+::LinGe.Base.UpdateMaxplayers <- function (params=null)
 {
-	if (isExistMaxplayers)
-	{
-		local old = ::pyinfo.maxplayers;
-		::pyinfo.maxplayers = Convars.GetFloat("sv_maxplayers");
-		if (null == ::pyinfo.maxplayers)
-			isExistMaxplayers = false;
-		else
-			::pyinfo.maxplayers = ::pyinfo.maxplayers.tointeger();
+	local old = ::pyinfo.maxplayers;
+	::pyinfo.maxplayers = Convars.GetFloat("sv_maxplayers");
 
-		if (::pyinfo.maxplayers < 0 || (!isExistMaxplayers))
-		{
-			if (::LinGe.isVersus)
-				::pyinfo.maxplayers = 8;
-			else
-				::pyinfo.maxplayers = 4;
-		}
-		if (old != ::pyinfo.maxplayers)
-			::LinEventTrigger("maxplayers_changed");
+	if (::pyinfo.maxplayers < 0)
+	{
+		if (::LinGe.isVersus)
+			::pyinfo.maxplayers = 8;
+		else
+			::pyinfo.maxplayers = 4;
+	}
+	if (old != ::pyinfo.maxplayers)
+	{
+		::LinEventTrigger("maxplayers_changed");
 	}
 }
 //----------------------------Base-----END---------------------------------

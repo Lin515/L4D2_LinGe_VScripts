@@ -41,7 +41,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	{
 		local autoNum = 0; // 额外特感数量
 		if (Config.siauto > 0)
-			autoNum = Config.siauto * ::LinGe.GetPlayers(2).len();
+			autoNum = Config.siauto * ::LinGe.GetPlayerCount(2);
 
 		local simax = Config.sibase + autoNum;
 		if (simax < Config.simin)
