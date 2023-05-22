@@ -12,7 +12,8 @@ printl("[LinGe] HUD 正在载入");
 		// 关键词：{特殊(ob,idle,vac,max),队伍(sur,si),真人或BOT(human,bot),生存或死亡(alive,dead),运算(+,-)} 如果不包含某个关键词则不对其限定
 		// ob,idle,vac,max 为特殊关键词，当包含该类关键词时其它所有关键词无效
 		// 除队伍可同时包含 sur 与 si 外，其它类型的关键词若同时出现则只有最后一个有效
-		coop = "活跃:{sur,human}  摸鱼:{ob}  空位:{vac}  特感:{si,alive}",
+		// 可以使用击杀、伤害数据关键字，会显示为所有玩家的总和
+		coop = "活跃:{sur,human}  摸鱼:{ob}  空位:{vac}  存活特感:{si,alive}  本局特感击杀:{ksi}",
 		versus = "生还:{sur,human}  VS  特感:{si,human}"
 	},
 	hurt = {
@@ -78,11 +79,14 @@ local rankColumnAlign = clone ::LinGe.HUD.Config.hurt.rankColumnAlign; // 避免
 local hurtDataTemplate = { tank=0 };
 local item_key = ["ksi", "hsi", "kci", "hci", "si", "atk", "vct"];
 local ex_str = "";
+local all_key = clone item_key;
 foreach (key in item_key)
 {
+	all_key.append("o_" + key);
+	all_key.append("t_" + key);
 	hurtDataTemplate[key] <- 0;
-	hurtDataTemplate["t_" + key] <- 0;
 	hurtDataTemplate["o_" + key] <- 0;
+	hurtDataTemplate["t_" + key] <- 0;
 	ex_str += format("|%s|t_%s|o_%s", key, key, key);
 }
 local exHurtItem = regexp("{(rank|name|state" + ex_str + ")((:%)([-\\w]+))?}");
@@ -100,7 +104,6 @@ local exHurtItem = regexp("{(rank|name|state" + ex_str + ")((:%)([-\\w]+))?}");
 ::LinGe.HUD.Pre <- {};
 
 local exPlayers = regexp("{([a-z\\,\\+\\-]*)}");
-local aliveOrDeadTrigger = false; // 如果players文本中包含需要判断是否存活或死亡的数据，则在player死亡或复活时触发更新
 ::LinGe.HUD.Pre.BuildFuncCode_Players <- function (result)
 {
 	local res = exPlayers.capture(result.format_str);
@@ -119,46 +122,30 @@ local aliveOrDeadTrigger = false; // 如果players文本中包含需要判断是
 			{
 				switch (key)
 				{
-				case "ob":
-					specialKey = 1;
-					break;
-				case "idle":
-					specialKey = 2;
-					break;
-				case "vac":
-					specialKey = 3;
-					break;
-				case "max":
-					specialKey = 4;
-					break;
-				case "sur":
-					team.append(2);
-					break;
-				case "si":
-					team.append(3);
-					break;
-				case "human":
-					humanOrBot = 1;
-					break;
-				case "bot":
-					humanOrBot = 2;
-					break;
-				case "alive":
-					aliveOrDeadTrigger = true;
-					aliveOrDead = 1;
-					break;
-				case "dead":
-					aliveOrDeadTrigger = true;
-					aliveOrDead = 2;
-					break;
+				case "ob":		specialKey = 1; break;
+				case "idle":	specialKey = 2; break;
+				case "vac":		specialKey = 3; break;
+				case "max":		specialKey = 4;	break;
+				case "sur":		team.append(2); break;
+				case "si":		team.append(3);	break;
+				case "human":	humanOrBot = 1; break;
+				case "bot":		humanOrBot = 2;	break;
+				case "alive":	aliveOrDead = 1; break;
+				case "dead":	aliveOrDead = 2; break;
 				case "+": case "-":
 					item.append({specialKey=specialKey, humanOrBot=humanOrBot, aliveOrDead=aliveOrDead, team=team, operator=key});
 					specialKey = 0, humanOrBot = 0, aliveOrDead = 0;
 					team = [];
 					break;
 				default:
-					printl("[LinGe] HUD playersStyle 无效关键词：" + key);
+				{
+					local idx = all_key.find(key);
+					if (idx != null)
+						specialKey = key;
+					else
+						printl("[LinGe] HUD playersStyle 无效关键词：" + key);
 					break;
+				}
 				}
 			}
 			item.append({specialKey=specialKey, humanOrBot=humanOrBot, aliveOrDead=aliveOrDead, team=team, operator=""});
@@ -178,28 +165,20 @@ local aliveOrDeadTrigger = false; // 如果players文本中包含需要判断是
 			else
 				team = "null";
 
-			if (val.specialKey > 0)
-			{
-				if (val.specialKey == 1)
-				{
-					result.format_args += "::pyinfo.ob";
-				}
-				else if (val.specialKey == 2)
-				{
-					result.format_args += "::LinGe.GetIdlePlayerCount()";
-				}
-				else if (val.specialKey == 3)
-				{
-					result.format_args += "::pyinfo.maxplayers - (::pyinfo.survivor+::pyinfo.ob+::pyinfo.special)";
-				}
-				else if (val.specialKey == 4)
-				{
-					result.format_args += "::pyinfo.maxplayers";
-				}
-			}
+			if (typeof val.specialKey == "string")
+				result.format_args += format("::LinGe.HUD.SumHurtData(\"%s\")", val.specialKey);
 			else
 			{
-				result.format_args += format("::LinGe.GetPlayerCount(%s,%d,%d)", team, val.humanOrBot, val.aliveOrDead);
+				switch (val.specialKey)
+				{
+				case 1:	result.format_args += "::pyinfo.ob"; break;
+				case 2:	result.format_args += "::LinGe.GetIdlePlayerCount()"; break;
+				case 3:	result.format_args += "::pyinfo.maxplayers - (::pyinfo.survivor+::pyinfo.ob+::pyinfo.special)";	break;
+				case 4:	result.format_args += "::pyinfo.maxplayers"; break;
+				default:
+					result.format_args += format("::LinGe.GetPlayerCount(%s,%d,%d)", team, val.humanOrBot, val.aliveOrDead);
+					break;
+				}
 			}
 			result.format_args += val.operator;
 		}
@@ -594,17 +573,23 @@ local isExistTime = false;
 			HUD_table.Fields["rank"+i].flags = HUD_table.Fields["rank"+i].flags | HUD_FLAG_NOTVISIBLE;
 	}
 
-	UpdatePlayerHUD();
-	UpdateRankHUD();
-	HUDSetLayout(HUD_table);
-
+	Timer_HUD();
 	::VSLib.Timers.AddTimerByName("Timer_HUD", 1.0, true, Timer_HUD);
+
+	HUDSetLayout(HUD_table);
 }
 
-::LinGe.HUD.Timer_HUD <- function (params)
+::LinGe.HUD.Timer_HUD <- function (params=null)
 {
 	if (isExistTime && HUD_table.Fields.rawin("time"))
 		HUD_table.Fields.time.dataval = Convars.GetStr("linge_time");
+	if (HUD_table.Fields.rawin("players"))
+	{
+		if (::LinGe.isVersus)
+			HUD_table.Fields.players.dataval = Pre.PlayersVersus();
+		else
+			HUD_table.Fields.players.dataval = Pre.PlayersCoop();
+	}
 	if (Config.hurt.HUDRank > 0)
 		UpdateRankHUD();
 }.bindenv(::LinGe.HUD);
@@ -1132,39 +1117,6 @@ local reHudCmd = regexp("^(all|time|players|hostname)$");
 }
 ::LinCmdAdd("rank", ::LinGe.HUD.Cmd_rank, ::LinGe.HUD);
 
-// 更新玩家信息HUD
-local TimerPlayerHUDFlag = false;
-::LinGe.HUD.UpdatePlayerHUD <- function (params=null)
-{
-	if (TimerPlayerHUDFlag)
-		return;
-	if (!HUD_table.Fields.rawin("players"))
-		return;
-	// 延迟 0.1 秒，避免同一Tick内多次更新
-	TimerPlayerHUDFlag = true;
-	::VSLib.Timers.AddTimerByName("Timer_UpdatePlayerHUD", 0.1, false, ::LinGe.HUD.Timer_UpdatePlayerHUD);
-}
-::LinEventHook("OnGameEvent_player_team", ::LinGe.HUD.UpdatePlayerHUD, ::LinGe.HUD);
-::LinEventHook("maxplayers_changed", ::LinGe.HUD.UpdatePlayerHUD, ::LinGe.HUD)
-if (aliveOrDeadTrigger)
-{
-	::LinEventHook("OnGameEvent_player_death", ::LinGe.HUD.UpdatePlayerHUD, ::LinGe.HUD);
-	::LinEventHook("OnGameEvent_player_first_spawn", ::LinGe.HUD.UpdatePlayerHUD, ::LinGe.HUD);
-	::LinEventHook("OnGameEvent_respawning", ::LinGe.HUD.UpdatePlayerHUD, ::LinGe.HUD);
-}
-
-::LinGe.HUD.Timer_UpdatePlayerHUD <- function (params)
-{
-	if (HUD_table.Fields.rawin("players"))
-	{
-		if (::LinGe.isVersus)
-			HUD_table.Fields.players.dataval = Pre.PlayersVersus();
-		else
-			HUD_table.Fields.players.dataval = Pre.PlayersCoop();
-	}
-	TimerPlayerHUDFlag = false;
-}.bindenv(::LinGe.HUD);
-
 ::LinGe.HUD.GetPlayerState <- function (player)
 {
 	if (::LinGe.GetPlayerTeam(player) == 1)
@@ -1480,6 +1432,16 @@ local killTank = 0;
 		}
 	}
 }.bindenv(::LinGe.HUD);
+
+::LinGe.HUD.SumHurtData <- function (key)
+{
+	local result = 0;
+	foreach (playerIndex in playersIndex)
+	{
+		result += hurtData[playerIndex][key];
+	}
+	return result;
+}
 
 // 冒泡排序 默认降序排序
 ::LinGe.HUD.hurtDataSort <- function (survivorIdx, key, desc=true)
