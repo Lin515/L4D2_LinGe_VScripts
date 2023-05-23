@@ -9,12 +9,12 @@ printl("[LinGe] HUD 正在载入");
 		versusNoHUDRank = true // 对抗模式是否永远不显示击杀排行
 	},
 	playersStyle = {
-		// 关键词：{特殊(ob,idle,vac,max),队伍(sur,si),真人或BOT(human,bot),生存或死亡(alive,dead),运算(+,-)} 如果不包含某个关键词则不对其限定
+		// 关键词：{特殊(ob,idle,vac,max),队伍(sur,spe),真人或BOT(human,bot),生存或死亡(alive,dead),运算(+,-)} 如果不包含某个关键词则不对其限定
 		// ob,idle,vac,max 为特殊关键词，当包含该类关键词时其它所有关键词无效
-		// 除队伍可同时包含 sur 与 si 外，其它类型的关键词若同时出现则只有最后一个有效
+		// 除队伍可同时包含 sur 与 spe 外，其它类型的关键词若同时出现则只有最后一个有效
 		// 可以使用击杀、伤害数据关键字，会显示为所有玩家的总和
-		coop = "活跃:{sur,human}  摸鱼:{ob}  空位:{vac}  存活特感:{si,alive}  本局特感击杀:{ksi}",
-		versus = "生还:{sur,human}  VS  特感:{si,human}"
+		coop = "活跃:{sur,human}  摸鱼:{ob}  空位:{vac}  存活特感:{spe,alive}  本局特感击杀:{ksi}",
+		versus = "生还:{sur,human}  VS  特感:{spe,human}"
 	},
 	hurt = {
 		HUDRank = 4, // HUD排行榜最多显示多少人，范围0~8 设置为0则关闭排行显示
@@ -127,7 +127,7 @@ local exPlayers = regexp("{([a-z\\,\\+\\-]*)}");
 				case "vac":		specialKey = 3; break;
 				case "max":		specialKey = 4;	break;
 				case "sur":		team.append(2); break;
-				case "si":		team.append(3);	break;
+				case "spe":		team.append(3);	break;
 				case "human":	humanOrBot = 1; break;
 				case "bot":		humanOrBot = 2;	break;
 				case "alive":	aliveOrDead = 1; break;
