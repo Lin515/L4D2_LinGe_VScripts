@@ -1546,15 +1546,17 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 ::LinGe.Base.UpdateMaxplayers <- function (params=null)
 {
 	local old = ::pyinfo.maxplayers;
-	::pyinfo.maxplayers = Convars.GetFloat("sv_maxplayers");
+	local new = Convars.GetFloat("sv_maxplayers");
 
-	if (::pyinfo.maxplayers < 0)
+	if (new == null || new < 0)
 	{
 		if (::LinGe.isVersus)
 			::pyinfo.maxplayers = 8;
 		else
 			::pyinfo.maxplayers = 4;
 	}
+	else
+		::pyinfo.maxplayers = new.tointeger();
 	if (old != ::pyinfo.maxplayers)
 	{
 		::LinEventTrigger("maxplayers_changed");
