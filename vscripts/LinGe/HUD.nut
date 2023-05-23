@@ -549,6 +549,7 @@ local isExistTime = false;
 				Pre.HUDColumnFunc = Pre.HUDColumnFuncFull;
 			for (i=0; i<Pre.HUDColumnFunc.len(); i++)
 			{
+				local width = rankColumnAlign[i].width;
 				if (i > 0)
 					pos_x += rankColumnAlign[i-1].width;
 				if (i == Pre.HUDColumnNameIndex)

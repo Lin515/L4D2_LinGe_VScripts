@@ -1278,9 +1278,6 @@ if (null == ::LinGe.Admin.adminslist)
 
 ::LinGe.OnGameEvent_round_start_post_nav <- function (params)
 {
-	if (Convars.GetFloat("sv_maxplayers") != null)
-		::VSLib.Timers.AddTimer(1.0, true, ::LinGe.Base.UpdateMaxplayers);
-
 	CacheRestore();
 	// 以下事件应插入到最后
 	::LinEventHook("OnGameEvent_round_end", ::LinGe.OnGameEvent_round_end, ::LinGe);
@@ -1351,6 +1348,7 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 	return ::pyinfo.ob + ::pyinfo.survivor + ::pyinfo.special;
 }
 
+local isExistMaxplayers = true;
 // 事件：回合开始
 ::LinGe.Base.OnGameEvent_round_start <- function (params)
 {
@@ -1358,6 +1356,11 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 	// 而重开情况下玩家的队伍不会发生改变，不会触发事件
 	// 所以需要开局时搜索玩家
 	InitPyinfo();
+
+	if (Convars.GetFloat("sv_maxplayers") != null)
+		::VSLib.Timers.AddTimer(1.0, true, ::LinGe.Base.UpdateMaxplayers);
+	else
+		isExistMaxplayers = false;
 }
 ::LinEventHook("OnGameEvent_round_start", ::LinGe.Base.OnGameEvent_round_start, ::LinGe.Base);
 
@@ -1546,7 +1549,11 @@ const FILE_KNOWNPLAYERS = "LinGe/playerslist";
 ::LinGe.Base.UpdateMaxplayers <- function (params=null)
 {
 	local old = ::pyinfo.maxplayers;
-	local new = Convars.GetFloat("sv_maxplayers");
+	local new = null;
+	if (isExistMaxplayers)
+	{
+		new = Convars.GetFloat("sv_maxplayers");
+	}
 
 	if (new == null || new < 0)
 	{
