@@ -1219,7 +1219,7 @@ if (null == ::LinGe.Admin.adminslist)
 			ClientPrint(player, 3, "\x04读取配置失败： \x05" + args[1]);
 		}
 	}
-	else if (args.len() == 3)
+	else if (args.len() >= 3)
 	{
 		try {
 			local type = compilestring("return typeof ::LinGe.Config.table." + args[1])();
@@ -1231,8 +1231,17 @@ if (null == ::LinGe.Admin.adminslist)
 				compilestring("::LinGe.Config.table." + args[1] + " = " + args[2])();
 				break;
 			case "string":
-				compilestring("::LinGe.Config.table." + args[1] + " = \"" + args[2] + "\"")();
+			{
+				local str = "";
+				for (local i=2; i<args.len(); i++)
+				{
+					if (i != 2)
+						str += " ";
+					str += args[i];
+				}
+				compilestring("::LinGe.Config.table." + args[1] + " = \"" + str + "\"")();
 				break;
+			}
 			default:
 				ClientPrint(player, 3, "\x04不支持设置该类数据： \x05" + type);
 				return;
