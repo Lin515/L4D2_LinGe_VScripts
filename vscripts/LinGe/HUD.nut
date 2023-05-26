@@ -25,14 +25,14 @@ printl("[LinGe] HUD 正在载入");
 		},
 		rankColumnAlign = [
 			{
-				title = "特感/伤害",
-				style = "{ksi}/{si}",
-				width = 0.07,
+				title = "特感",
+				style = "{ksi}/{o_ksi}",
+				width = 0.1,
 			},
 			{
 				title = "丧尸",
-				style = "{kci}",
-				width = 0.07,
+				style = "{kci}/{o_kci}",
+				width = 0.1,
 			},
 			{
 				title = "血量状态",
@@ -46,6 +46,10 @@ printl("[LinGe] HUD 正在载入");
 				width = 0.7,
 			},
 		],
+		tankHurt = {
+			title = "本次击杀了共 {count} 只 Tank，伤害贡献如下",
+			style = "[{rank}] {hurt} <- {name}"
+		},
 		teamHurtInfo = 2, // 友伤即时提示 0:关闭 1:公开处刑 2:仅攻击者和被攻击者可见
 		autoPrint = 0, // 每间隔多少s在聊天窗输出一次数据统计，若为0则只在本局结束时输出，若<0则永远不输出
 		chatRank = 4, // 聊天窗输出时除了最高友伤、最高被黑 剩下显示最多多少人的数据
@@ -284,6 +288,86 @@ local exTeamHurt = regexp("{(name|hurt)((:%)([-\\w]+))?}");
 	}
 }
 
+local exTankTitle = regexp("{(count)((:%)([-\\w]+))?}");
+::LinGe.HUD.Pre.BuildFuncCode_TankTitle <- function (result, wrap=@(str) str)
+{
+	local res = exTankTitle.capture(result.format_str);
+
+	if (res != null)
+	{
+		result.format_args += ",";
+		local key = result.format_str.slice(res[1].begin, res[1].end);
+		local format_str = null;
+		if (res.len() >= 5 && res[3].begin>=0 && res[3].end > res[3].begin
+		&& res[3].end <= result.format_str.len())
+		{
+			if (result.format_str.slice(res[3].begin, res[3].end).find(":%") == 0)
+				format_str = "%" + result.format_str.slice(res[4].begin, res[4].end);
+			else
+				format_str = null;
+		}
+
+		if (key == "count")
+		{
+			if (format_str == null)
+				format_str = "%d";
+			result.format_args += "vargv[0]";
+		}
+		result.format_str = result.format_str.slice(0, res[0].begin) + wrap(format_str) + result.format_str.slice(res[0].end);
+		BuildFuncCode_TankTitle(result, wrap);
+	}
+	else
+	{
+		result.funcCode = format("return format(\"%s\"%s);", result.format_str, result.format_args);
+	}
+}
+
+local exTankHurt = regexp("{(rank|name|hurt)((:%)([-\\w]+))?}");
+::LinGe.HUD.Pre.BuildFuncCode_TankHurt <- function (result, wrap=@(str) str)
+{
+	local res = exTankHurt.capture(result.format_str);
+
+	if (res != null)
+	{
+		result.format_args += ",";
+		local key = result.format_str.slice(res[1].begin, res[1].end);
+		local format_str = null;
+		if (res.len() >= 5 && res[3].begin>=0 && res[3].end > res[3].begin
+		&& res[3].end <= result.format_str.len())
+		{
+			if (result.format_str.slice(res[3].begin, res[3].end).find(":%") == 0)
+				format_str = "%" + result.format_str.slice(res[4].begin, res[4].end);
+			else
+				format_str = null;
+		}
+
+		if (key == "rank")
+		{
+			if (format_str == null)
+				format_str = "%d";
+			result.format_args += "vargv[0]";
+		}
+		else if (key == "name")
+		{
+			if (format_str == null)
+				format_str = "%s";
+			result.format_args += "vargv[1].GetPlayerName()";
+		}
+		else if (key == "hurt")
+		{
+			if (format_str == null)
+				format_str = "%d";
+			result.format_args += "vargv[2]";
+		}
+		result.format_str = result.format_str.slice(0, res[0].begin) + wrap(format_str) + result.format_str.slice(res[0].end);
+		BuildFuncCode_TankHurt(result, wrap);
+	}
+	else
+	{
+		result.funcCode = format("return format(\"%s\"%s);", result.format_str, result.format_args);
+	}
+}
+
 ::LinGe.HUD.Pre.CompileFunc <- function ()
 {
 	local empty_table = {key=[], format_str="", format_args="", funcCode=""};
@@ -355,6 +439,17 @@ local exTeamHurt = regexp("{(name|hurt)((:%)([-\\w]+))?}");
 	}
 	else
 		::LinGe.HUD.Pre.VctMaxFunc <- null;
+
+	// Tank 伤害预处理
+	result = clone empty_table;
+	result.format_str = ::LinGe.HUD.Config.hurt.tankHurt.title;
+	BuildFuncCode_TankTitle(result, @(str) "\x03" + str + "\x04");
+	::LinGe.HUD.Pre.TankTitleFunc <- compilestring(result.funcCode);
+
+	result = clone empty_table;
+	result.format_str = ::LinGe.HUD.Config.hurt.tankHurt.style;
+	BuildFuncCode_TankHurt(result, @(str) "\x03" + str + "\x04");
+	::LinGe.HUD.Pre.TankHurtFunc <- compilestring(result.funcCode);
 }
 ::LinGe.HUD.Pre.CompileFunc();
 
@@ -373,7 +468,6 @@ local HUD_table_template = {
 	hostname = { // 服务器名
 		slot = 0,
 		dataval = Convars.GetStr("hostname"),
-		// 无边框 中对齐
 		flags = HUD_FLAG_NOBG | HUD_FLAG_ALIGN_LEFT
 	},
 	time = { // 显示当地时间需 LinGe_VScripts 辅助插件支持
@@ -1060,7 +1154,7 @@ local isExistTime = false;
 
 ::LinGe.HUD.OnGameEvent_hostname_changed <- function (params)
 {
-	HUD_table.Fields.hostname.dataval = params.hostname;
+	HUD_table.Fields.hostname.dataval = Convars.GetStr("hostname");
 }
 ::LinEventHook("OnGameEvent_hostname_changed", ::LinGe.HUD.OnGameEvent_hostname_changed, ::LinGe.HUD);
 
@@ -1462,23 +1556,22 @@ local killTank = 0;
 
 ::LinGe.HUD.PrintTankHurtData <- function ()
 {
-	local player = Config.hurt.chatRank;
+	local maxRank = Config.hurt.chatRank;
 	local idx = clone playersIndex;
-	local name = "", len = idx.len();
+	local len = idx.len();
 
-	if (player > 0 && len > 0)
+	if (maxRank > 0 && len > 0)
 	{
 		hurtDataSort(idx, ["tank"]);
 		// 如果第一位的伤害也为0，则本次未对该Tank造成伤害，则不输出Tank伤害统计
 		// 终局时无线刷Tank 经常会出现这种0伤害的情况
 		if (hurtData[idx[0]].tank == 0)
 			return;
-		ClientPrint(null, 3, "\x04本次击杀了共\x03 " + killTank +"\x04 只Tank，伤害贡献如下");
-		for (local i=0; i<player && i<len; i++)
+		ClientPrint(null, 3, "\x04" + Pre.TankTitleFunc(killTank));
+		for (local i=0; i<maxRank && i<len; i++)
 		{
-			name = PlayerInstanceFromIndex(idx[i]).GetPlayerName();
-			ClientPrint(null, 3, format("\x04[%d] \x03%-4d\x04 <- \x03%s",
-				i+1, hurtData[idx[i]].tank, name));
+			local player = PlayerInstanceFromIndex(idx[i]);
+			ClientPrint(null, 3, "\x04" + Pre.TankHurtFunc(i+1, player, hurtData[idx[i]].tank));
 		}
 	}
 }
