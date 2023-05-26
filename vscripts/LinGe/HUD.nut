@@ -17,22 +17,22 @@ printl("[LinGe] HUD 正在载入");
 		versus = "生还:{sur,human}  VS  特感:{spe,human}"
 	},
 	hurt = {
-		HUDRank = 4, // HUD排行榜最多显示多少人，范围0~8 设置为0则关闭排行显示
-		HUDRankMode = 1, // 0:紧凑式 1:分列式
+		HUDRank = 4, // HUD排行榜最多显示多少人
+		HUDRankMode = 1, // 0:紧凑式 1:分列式:兼容多分辨率 2:分列式:不兼容多分辨率（个人不推荐）
 		rankCompact = {
 			title = "特感/丧尸击杀：",
 			style = "[{rank}] {ksi}/{kci} <- {name}({state})",
 		},
 		rankColumnAlign = [
 			{
-				title = "特感",
-				style = "{ksi}/{o_ksi}",
-				width = 0.1,
+				title = "特感/伤害",
+				style = "{ksi}/{si}",
+				width = 0.07,
 			},
 			{
 				title = "丧尸",
-				style = "{kci}/{o_kci}",
-				width = 0.1,
+				style = "{kci}",
+				width = 0.07,
 			},
 			{
 				title = "血量状态",
@@ -364,8 +364,9 @@ const HUD_SLOT_END = 14;
 const HUD_SLOT_RANK_BEGIN	= 0; // 紧凑模式下 第一个SLOT显示标题 后续显示每个玩家的数据 分列模式则各自显示不同的数据
 local HUD_SLOT_RANK_END		= 0;
 local HUD_RANK_COMPACT_PLAYERS	= 0; // 根据空闲slot数量，紧凑模式最多能显示28个玩家数据
-const HUD_RANK_COLUMN_PLAYERS	= 16; // 分列模式最多能显示16个玩家的数据，5列数据
-local HUD_RANK_COLUMN_MAX		= 0; // 分列模式最多5列数据
+const HUD_RANK_COLUMN_PLAYERS_COMPAT = 8; // 分列模式兼容模式最多能显示8个玩家的数据，7列数据
+const HUD_RANK_COLUMN_PLAYERS	= 16; // 分列模式不兼容模式最多能显示16个玩家的数据，5列数据
+local HUD_RANK_COLUMN_MAX		= 0;
 // 服务器每1s内会多次根据HUD_table更新屏幕上的HUD
 // 脚本只需将HUD_table中的数据进行更新 而无需反复执行HUDSetLayout和HUDPlace
 local HUD_table_template = {
@@ -461,8 +462,9 @@ local isExistTime = false;
 		HUD_table.Fields.rawdelete("rank" + i);
 	}
 
-	if (Config.hurt.HUDRankMode == 0)
+	switch (Config.hurt.HUDRankMode)
 	{
+	case 0:
 		// 紧凑模式
 		local slot_end = HUD_SLOT_RANK_BEGIN;
 		HUD_table.Fields["rank" + HUD_SLOT_RANK_BEGIN].dataval = Config.hurt.rankCompact.title;
@@ -495,10 +497,55 @@ local isExistTime = false;
 			HUD_table.Fields["rank"+i].flags = HUD_table.Fields["rank"+i].flags | HUD_FLAG_NOTVISIBLE;
 			i++;
 		}
-	}
-	else
-	{
-		// 分列模式
+		break;
+	case 1:
+		// 分列模式 兼容
+		for (i=HUD_SLOT_RANK_BEGIN; i<=HUD_SLOT_RANK_END; i++)
+		{
+			HUD_table.Fields["rank"+i].dataval = "";
+			HUD_table.Fields["rank"+i].flags = HUD_table.Fields["rank"+i].flags & (~HUD_FLAG_NOTVISIBLE);
+		}
+
+		// 将 slot 摆放至指定位置
+		local pos_x = Config.position.rank_x;
+		if (Config.hurt.HUDRank > HUD_RANK_COLUMN_PLAYERS_COMPAT / 2)
+		{
+			HUD_RANK_COLUMN_MAX = (HUD_SLOT_RANK_END - HUD_SLOT_RANK_BEGIN) / 2;
+			if (Pre.HUDColumnFuncFull.len() > HUD_RANK_COLUMN_MAX)
+				Pre.HUDColumnFunc = Pre.HUDColumnFuncFull.slice(0, HUD_RANK_COLUMN_MAX);
+			else
+				Pre.HUDColumnFunc = Pre.HUDColumnFuncFull;
+
+			for (i=0; i<Pre.HUDColumnFunc.len(); i++)
+			{
+				local width = rankColumnAlign[i].width;
+				if (i > 0)
+					pos_x += rankColumnAlign[i-1].width;
+				HUDPlace(HUD_SLOT_RANK_BEGIN + i, pos_x,
+					Config.position.rank_y,	width, height * 5);
+				HUDPlace(HUD_SLOT_RANK_BEGIN + HUD_RANK_COLUMN_MAX + i, pos_x,
+					Config.position.rank_y + height * 5, width, height * 4);
+			}
+		}
+		else
+		{
+			HUD_RANK_COLUMN_MAX = HUD_SLOT_RANK_END - HUD_SLOT_RANK_BEGIN;
+			if (Pre.HUDColumnFuncFull.len() > HUD_RANK_COLUMN_MAX)
+				Pre.HUDColumnFunc = Pre.HUDColumnFuncFull.slice(0, HUD_RANK_COLUMN_MAX);
+			else
+				Pre.HUDColumnFunc = Pre.HUDColumnFuncFull;
+			for (i=0; i<Pre.HUDColumnFunc.len(); i++)
+			{
+				local width = rankColumnAlign[i].width;
+				if (i > 0)
+					pos_x += rankColumnAlign[i-1].width;
+				HUDPlace(HUD_SLOT_RANK_BEGIN + i, pos_x,
+					Config.position.rank_y,	width, height * 5);
+			}
+		}
+		break;
+	default:
+		// 分列模式 非兼容
 		for (i=HUD_SLOT_RANK_BEGIN; i<=HUD_SLOT_RANK_END; i++)
 		{
 			HUD_table.Fields["rank"+i].dataval = "";
@@ -566,6 +613,7 @@ local isExistTime = false;
 				}
 			}
 		}
+		break;
 	}
 
 	if (::LinGe.isVersus && Config.HUDShow.versusNoHUDRank)
@@ -591,8 +639,12 @@ local isExistTime = false;
 		else
 			HUD_table.Fields.players.dataval = Pre.PlayersCoop();
 	}
+	// 延迟更新排行榜 避免在一Tick内执行太多代码导致卡顿
 	if (Config.hurt.HUDRank > 0)
-		UpdateRankHUD();
+	{
+		// UpdateRankHUD();
+		::VSLib.Timers.AddTimer(0.1, false, UpdateRankHUD);
+	}
 }.bindenv(::LinGe.HUD);
 
 // 将玩家的伤害数据从 hurtData 备份到 hurtData_bak
@@ -1140,7 +1192,7 @@ local reHudCmd = regexp("^(all|time|players|hostname)$");
 	}
 }
 
-::LinGe.HUD.UpdateRankHUD <- function ()
+::LinGe.HUD.UpdateRankHUD <- function (params=null)
 {
 	if (Config.hurt.HUDRank < 1)
 		return;
@@ -1150,8 +1202,9 @@ local reHudCmd = regexp("^(all|time|players|hostname)$");
 	local len = playersIndex.len();
 	// 将生还者实体索引数组按特感击杀数量由大到小进行排序
 	// 如果特感击杀数量相等，则按丧尸击杀数
-	if (Config.hurt.HUDRankMode == 0)
+	switch (Config.hurt.HUDRankMode)
 	{
+	case 0:
 		local max_rank = Config.hurt.HUDRank > HUD_RANK_COMPACT_PLAYERS ? HUD_RANK_COMPACT_PLAYERS : Config.hurt.HUDRank;
 		hurtDataSort(playersIndex, Pre.HUDCompactKey);
 		local rank = 1;
@@ -1198,9 +1251,77 @@ local reHudCmd = regexp("^(all|time|players|hostname)$");
 				rank++;
 			}
 		}
-	}
-	else
-	{
+		break;
+	case 1:
+		local max_rank = Config.hurt.HUDRank > HUD_RANK_COLUMN_PLAYERS_COMPAT ? HUD_RANK_COLUMN_PLAYERS_COMPAT : Config.hurt.HUDRank;
+		hurtDataSort(playersIndex, Pre.HUDColumnKey);
+
+		// 重新设置每列的内容
+		if (max_rank > HUD_RANK_COLUMN_PLAYERS_COMPAT/2)
+		{
+			for (local i=0; i<Pre.HUDColumnFunc.len(); i++)
+			{
+				HUD_table.Fields["rank" + (HUD_SLOT_RANK_BEGIN + i)].dataval =
+					rankColumnAlign[i].title;
+				HUD_table.Fields["rank" + (HUD_SLOT_RANK_BEGIN + HUD_RANK_COLUMN_MAX + i)].dataval = "";
+			}
+		}
+		else
+		{
+			for (local i=0; i<Pre.HUDColumnFunc.len(); i++)
+			{
+				HUD_table.Fields["rank" + (HUD_SLOT_RANK_BEGIN + i)].dataval =
+					rankColumnAlign[i].title;
+			}
+		}
+
+		local rank = 1;
+		local begin = HUD_SLOT_RANK_BEGIN;
+		local nl_normal = "\n";
+		local player = null;
+		for (local i=0; i<len && rank <= max_rank; i++)
+		{
+			player = PlayerInstanceFromIndex(playersIndex[i]);
+			if (!IsPlayerABot(player) || Config.hurt.HUDRankShowBot)
+			{
+				nl_normal = "\n";
+				if (rank == 5)
+				{
+					begin = HUD_SLOT_RANK_BEGIN + HUD_RANK_COLUMN_MAX;
+					nl_normal = "";
+				}
+				foreach (index, func in Pre.HUDColumnFunc)
+				{
+					HUD_table.Fields["rank" + (begin + index)].dataval += nl_normal +
+						func(rank, player, hurtData[playersIndex[i]]);
+				}
+				rank++;
+			}
+		}
+
+		// 使用换行符填充剩余的行，使文字行数对齐
+		while (rank <= 4)
+		{
+			foreach (index, func in Pre.HUDColumnFunc)
+			{
+				HUD_table.Fields["rank" + (HUD_SLOT_RANK_BEGIN + index)].dataval += "\n";
+			}
+			rank++;
+		}
+		// 如果rank==5，则下半段的slot都是空白，无需处理
+		if (rank > 5)
+		{
+			while (rank <= 8)
+			{
+				foreach (index, func in Pre.HUDColumnFunc)
+				{
+					HUD_table.Fields["rank" + (HUD_SLOT_RANK_BEGIN + HUD_RANK_COLUMN_MAX + index)].dataval += "\n";
+				}
+				rank++;
+			}
+		}
+		break;
+	default:
 		local max_rank = Config.hurt.HUDRank > HUD_RANK_COLUMN_PLAYERS ? HUD_RANK_COLUMN_PLAYERS : Config.hurt.HUDRank;
 		hurtDataSort(playersIndex, Pre.HUDColumnKey);
 
@@ -1312,6 +1433,7 @@ local reHudCmd = regexp("^(all|time|players|hostname)$");
 				rank++;
 			}
 		}
+		break;
 	}
 }.bindenv(::LinGe.HUD);
 
