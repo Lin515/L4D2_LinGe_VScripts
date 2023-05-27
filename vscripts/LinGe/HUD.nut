@@ -18,7 +18,7 @@ printl("[LinGe] HUD 正在载入");
 	},
 	hurt = {
 		HUDRank = 4, // HUD排行榜最多显示多少人
-		HUDRankMode = 1, // 0:紧凑式 1:分列式:兼容多分辨率 2:分列式:不兼容多分辨率（个人不推荐）
+		HUDRankMode = 0, // 0:紧凑式 1:分列式:兼容多分辨率 2:分列式:不兼容多分辨率（个人不推荐）
 		rankCompact = {
 			title = "特感/丧尸击杀：",
 			style = "[{rank}] {ksi}/{kci} <- {name}({state})",
