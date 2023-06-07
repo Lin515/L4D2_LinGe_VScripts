@@ -365,12 +365,28 @@ local humanIndex = 0;
 			}
 
 			local hintMode = eventInfo.hintMode;
-			if (hintMode == HINTMODE.WEAPON
-			&& eventInfo.targetEnt.GetMoveParent() != null)
+			// 部分特殊事件的提前处理
+			switch (hintMode)
 			{
-				// 如果是物资标记，该物资若为有主，则移除该标记
-				RemoveHint(targetname);
-				continue;
+			case HINTMODE.WEAPON:
+				if (eventInfo.targetEnt.GetMoveParent() != null)
+				{
+					// 如果是物资标记，而物资已为有主，则移除该标记
+					RemoveHint(targetname);
+					continue;
+				}
+				break;
+			case HINTMODE.DOMINATE:
+				if (eventInfo.targetEnt.GetSpecialInfectedDominatingMe() == null)
+				{
+					// 似乎有时候被控解除事件不能正常触发，导致被控提示一直存在
+					// 所以在这里额外做一个检查处理
+					RemoveDominateHint(targetname);
+					continue;
+				}
+				break;
+			default:
+				break;
 			}
 
 			local hintTbl = eventInfo.hintTbl;
@@ -785,12 +801,16 @@ if (::LinGe.Hint.Config.help.duration > 0 && ::LinGe.Hint.Config.help.dominateDe
 {
 	if (!params.rawin("victim") || params.victim == 0)
 		return;
-	local player = GetPlayerFromUserID(params.victim);
+	RemoveDominateHint(GetPlayerFromUserID(params.victim));
+}
+::LinGe.Hint.RemoveDominateHint <- function (player)
+{
 	if (::LinGe.IsAlive(player) && player.IsIncapacitated())
 		ShowPlayerIncap(player);
 	else
 		RemoveHint(player);
 }
+
 if (::LinGe.Hint.Config.help.duration > 0)
 {
 	::LinEventHook("OnGameEvent_pounce_stopped", ::LinGe.Hint.PlayerDominateEnd, ::LinGe.Hint);
