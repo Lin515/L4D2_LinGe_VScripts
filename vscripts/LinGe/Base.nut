@@ -605,58 +605,7 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 }
 // ---------------------------全局函数END-------------------------------------------
 
-// -------------------------------VSLib-------------------------------------------------
-// 让VSLib触发一些需要用到的事件
-// 为尽量避免冲突，以下事件弃用 2021年9月23日
-/*
-::VSLibScriptStart_VSLib <- ::VSLibScriptStart;
-::VSLibScriptStart = function()
-{
-	if (getroottable().rawin("LinGe"))
-		::LinEventTrigger("VSLibScriptStart_pre", null);
-	::VSLibScriptStart_VSLib();
-	if (getroottable().rawin("LinGe"))
-		::LinEventTrigger("VSLibScriptStart_post", null);
-}
-
-g_MapScript.ScriptMode_OnShutdown_VSLib <- g_MapScript.ScriptMode_OnShutdown;
-g_MapScript.ScriptMode_OnShutdown = function (reason, nextmap)
-{
-	local params = { reason=reason, nextmap=nextmap };
-	if (getroottable().rawin("LinGe"))
-		::LinEventTrigger("ScriptMode_OnShutdown_pre", params);
-	delete ::LinGe;
-	ScriptMode_OnShutdown_VSLib(reason, nextmap);
-//	if (getroottable().rawin("LinGe"))
-//		::LinEventTrigger("ScriptMode_OnShutdown_post", params);
-}*/
-
-// 让指令支持 . 前缀，AdminSystem 的指令通过 InterceptChat 被调用
-// 本系列脚本的指令不通过 InterceptChat
-// 同时运行多种带有VSLib库的脚本时，InterceptChat被多次重写可能造成死循环导致游戏卡死
-// 所以移除此功能 2021年9月23日
-/*
-g_ModeScript.InterceptChat_VSLib <- g_ModeScript.InterceptChat;
-g_ModeScript.InterceptChat = function (_str, srcEnt)
-{
-	// 如果是 . 前缀的消息 则将 . 替换为 /
-	local str = clone _str;
-	local name = "", msg = "";
-	if (srcEnt != null)
-	{
-		name = srcEnt.GetPlayerName() + ": ";
-		msg = strip(str.slice(str.find(name) + name.len()));
-	}
-	else if ( str.find("Console: ") != null )
-	{
-		name = "Console: ";
-		msg = strip(str.slice(str.find(name) + name.len()));
-	}
-	if (msg.find(".") == 0)
-		str = name + "/" + msg.slice(1);
-	InterceptChat_VSLib(str, srcEnt);
-}*/
-
+// -------------------------------VSLib 改写-------------------------------------------------
 // 判断玩家是否为BOT时通过steamid进行判断
 function VSLib::Entity::IsBot()
 {
@@ -745,7 +694,7 @@ function VSLib::FileIO::SerializeTable(object, predicateStart = "{\n", predicate
 
 // -------------------------------VSLib-------------------------------------------------
 
-// ---------------------------CONFIG-配置管理START---------------------------------------
+// ---------------------------CONFIG-配置管理---------------------------------------
 class ::LinGe.ConfigManager
 {
 	filePath = null;
@@ -1024,35 +973,6 @@ if (null == ::LinGe.Admin.adminslist)
 ::LinCmdAdd <- ::LinGe.Admin.CmdAdd.weakref();
 ::LinCmdDelete <- ::LinGe.Admin.CmdDelete.weakref();
 
-// 消息指令触发 通过 InterceptChat
-/*
-::LinGe.Admin.InterceptChat <- function (str, srcEnt)
-{
-	if (null == srcEnt || !srcEnt.IsValid())
-		return;
-	// 去掉消息的前缀
-	local name = srcEnt.GetPlayerName() + ": ";
-	local args = strip(str.slice(str.find(name) + name.len()));
-	// 按空格分割消息为参数列表
-	args = split(args, " ");
-	if (args[0].len() < 2)
-		return;
-
-	local firstChar = args[0].slice(0, 1); // 取第一个字符
-	// 判断前缀有效性
-	if (firstChar != "!"
-	&& firstChar != "/"
-	&& firstChar != "." )
-		return;
-
-	args[0] = args[0].slice(1); // 设置 args 第一个元素为指令名
-	if (!cmdTable.rawin(args[0])) // 如果未找到指令则置为小写再进行一次查找
-		args[0] = args[0].tolower();
-	if (cmdTable.rawin(args[0]))
-		CmdExec(args[0], srcEnt, args);
-}.bindenv(::LinGe.Admin);
-::VSLib.EasyLogic.AddInterceptChat(::LinGe.Admin.InterceptChat.weakref());
-*/
 // 消息指令触发 通过 player_say
 ::LinGe.Admin.OnGameEvent_player_say <- function (params)
 {
