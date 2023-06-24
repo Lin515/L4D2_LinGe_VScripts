@@ -717,10 +717,24 @@ local isExistTime = false;
 	}
 
 	Timer_HUD();
+	::VSLib.Timers.AddTimer(1.5, false, Timer_DelayHUD);
 	::VSLib.Timers.AddTimerByName("Timer_HUD", 1.0, true, Timer_HUD);
-
-	HUDSetLayout(HUD_table);
 }
+
+::LinGe.HUD.Timer_DelayHUD <- function (params=null)
+{
+	if (Config.hurt.HUDRank > 0)
+	{
+		// 不在 Timer_HUD 里更新排行榜，避免同一Tick内处理太多数据导致游戏卡顿
+		UpdateRankHUD();
+		::VSLib.Timers.AddTimerByName("Timer_UpdateRankHUD", 1.0, true, UpdateRankHUD);
+	}
+	else
+	{
+		::VSLib.Timers.RemoveTimerByName("Timer_UpdateRankHUD");
+	}
+	HUDSetLayout(HUD_table);
+}.bindenv(::LinGe.HUD);
 
 ::LinGe.HUD.Timer_HUD <- function (params=null)
 {
@@ -732,12 +746,6 @@ local isExistTime = false;
 			HUD_table.Fields.players.dataval = Pre.PlayersVersus();
 		else
 			HUD_table.Fields.players.dataval = Pre.PlayersCoop();
-	}
-	// 延迟更新排行榜 避免在一Tick内执行太多代码导致卡顿
-	if (Config.hurt.HUDRank > 0)
-	{
-		// UpdateRankHUD();
-		::VSLib.Timers.AddTimer(0.1, false, UpdateRankHUD);
 	}
 }.bindenv(::LinGe.HUD);
 
