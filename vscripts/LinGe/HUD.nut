@@ -1162,7 +1162,13 @@ local isExistTime = false;
 
 ::LinGe.HUD.OnGameEvent_hostname_changed <- function (params)
 {
-	HUD_table.Fields.hostname.dataval = Convars.GetStr("hostname");
+	local hostname = Convars.GetStr("hostname");
+	if (hostname && typeof hostname == "string")
+	{
+		if (HUD_table.Fields.rawin("hostname"))
+			HUD_table.Fields.hostname.dataval = hostname;
+		HUD_table_template.hostname.dataval = hostname;
+	}
 }
 ::LinEventHook("OnGameEvent_hostname_changed", ::LinGe.HUD.OnGameEvent_hostname_changed, ::LinGe.HUD);
 
