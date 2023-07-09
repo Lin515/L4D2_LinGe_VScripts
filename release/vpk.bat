@@ -1,78 +1,48 @@
 @echo off
 set main=..\vscripts
+set output=vpk
 set all=LinGe_VScripts
 set Base=Base
-set HUD=HUD
-set MoreSI=MoreSI
-set Hint=Hint
-set zs=zs
-set RewardHP=RewardHP
+set vs[0]=HUD
+set vs[1]=MoreSI
+set vs[2]=Hint
+set vs[3]=zs
+set vs[4]=RewardHP
 set vpk="D:\Program Files (x86)\Steam\steamapps\common\Left 4 Dead 2\bin\vpk.exe"
 
+rd /s /q %output%
+mkdir %output%
+
 :: 全套
-rd /s /q %all%
-mkdir %all%\scripts\vscripts\LinGe
-mkdir %all%\scripts\vscripts\VSLib
-copy %all%-addoninfo.txt %all%\addoninfo.txt
-copy %all%-addonimage.jpg %all%\addonimage.jpg
-copy %main%\LinGe %all%\scripts\vscripts\LinGe
-copy %main%\VSLib %all%\scripts\vscripts\VSLib
-copy %main%\VSLib.nut %all%\scripts\vscripts\VSLib.nut
-copy %main%\director_base_addon.nut %all%\scripts\vscripts\director_base_addon.nut
-copy %main%\scriptedmode_addon.nut %all%\scripts\vscripts\scriptedmode_addon.nut
-%vpk% %all%
+mkdir %output%\%all%\scripts\vscripts\LinGe
+copy %all%-addoninfo.txt %output%\%all%\addoninfo.txt
+copy %all%-addonimage.jpg %output%\%all%\addonimage.jpg
+xcopy %main%\LinGe %output%\%all%\scripts\vscripts\LinGe /E /I
+copy %main%\director_base_addon.nut %output%\%all%\scripts\vscripts\director_base_addon.nut
+copy %main%\scriptedmode_addon.nut %output%\%all%\scripts\vscripts\scriptedmode_addon.nut
+%vpk% %output%\%all%
 
-::Base
-rd /s /q %Base%
-mkdir %Base%\scripts\vscripts\LinGe
-mkdir %Base%\scripts\vscripts\VSLib
-copy %Base%-addoninfo.txt %Base%\addoninfo.txt
-copy %Base%-addonimage.jpg %Base%\addonimage.jpg
-copy %main%\LinGe\Base.nut %Base%\scripts\vscripts\LinGe\Base.nut
-copy %main%\VSLib %Base%\scripts\vscripts\VSLib
-copy %main%\VSLib.nut %Base%\scripts\vscripts\VSLib.nut
-copy %main%\director_base_addon.nut %Base%\scripts\vscripts\director_base_addon.nut
-copy %main%\scriptedmode_addon.nut %Base%\scripts\vscripts\scriptedmode_addon.nut
-%vpk% %Base%
+:: Base
+mkdir %output%\%Base%\scripts\vscripts\LinGe
+copy %Base%-addoninfo.txt %output%\%Base%\addoninfo.txt
+copy %Base%-addonimage.jpg %output%\%Base%\addonimage.jpg
+copy %main%\LinGe\Base.nut %output%\%Base%\scripts\vscripts\LinGe\Base.nut
+copy %main%\LinGe\Loader.nut %output%\%Base%\scripts\vscripts\LinGe\Loader.nut
+copy %main%\LinGe\VSLib.nut %output%\%Base%\scripts\vscripts\LinGe\VSLib.nut
+xcopy %main%\LinGe\VSLib %output%\%Base%\scripts\vscripts\LinGe\VSLib /E /I
+copy %main%\director_base_addon.nut %output%\%Base%\scripts\vscripts\director_base_addon.nut
+copy %main%\scriptedmode_addon.nut %output%\%Base%\scripts\vscripts\scriptedmode_addon.nut
+%vpk% %output%\%Base%
 
-::HUD
-rd /s /q %HUD%
-mkdir %HUD%\scripts\vscripts\LinGe
-copy %HUD%-addoninfo.txt %HUD%\addoninfo.txt
-copy %HUD%-addonimage.jpg %HUD%\addonimage.jpg
-copy %main%\LinGe\HUD.nut %HUD%\scripts\vscripts\LinGe\HUD.nut
-%vpk% %HUD%
-
-::MoreSI
-rd /s /q %MoreSI%
-mkdir %MoreSI%\scripts\vscripts\LinGe
-copy %MoreSI%-addoninfo.txt %MoreSI%\addoninfo.txt
-copy %MoreSI%-addonimage.jpg %MoreSI%\addonimage.jpg
-copy %main%\LinGe\MoreSI.nut %MoreSI%\scripts\vscripts\LinGe\MoreSI.nut
-%vpk% %MoreSI%
-
-::Hint
-rd /s /q %Hint%
-mkdir %Hint%\scripts\vscripts\LinGe
-copy %Hint%-addoninfo.txt %Hint%\addoninfo.txt
-copy %Hint%-addonimage.jpg %Hint%\addonimage.jpg
-copy %main%\LinGe\Hint.nut %Hint%\scripts\vscripts\LinGe\Hint.nut
-%vpk% %Hint%
-
-::zs
-rd /s /q %zs%
-mkdir %zs%\scripts\vscripts\LinGe
-copy %zs%-addoninfo.txt %zs%\addoninfo.txt
-copy %zs%-addonimage.jpg %zs%\addonimage.jpg
-copy %main%\LinGe\zs.nut %zs%\scripts\vscripts\LinGe\zs.nut
-%vpk% %zs%
-
-::RewardHP
-rd /s /q %RewardHP%
-mkdir %RewardHP%\scripts\vscripts\LinGe
-copy %RewardHP%-addoninfo.txt %RewardHP%\addoninfo.txt
-copy %RewardHP%-addonimage.jpg %RewardHP%\addonimage.jpg
-copy %main%\LinGe\RewardHP.nut %RewardHP%\scripts\vscripts\LinGe\RewardHP.nut
-%vpk% %RewardHP%
+setlocal enabledelayedexpansion
+:: 子项目
+for /l %%i in (0,1,4) do (
+	set obj=!vs[%%i]!
+	mkdir %output%\!obj!\scripts\vscripts\LinGe
+	copy !obj!-addoninfo.txt		%output%\!obj!\addoninfo.txt
+	copy !obj!-addonimage.jpg		%output%\!obj!\addonimage.jpg
+	copy %main%\LinGe\!obj!.nut 	%output%\!obj!\scripts\vscripts\LinGe\!obj!.nut
+	%vpk% %output%\!obj!
+)
 
 pause
