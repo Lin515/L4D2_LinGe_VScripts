@@ -10,7 +10,8 @@ local sitypelist = ["Boomer", "Spitter", "Smoker", "Hunter", "Charger", "Jockey"
 	siauto = 0, // 每1名生还者增加多少特感。在基础特感数量上增加，为0则不自动增加
 	sitime = 15, // 特感刷新间隔 若设定为 < 0 则单独关闭特感刷新时间控制
 	sionly = [], // 只允许生成哪些特感，若数组为空则不限制
-	sinoci = false // 是否清除小僵尸
+	sinoci = false, // 是否清除小僵尸
+	initDelay = -1, // 出安全区后第一波特感刷新时间，若 < 0 则关闭该设定
 };
 ::LinGe.Config.Add("MoreSI", ::LinGe.MoreSI.Config);
 ::LinGe.Cache.MoreSI_Config <- ::LinGe.MoreSI.Config;
@@ -22,22 +23,25 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 ::LinGe.MoreSI.ExecConfig <- function ()
 {
 	// 判断哪些控制处于开启
-	local ctrlNum = (Config.sibase >= 0);
-	local ctrlTime = (Config.sitime >= 0);
-	local ctrlNoci = Config.sinoci;
+	local enableNum = (Config.sibase >= 0);
+	local enableTime = (Config.sitime >= 0);
+	local enableNoci = Config.sinoci;
 	Checksionly();
-	local ctrlType = ( Config.sionly.len() > 0 );
+	local enableType = ( Config.sionly.len() > 0 );
+	local enableInitDelay = ( Config.initDelay >= 0 );
+
 
 	if (!Config.enabled)
 	{
-		ctrlNum = false;
-		ctrlTime = false;
-		ctrlType = false;
-		ctrlNoci = false;
+		enableNum = false;
+		enableTime = false;
+		enableType = false;
+		enableNoci = false;
+		enableInitDelay = false;
 	}
 
 	// 设置特感数量
-	if (ctrlNum)
+	if (enableNum)
 	{
 		local autoNum = 0; // 额外特感数量
 		if (Config.siauto > 0)
@@ -61,7 +65,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	}
 
 	// 设置特感刷新时间
-	if (ctrlTime)
+	if (enableTime)
 	{
 		::SessionOptions.rawset("cm_SpecialRespawnInterval",  Config.sitime);
 	}
@@ -71,7 +75,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	}
 
 	// 特感种类控制
-	if (ctrlType)
+	if (enableType)
 	{
 		::SessionOptions.rawset("BoomerLimit", 0);
 	 	::SessionOptions.rawset("SpitterLimit", 0);
@@ -80,7 +84,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	 	::SessionOptions.rawset("ChargerLimit", 0);
 	 	::SessionOptions.rawset("JockeyLimit", 0);
 
-	 	local maxsi = ctrlNum ? ::SessionOptions.cm_MaxSpecials : 4;
+	 	local maxsi = enableNum ? ::SessionOptions.cm_MaxSpecials : 4;
 	 	::SessionOptions.rawset("cm_BaseSpecialLimit", ceil( 1.0*maxsi / Config.sionly.len() ) ); // 平均特感数量
 		::SessionOptions.rawset("DominatorLimit", maxsi);
 	 	foreach (val in Config.sionly)
@@ -94,7 +98,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	 	::SessionOptions.rawdelete("HunterLimit");
 	 	::SessionOptions.rawdelete("ChargerLimit");
 	 	::SessionOptions.rawdelete("JockeyLimit");
-	 	if (!ctrlNum)
+	 	if (!enableNum)
 		{
 			::SessionOptions.rawdelete("cm_BaseSpecialLimit");
 			::SessionOptions.rawdelete("DominatorLimit");
@@ -102,7 +106,7 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	}
 
 	// 设置无小僵尸
-	if (ctrlNoci)
+	if (enableNoci)
 	{
 	 	::SessionOptions.rawset("cm_CommonLimit", 0);
 	 	::VSLib.Timers.AddTimerByName("AutoKillCI", 1.0, true, Timer_AutoKillCI);
@@ -111,6 +115,19 @@ local _enabled = ::LinGe.MoreSI.Config.enabled; // 此时 enabled 的值为配�
 	{
 		::SessionOptions.rawdelete("cm_CommonLimit");
 		::VSLib.Timers.RemoveTimerByName("AutoKillCI");
+	}
+
+	// 出门第一波特感时间
+	if (enableInitDelay)
+
+	{
+		::SessionOptions.rawset("SpecialInitialSpawnDelayMax", Config.initDelay);
+		::SessionOptions.rawset("SpecialInitialSpawnDelayMin", Config.initDelay);
+	}
+	else
+	{
+		::SessionOptions.rawdelete("SpecialInitialSpawnDelayMax");
+		::SessionOptions.rawdelete("SpecialInitialSpawnDelayMin");
 	}
 }
 
