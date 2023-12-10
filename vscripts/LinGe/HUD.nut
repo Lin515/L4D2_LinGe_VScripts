@@ -374,19 +374,19 @@ local exTankHurt = regexp("{(rank|name|hurt)((:%)([-\\w]+))?}");
 	local result;
 
 	// 战役模式 玩家数量显示预处理
-	result = clone empty_table;
+	result = ::LinGe.DeepClone(empty_table);
 	result.format_str = ::LinGe.HUD.Config.playersStyle.coop;
 	BuildFuncCode_Players(result);
 	::LinGe.HUD.Pre.PlayersCoop <- compilestring(result.funcCode);
 
 	// 对抗模式 玩家数量显示预处理
-	result = clone empty_table;
+	result = ::LinGe.DeepClone(empty_table);
 	result.format_str = ::LinGe.HUD.Config.playersStyle.versus;
 	BuildFuncCode_Players(result);
 	::LinGe.HUD.Pre.PlayersVersus <- compilestring(result.funcCode);
 
 	// HUD排行榜紧凑模式预处理
-	result = clone empty_table;
+	result = ::LinGe.DeepClone(empty_table);
 	result.format_str = ::LinGe.HUD.Config.hurt.rankCompact.style;
 	BuildFuncCode_Rank(result);
 	::LinGe.HUD.Pre.HUDCompactKey <- result.key; // key列表需要保存下来，用于排序
@@ -399,7 +399,7 @@ local exTankHurt = regexp("{(rank|name|hurt)((:%)([-\\w]+))?}");
 	::LinGe.HUD.Pre.HUDColumnNameIndex <- -1;
 	foreach (val in rankColumnAlign)
 	{
-		result = clone empty_table;
+		result = ::LinGe.DeepClone(empty_table);
 		result.format_str = val.style;
 		BuildFuncCode_Rank(result);
 
@@ -414,7 +414,7 @@ local exTankHurt = regexp("{(rank|name|hurt)((:%)([-\\w]+))?}");
 	}
 
 	// 聊天窗排行榜预处理
-	result = clone empty_table;
+	result = ::LinGe.DeepClone(empty_table);
 	result.format_str = ::LinGe.HUD.Config.hurt.chatStyle2;
 	BuildFuncCode_Rank(result, @(str) "\x03" + str + "\x04");
 	::LinGe.HUD.Pre.ChatKey <- result.key;
@@ -423,7 +423,7 @@ local exTankHurt = regexp("{(rank|name|hurt)((:%)([-\\w]+))?}");
 	// 最高友伤与受到最高友伤预处理
 	if (::LinGe.HUD.Config.hurt.chatAtkMaxStyle)
 	{
-		result = clone empty_table;
+		result = ::LinGe.DeepClone(empty_table);
 		result.format_str = ::LinGe.HUD.Config.hurt.chatAtkMaxStyle;
 		BuildFuncCode_TeamHurt(result, @(str) "\x03"+str+"\x04");
 		::LinGe.HUD.Pre.AtkMaxFunc <- compilestring(result.funcCode);
@@ -432,7 +432,7 @@ local exTankHurt = regexp("{(rank|name|hurt)((:%)([-\\w]+))?}");
 		::LinGe.HUD.Pre.AtkMaxFunc <- null;
 	if (::LinGe.HUD.Config.hurt.chatVctMaxStyle)
 	{
-		result = clone empty_table;
+		result = ::LinGe.DeepClone(empty_table);
 		result.format_str = ::LinGe.HUD.Config.hurt.chatVctMaxStyle;
 		BuildFuncCode_TeamHurt(result, @(str) "\x03"+str+"\x04");
 		::LinGe.HUD.Pre.VctMaxFunc <- compilestring(result.funcCode);
@@ -441,12 +441,12 @@ local exTankHurt = regexp("{(rank|name|hurt)((:%)([-\\w]+))?}");
 		::LinGe.HUD.Pre.VctMaxFunc <- null;
 
 	// Tank 伤害预处理
-	result = clone empty_table;
+	result = ::LinGe.DeepClone(empty_table);
 	result.format_str = ::LinGe.HUD.Config.hurt.tankHurt.title;
 	BuildFuncCode_TankTitle(result, @(str) "\x03" + str + "\x04");
 	::LinGe.HUD.Pre.TankTitleFunc <- compilestring(result.funcCode);
 
-	result = clone empty_table;
+	result = ::LinGe.DeepClone(empty_table);
 	result.format_str = ::LinGe.HUD.Config.hurt.tankHurt.style;
 	BuildFuncCode_TankHurt(result, @(str) "\x03" + str + "\x04");
 	::LinGe.HUD.Pre.TankHurtFunc <- compilestring(result.funcCode);
@@ -1308,8 +1308,6 @@ local reHudCmd = regexp("^(all|time|players|hostname)$");
 		return;
 
 	local len = playersIndex.len();
-	// 将生还者实体索引数组按特感击杀数量由大到小进行排序
-	// 如果特感击杀数量相等，则按丧尸击杀数
 	switch (Config.hurt.HUDRankMode)
 	{
 	case 0:

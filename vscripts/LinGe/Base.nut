@@ -30,6 +30,26 @@ printl("[LinGe] 当前服务器端口 " + ::LinGe.hostport);
 	print("\n");
 }
 
+// 递归深度克隆（只会对table或array的子项进行克隆）
+::LinGe.DeepClone <- function (obj)
+{
+	if (typeof obj == "table")
+	{
+		local table = clone obj;
+		foreach (key, val in table)
+			table[key] = DeepClone(val);
+		return table;
+	}
+	if (typeof obj == "array")
+	{
+		local array = clone obj;
+		foreach (index, val in array)
+			array[index] = DeepClone(val);
+		return array;
+	}
+	return obj;
+}
+
 // 尝试将一个字符串转换为int类型 eValue为出现异常时返回的值
 ::LinGe.TryStringToInt <- function (value, eValue=0)
 {
