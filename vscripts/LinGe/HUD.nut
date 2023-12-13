@@ -6,7 +6,8 @@ printl("[LinGe] HUD 正在载入");
 		time = true,
 		players = true,
 		hostname = false,
-		versusNoHUDRank = true // 对抗模式是否永远不显示击杀排行
+		versusNoHUDRank = true, // 对抗模式是否永远不显示击杀排行
+		CompatVSLibHud = true // 是否兼容 VSLib.HUD
 	},
 	playersStyle = {
 		// 关键词：{特殊(ob,idle,vac,max),队伍(sur,spe),真人或BOT(human,bot),生存或死亡(alive,dead),运算(+,-)} 如果不包含某个关键词则不对其限定
@@ -499,7 +500,10 @@ local isExistTime = false;
 	if (!Config.HUDShow.all)
 	{
 		::VSLib.Timers.RemoveTimerByName("Timer_HUD");
-		HUDSetLayout( ::VSLib.HUD._hud );
+		if (Config.HUDShow.CompatVSLibHud)
+			HUDSetLayout( ::VSLib.HUD._hud );
+		else
+			HUD_table.Fields = {};
 		return;
 	}
 	local height = Config.textHeight2;
@@ -716,6 +720,9 @@ local isExistTime = false;
 			HUD_table.Fields["rank"+i].flags = HUD_table.Fields["rank"+i].flags | HUD_FLAG_NOTVISIBLE;
 	}
 
+	HUDSetLayout(HUD_table);
+
+	UpdateRankHUD();
 	Timer_HUD();
 	::VSLib.Timers.AddTimer(1.5, false, Timer_DelayHUD);
 	::VSLib.Timers.AddTimerByName("Timer_HUD", 1.0, true, Timer_HUD);
@@ -733,7 +740,7 @@ local isExistTime = false;
 	{
 		::VSLib.Timers.RemoveTimerByName("Timer_UpdateRankHUD");
 	}
-	HUDSetLayout(HUD_table);
+	HUDSetLayout(HUD_table); // 延迟1.5s再次HUDSetLayout，避免与其它MOD冲突而失效
 }.bindenv(::LinGe.HUD);
 
 ::LinGe.HUD.Timer_HUD <- function (params=null)

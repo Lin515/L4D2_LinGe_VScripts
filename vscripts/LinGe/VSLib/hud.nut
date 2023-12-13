@@ -1,21 +1,21 @@
-/*  
+/*
  * Copyright (c) 2013 LuKeM aka Neil - 119 and Rayman1103
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the "Software"), to deal in the Software without
  * restriction, including without limitation the rights to use, copy, modify, merge, publish,
  * distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all copies or
  * substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
  * BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- * 
+ *
  */
 
 
@@ -143,7 +143,7 @@ class ::VSLib.HUD.Item
 	///////////////////////////////////////////////////////////////////
 	// Meta functions
 	///////////////////////////////////////////////////////////////////
-	
+
 	/**
 	 * Creates the HUD item with a format string set to default values.
 	 */
@@ -163,13 +163,13 @@ class ::VSLib.HUD.Item
 		_ypos = 0.0;
 		_blinktimer = -1;
 		_visibletimer = -1;
-		
+
 		SetFormatString(formatStr);
-		
+
 		for(local i = 0; i < vargv.len(); i++)
 			SetValue(i+1, vargv[i]);
 	}
-	
+
 	/**
 	 * Returns the HUD element type.
 	 */
@@ -177,12 +177,12 @@ class ::VSLib.HUD.Item
 	{
 		return "_VSLib_HUD_Item";
 	}
-	
-	
+
+
 	///////////////////////////////////////////////////////////////////
 	// Class functions
 	///////////////////////////////////////////////////////////////////
-	
+
 	/**
 	 * Sets a new format string
 	 */
@@ -190,7 +190,7 @@ class ::VSLib.HUD.Item
 	{
 		_formatstr = formatStr;
 	}
-	
+
 	/**
 	 * Sets a token's value.
 	 */
@@ -198,43 +198,43 @@ class ::VSLib.HUD.Item
 	{
 		// Update cache
 		_modded = true;
-		
+
 		// The token var
 		local token = "{" + key + "}";
-		
+
 		// The current type of the value
 		local newtype = typeof value;
-		
+
 		// If this token existed beforehand, get its previous type
 		local prevtype = "";
 		if (token in _binddata)
 			prevtype = typeof _binddata[token];
-		
+
 		// If it was a function before, and it's not anymore, down the refcount
 		if (prevtype == "function" && newtype != "function")
 			_dynrefcount--;
-		
+
 		// Otherwise, if it wasn't a func before, but now it is, upcount it
 		else if (prevtype != "function" && newtype == "function")
 			_dynrefcount++;
-			
+
 		// Set the new value
 		_binddata[token] <- value;
 	}
-	
+
 	/**
 	 * Get a token's value.
 	 */
 	function GetValue(key)
 	{
 		local token = "{" + key + "}";
-		
+
 		if (typeof _binddata[token] != "function")
 			return _binddata[token];
 		else
 			return _binddata[token]();
 	}
-	
+
 	/**
 	 * Gets the modified token string
 	 */
@@ -242,38 +242,38 @@ class ::VSLib.HUD.Item
 	{
 		if (!_modded && _dynrefcount <= 0)
 			return _cachestr;
-		
+
 		_modded = false;
 		_cachestr = _formatstr;
 		_cachestr = ParseString(_cachestr);
-		
+
 		return _cachestr;
 	}
-	
+
 	/**
 	 * Sets the HUD slot for this object. A value between 0 through 14 (inclusive) or Valve's enums.
 	 */
 	function AttachTo(hudtype)
 	{
 		Detach();
-		
+
 		///////////////////////////////////////////////////////
 		// Estimate the approx. sizes and locations
 		///////////////////////////////////////////////////////
-		
+
 		local basew = _vguiBaseRes.width.tofloat();
 		local baseh = _vguiBaseRes.height.tofloat();
-		
+
 		_width = _panelt[hudtype].width.tofloat() / basew;
 		_height = _panelt[hudtype].height.tofloat() / baseh;
 		_xpos = _panelt[hudtype].xpos.tofloat() / basew;
 		_ypos = _panelt[hudtype].ypos.tofloat() / baseh;
-		
+
 		::VSLib.HUD.Set(hudtype, this);
-		
+
 		ChangeHUD(_xpos, _ypos, _width, _height);
 	}
-	
+
 	/**
 	 * Removes the HUD panel for this object
 	 */
@@ -288,7 +288,7 @@ class ::VSLib.HUD.Item
 						break;
 					}
 	}
-	
+
 	/**
 	 * Returns true if this item is currently bound to a slot.
 	 */
@@ -296,7 +296,7 @@ class ::VSLib.HUD.Item
 	{
 		return _isbound;
 	}
-	
+
 	/**
 	 * Gets the object's flags
 	 */
@@ -304,18 +304,18 @@ class ::VSLib.HUD.Item
 	{
 		return _flags;
 	}
-	
+
 	/**
 	 * Sets the object's flags
 	 */
 	function SetFlags(newFlags)
 	{
 		_flags = newFlags;
-		
+
 		if (IsBound())
 			::VSLib.HUD._hud.Fields[_hudmode].flags <- newFlags;
 	}
-	
+
 	/**
 	 * Changes the alignment of the text
 	 */
@@ -324,7 +324,7 @@ class ::VSLib.HUD.Item
 		_flags = _flags & ~(TextAlign.Left | TextAlign.Center | TextAlign.Right);
 		SetFlags(_flags | alignFlag);
 	}
-	
+
 	/**
 	 * Stops blinking this object.
 	 */
@@ -334,7 +334,7 @@ class ::VSLib.HUD.Item
 		_blinktimer = -1;
 		SetFlags(_flags & ~(g_ModeScript.HUD_FLAG_BEEP | g_ModeScript.HUD_FLAG_BLINK));
 	}
-	
+
 	/**
 	 * Starts blinking this object.
 	 */
@@ -344,7 +344,7 @@ class ::VSLib.HUD.Item
 		_blinktimer = -1;
 		SetFlags(_flags | g_ModeScript.HUD_FLAG_BEEP | g_ModeScript.HUD_FLAG_BLINK);
 	}
-	
+
 	/**
 	 * Returns true if blinking.
 	 */
@@ -352,7 +352,7 @@ class ::VSLib.HUD.Item
 	{
 		return IsFlagSet(g_ModeScript.HUD_FLAG_BLINK);
 	}
-	
+
 	/**
 	 * Hides this object.
 	 */
@@ -362,7 +362,7 @@ class ::VSLib.HUD.Item
 		_visibletimer = -1;
 		AddFlag(g_ModeScript.HUD_FLAG_NOTVISIBLE);
 	}
-	
+
 	/**
 	 * Shows this object.
 	 */
@@ -372,7 +372,7 @@ class ::VSLib.HUD.Item
 		_visibletimer = -1;
 		RemoveFlag(g_ModeScript.HUD_FLAG_NOTVISIBLE);
 	}
-	
+
 	/**
 	 * Returns true if this object is hidden.
 	 */
@@ -380,7 +380,7 @@ class ::VSLib.HUD.Item
 	{
 		return IsFlagSet(g_ModeScript.HUD_FLAG_NOTVISIBLE);
 	}
-	
+
 	/**
 	 * Adds a flag.
 	 */
@@ -388,7 +388,7 @@ class ::VSLib.HUD.Item
 	{
 		SetFlags(_flags | flag);
 	}
-	
+
 	/**
 	 * Removes a flag.
 	 */
@@ -396,7 +396,7 @@ class ::VSLib.HUD.Item
 	{
 		SetFlags(_flags & ~flag);
 	}
-	
+
 	/**
 	 * Returns true if a flag is set.
 	 */
@@ -404,7 +404,7 @@ class ::VSLib.HUD.Item
 	{
 		return (_flags & flag) > 0;
 	}
-	
+
 	/**
 	 * Returns the slot of this object
 	 */
@@ -412,7 +412,7 @@ class ::VSLib.HUD.Item
 	{
 		return _hudmode;
 	}
-	
+
 	/**
 	 * Resizes the HUD object
 	 */
@@ -421,7 +421,7 @@ class ::VSLib.HUD.Item
 		if (IsBound() && (0.0 <= height) && (height <= 1.0) && (0.0 <= width) && (width <= 1.0))
 			HUDPlace(_hudmode, _xpos, _ypos, (_width = width), (_height = height));
 	}
-	
+
 	/**
 	 * Resizes the HUD object's width
 	 */
@@ -430,7 +430,7 @@ class ::VSLib.HUD.Item
 		if (IsBound() && (0.0 <= width) && (width <= 1.0))
 			HUDPlace(_hudmode, _xpos, _ypos, (_width = width), _height);
 	}
-	
+
 	/**
 	 * Resizes the HUD object's height
 	 */
@@ -439,7 +439,7 @@ class ::VSLib.HUD.Item
 		if (IsBound() && (0.0 <= height) && (height <= 1.0))
 			HUDPlace(_hudmode, _xpos, _ypos, _width, (_height = height));
 	}
-	
+
 	/**
 	 * Repositions the HUD object
 	 */
@@ -448,7 +448,7 @@ class ::VSLib.HUD.Item
 		if (IsBound() && (0.0 <= x) && (x <= 1.0) && (0.0 <= y) && (y <= 1.0))
 			HUDPlace(_hudmode, (_xpos = x), (_ypos = y), _width, _height);
 	}
-	
+
 	/**
 	 * Repositions the HUD object's X position
 	 */
@@ -457,7 +457,7 @@ class ::VSLib.HUD.Item
 		if (IsBound() && (0.0 <= x) && (x <= 1.0))
 			HUDPlace(_hudmode, (_xpos = x), _ypos, _width, _height);
 	}
-	
+
 	/**
 	 * Repositions the HUD object's Y position
 	 */
@@ -466,7 +466,7 @@ class ::VSLib.HUD.Item
 		if (IsBound() && (0.0 <= y) && (y <= 1.0))
 			HUDPlace(_hudmode, _xpos, (_ypos = y), _width, _height);
 	}
-	
+
 	/**
 	 * Repositions and resizes the HUD object
 	 */
@@ -475,7 +475,7 @@ class ::VSLib.HUD.Item
 		if (IsBound() && (0.0 <= height) && (height <= 1.0) && (0.0 <= width) && (width <= 1.0) && (0.0 <= x) && (x <= 1.0) && (0.0 <= y) && (y <= 1.0))
 			HUDPlace(_hudmode, (_xpos = x), (_ypos = y), (_width = width), (_height = height));
 	}
-	
+
 	/**
 	 * Centers the HUD object in the middle of the screen without changing its Y coordinate
 	 */
@@ -484,7 +484,7 @@ class ::VSLib.HUD.Item
 		_xpos = (1.0 - _width) / 2;
 		SetPositionX(_xpos);
 	}
-	
+
 	/**
 	 * Centers the HUD object in the middle of the screen without changing its X coordinate
 	 */
@@ -493,7 +493,7 @@ class ::VSLib.HUD.Item
 		_ypos = (1.0 - _height) / 2;
 		SetPositionY(_ypos);
 	}
-	
+
 	/**
 	 * Centers the HUD object in the middle of the screen.
 	 */
@@ -503,7 +503,7 @@ class ::VSLib.HUD.Item
 		_xpos = (1.0 - _width) / 2;
 		SetPosition(_xpos, _ypos);
 	}
-	
+
 	/**
 	 * Blinks the text for the specified time in seconds
 	 */
@@ -512,14 +512,14 @@ class ::VSLib.HUD.Item
 		StartBlinking();
 		_blinktimer = ::VSLib.Timers.AddTimer(seconds, 0, @(hudobj) hudobj.StopBlinking(), this);
 	}
-	
+
 	/**
 	 * Shows the GUI panel for the specified time before hiding it again
 	 */
 	function ShowTime(seconds, detachAfter = false)
 	{
 		Show();
-		
+
 		local function _ShowFunc(params)
 		{
 			if (params.detach)
@@ -527,10 +527,10 @@ class ::VSLib.HUD.Item
 			else
 				params.hudobj.Hide();
 		}
-		
+
 		_visibletimer = ::VSLib.Timers.AddTimer(seconds, 0, _ShowFunc, { hudobj = this, detach = detachAfter });
 	}
-	
+
 	/**
 	 * Returns the current position of the object
 	 *
@@ -540,7 +540,7 @@ class ::VSLib.HUD.Item
 	{
 		return {x = _xpos, y = _ypos};
 	}
-	
+
 	/**
 	 * Returns the current dimensions of the object
 	 *
@@ -550,7 +550,7 @@ class ::VSLib.HUD.Item
 	{
 		return {width = _width, height = _height};
 	}
-	
+
 	/**
 	 * Returns the center point of the HUD object
 	 */
@@ -558,7 +558,7 @@ class ::VSLib.HUD.Item
 	{
 		return {x = _xpos + (_width / 2), y = _ypos + (_height / 2)};
 	}
-	
+
 	/**
 	 * It can be difficult to think in terms of a fraction (0.0 - 1.0),
 	 * so this function attempts to scale native screen resolution positions
@@ -579,13 +579,13 @@ class ::VSLib.HUD.Item
 		y = y.tofloat();
 		resx = resx.tofloat();
 		resy = resy.tofloat();
-		
+
 		local basew = _vguiBaseRes.width.tofloat();
 		local baseh = _vguiBaseRes.height.tofloat();
-		
+
 		SetPosition ( (x/(resx/basew))/basew, (y/(resy/baseh))/baseh );
 	}
-	
+
 	/**
 	 * @see SetPositionNative
 	 * Does practically the same thing, but this time scales for width and height
@@ -602,13 +602,13 @@ class ::VSLib.HUD.Item
 		height = height.tofloat();
 		resx = resx.tofloat();
 		resy = resy.tofloat();
-		
+
 		local basew = _vguiBaseRes.width.tofloat();
 		local baseh = _vguiBaseRes.height.tofloat();
-		
+
 		Resize ( (width/(resx/basew))/basew, (height/(resy/baseh))/baseh );
 	}
-	
+
 	/**
 	 * @see SetPositionNative
 	 * @see ResizeNative
@@ -630,13 +630,13 @@ class ::VSLib.HUD.Item
 		resy = resy.tofloat();
 		x = x.tofloat();
 		y = y.tofloat();
-		
+
 		local basew = _vguiBaseRes.width.tofloat();
 		local baseh = _vguiBaseRes.height.tofloat();
-		
+
 		ChangeHUD ( (x/(resx/basew))/basew, (y/(resy/baseh))/baseh, (width/(resx/basew))/basew, (height/(resy/baseh))/baseh );
 	}
-	
+
 	/**
 	 * Parses the input string.
 	 */
@@ -646,9 +646,9 @@ class ::VSLib.HUD.Item
 			str = ::VSLib.Utils.StringReplace(str, bindidx.tostring(), (typeof bindval == "function") ? bindval().tostring() : bindval.tostring());
 		return str;
 	 }
-	
-	
-	
+
+
+
 	///////////////////////////////////////////////////////////////////
 	// Class variables
 	///////////////////////////////////////////////////////////////////
@@ -678,7 +678,7 @@ class ::VSLib.HUD.Countdown extends ::VSLib.HUD.Item
 	///////////////////////////////////////////////////////////////////
 	// Meta functions
 	///////////////////////////////////////////////////////////////////
-	
+
 	/**
 	 * Creates the HUD item with a format string.
 	 *
@@ -690,11 +690,11 @@ class ::VSLib.HUD.Countdown extends ::VSLib.HUD.Item
 		SetFormatString(formatStr);
 		_minonly = minutesOnly;
 	}
-	
+
 	///////////////////////////////////////////////////////////////////
 	// Member functions
 	///////////////////////////////////////////////////////////////////
-	
+
 	/**
 	 * Starts the countdown from the specified time
 	 */
@@ -703,20 +703,20 @@ class ::VSLib.HUD.Countdown extends ::VSLib.HUD.Item
 		hours = hours.tointeger();
 		minutes = minutes.tointeger();
 		seconds = seconds.tointeger();
-		
+
 		if (hours == 0 && minutes == 0 && seconds == 0)
 			return;
-			
+
 		Stop();
-		
+
 		_runtime = (hours * 60 + minutes) * 60 + seconds;
 		_starttime = Time();
 		_ticking = true;
 		_func = func;
-		
+
 		_ctimer = ::VSLib.Timers.AddTimer(1, 1, @(hudobj) hudobj.Tick(), this);
 	}
-	
+
 	/**
 	 * Stops and detaches the HUD object.
 	 */
@@ -725,7 +725,7 @@ class ::VSLib.HUD.Countdown extends ::VSLib.HUD.Item
 		Stop();
 		base.Detach();
 	}
-	
+
 	/**
 	 * Stops the countdown
 	 */
@@ -735,13 +735,13 @@ class ::VSLib.HUD.Countdown extends ::VSLib.HUD.Item
 		_func = null;
 		_runtime = -1;
 		_starttime = -1;
-		
+
 		StopBlinking();
-		
+
 		::VSLib.Timers.RemoveTimer(_ctimer);
 		_ctimer = -1;
 	}
-	
+
 	/**
 	 * Sets a time to begin blinking
 	 */
@@ -750,29 +750,29 @@ class ::VSLib.HUD.Countdown extends ::VSLib.HUD.Item
 		hours = hours.tointeger();
 		minutes = minutes.tointeger();
 		seconds = seconds.tointeger();
-		
+
 		if (hours == 0 && minutes == 0 && seconds == 0)
 			return;
-		
+
 		_blinkat = (hours * 60 + minutes) * 60 + seconds;
 	}
-	
+
 	/**
 	 * Calculates time-based mechanisms such as blinking and function calling
 	 */
 	function Tick()
 	{
 		local seconds = ceil(_runtime - (Time() - _starttime));
-		
+
 		if (seconds == 0)
 			if (_func != null)
 				_func();
-		
+
 		// Accommodate for anim time
 		if (_blinkat >= 0 && _blinkat + 1 == seconds)
 			StartBlinking();
 	}
-	
+
 	/**
 	 * Returns the full formatted string
 	 */
@@ -780,14 +780,14 @@ class ::VSLib.HUD.Countdown extends ::VSLib.HUD.Item
 	{
 		return GetTickString(base.GetString());
 	}
-	
+
 	/**
 	 * Returns the current formatted time as a string
 	 */
 	function GetTickString(strFormated)
 	{
 		local temp = strFormated;
-		
+
 		if (!_ticking)
 		{
 			temp = ::VSLib.Utils.StringReplace(temp, "{hrs}", "--");
@@ -795,16 +795,16 @@ class ::VSLib.HUD.Countdown extends ::VSLib.HUD.Item
 			temp = ::VSLib.Utils.StringReplace(temp, "{sec}", "--");
 			return temp;
 		}
-		
+
 		// Constants
 		const SECONDS_IN_HOUR = 3600;
 		const SECONDS_IN_MINUTE = 60;
-		
+
 		// Modulated values
 		local bh = 0;
 		local bm = 0;
 		local bs = 0;
-		
+
 		// Determine the number of seconds left since the start time
 		local seconds = ceil(_runtime - (Time() - _starttime));
 		if (seconds < 0) seconds = 0;
@@ -815,7 +815,7 @@ class ::VSLib.HUD.Countdown extends ::VSLib.HUD.Item
 		   bh = ceil(seconds / SECONDS_IN_HOUR);
 		   seconds = seconds % SECONDS_IN_HOUR;
 		}
-		
+
 		// Minutes
 		if (seconds >= SECONDS_IN_MINUTE)
 		{
@@ -825,14 +825,14 @@ class ::VSLib.HUD.Countdown extends ::VSLib.HUD.Item
 
 		// Seconds
 		bs = seconds;
-		
+
 		// Do not count hours if minutes only
 		if (_minonly)
 		{
 			bm += bh * 60;
 			bh = 0;
 		}
-		
+
 		//
 		// Build the return string
 		// \todo @TODO Use Utils.GetTimeTable() above and use format() to format the 0's below instead of doing it manually
@@ -847,15 +847,15 @@ class ::VSLib.HUD.Countdown extends ::VSLib.HUD.Item
 			else
 				temp = ::VSLib.Utils.StringReplace(temp, row.id, row.val.tostring());
 		}
-		
+
 		return temp;
 	}
-	 
-	
+
+
 	///////////////////////////////////////////////////////////////////
 	// Member variables
 	///////////////////////////////////////////////////////////////////
-	
+
 	_minonly = false; // Minutes only?
 	_ticking = false; // Is the countdown currently running?
 	_runtime = -1; // The total time to run
@@ -876,7 +876,7 @@ class ::VSLib.HUD.Bar extends ::VSLib.HUD.Item
 	///////////////////////////////////////////////////////////////////
 	// Meta functions
 	///////////////////////////////////////////////////////////////////
-	
+
 	/**
 	 * Creates the HUD item with a format string.
 	 *
@@ -895,12 +895,12 @@ class ::VSLib.HUD.Bar extends ::VSLib.HUD.Item
 		SetBarMaxValue(maxValue);
 		_barwidth = width.tointeger();
 	}
-	
-	
+
+
 	///////////////////////////////////////////////////////////////////
 	// Member functions
 	///////////////////////////////////////////////////////////////////
-	
+
 	/**
 	 * Sets the progress bar's value
 	 */
@@ -908,7 +908,7 @@ class ::VSLib.HUD.Bar extends ::VSLib.HUD.Item
 	{
 		SetValue("value", value);
 	}
-	
+
 	/**
 	 * Gets the progress bar's value
 	 */
@@ -916,7 +916,7 @@ class ::VSLib.HUD.Bar extends ::VSLib.HUD.Item
 	{
 		return GetValue("value");
 	}
-	
+
 	/**
 	 * Gets the progress bar's max value
 	 */
@@ -924,7 +924,7 @@ class ::VSLib.HUD.Bar extends ::VSLib.HUD.Item
 	{
 		return GetValue("max");
 	}
-	
+
 	/**
 	 * Returns the full formatted progress bar with text
 	 */
@@ -932,7 +932,7 @@ class ::VSLib.HUD.Bar extends ::VSLib.HUD.Item
 	{
 		return ::VSLib.Utils.StringReplace(base.GetString(), "{bar}", ::VSLib.Utils.BuildProgressBar(_barwidth, GetValue("value"), GetValue("max"), _fill, _empty));
 	}
-	
+
 	/**
 	 * Changes the width (number of characters) of the progress bar
 	 */
@@ -940,7 +940,7 @@ class ::VSLib.HUD.Bar extends ::VSLib.HUD.Item
 	{
 		_barwidth = width.tointeger();
 	}
-	
+
 	/**
 	 * Returns the bar's width
 	 */
@@ -948,7 +948,7 @@ class ::VSLib.HUD.Bar extends ::VSLib.HUD.Item
 	{
 		return _barwidth;
 	}
-	
+
 	/**
 	 * Changes the character blocks of the progress bar
 	 */
@@ -957,7 +957,7 @@ class ::VSLib.HUD.Bar extends ::VSLib.HUD.Item
 		_fill = fill;
 		_empty = empty;
 	}
-	
+
 	/**
 	 * Changes the max value of the progress bar
 	 */
@@ -965,12 +965,12 @@ class ::VSLib.HUD.Bar extends ::VSLib.HUD.Item
 	{
 		SetValue("max", value);
 	}
-	
-	
+
+
 	///////////////////////////////////////////////////////////////////
 	// Member variables
 	///////////////////////////////////////////////////////////////////
-	
+
 	_fill = null;
 	_empty = null;
 	_barwidth = 50;
@@ -999,7 +999,7 @@ class ::VSLib.HUD.Menu extends ::VSLib.HUD.Item
 	///////////////////////////////////////////////////////////////////
 	// Meta stuff
 	///////////////////////////////////////////////////////////////////
-	
+
 	constructor(formatStr = "[ {name} ]\n\n{title}\n\n{options}", title = "Menu", optionFormatStr = "{num}. {option}", highlightStrPre = "[ ", highlightStrPost = "  ]", sticky = false)
 	{
 		SetFormatString(formatStr);
@@ -1012,12 +1012,12 @@ class ::VSLib.HUD.Menu extends ::VSLib.HUD.Item
 		_curSel = 0;
 		_player = null;
 		_sticky = false; // #shotgunefx
-		
+
 		::VSLib.Timers.RemoveTimer(_optimer);
 		_optimer = -1;
 	}
-	
-	
+
+
 	///////////////////////////////////////////////////////////////////
 	// Member functions
 	///////////////////////////////////////////////////////////////////
@@ -1041,7 +1041,7 @@ class ::VSLib.HUD.Menu extends ::VSLib.HUD.Item
 	{
 		_title = title;
 	}
-	
+
 	/**
 	 * Sets a new option format
 	 */
@@ -1049,7 +1049,7 @@ class ::VSLib.HUD.Menu extends ::VSLib.HUD.Item
 	{
 		_oformat = optionFormatStr;
 	}
-	
+
 	/**
 	 * Sets new highlight strings
 	 */
@@ -1058,7 +1058,7 @@ class ::VSLib.HUD.Menu extends ::VSLib.HUD.Item
 		_hpre = highlightStrPre;
 		_hpost = highlightStrPost;
 	}
-	
+
 	/**
 	 * Associates a menu item with a function
 	 */
@@ -1066,7 +1066,7 @@ class ::VSLib.HUD.Menu extends ::VSLib.HUD.Item
 	{
 		_options[++_numop] <- { text = option.tostring(), callback = func };
 	}
-	
+
 	/**
 	 * Returns the full formatted menu text
 	 */
@@ -1074,7 +1074,7 @@ class ::VSLib.HUD.Menu extends ::VSLib.HUD.Item
 	{
 		if (_player == null || _numop <= 0)
 			return "";
-		
+
 		// Build the options list
 		local optionsList = "";
 		foreach (idx, row in _options)
@@ -1090,16 +1090,16 @@ class ::VSLib.HUD.Menu extends ::VSLib.HUD.Item
 				disp += _hpost;
 			optionsList += disp + "\n";
 		}
-		
+
 		// Build return string
 		local temp = base.GetString();
 		temp = ::VSLib.Utils.StringReplace(temp, "{name}", _player.GetName());
 		temp = ::VSLib.Utils.StringReplace(temp, "{title}", _title);
 		temp = ::VSLib.Utils.StringReplace(temp, "{options}", optionsList);
-		
+
 		return temp;
 	}
-	
+
 	/**
 	 * Closes the menu
 	 */
@@ -1107,13 +1107,13 @@ class ::VSLib.HUD.Menu extends ::VSLib.HUD.Item
 	{
 		::VSLib.Timers.RemoveTimer(_optimer);
 		_optimer = -1;
-		
+
 		if (!_sticky) // #shotgunefx
 			_curSel = 0;
-		
+
 		Hide();
 	}
-	
+
 	/**
 	 * Stops and detaches the HUD object.
 	 */
@@ -1122,7 +1122,7 @@ class ::VSLib.HUD.Menu extends ::VSLib.HUD.Item
 		CloseMenu();
 		base.Detach();
 	}
-	
+
 	/**
 	 * Displays the menu and hands over control to a particular player entity.
 	 */
@@ -1130,14 +1130,14 @@ class ::VSLib.HUD.Menu extends ::VSLib.HUD.Item
 	{
 		if (typeof player != "VSLIB_PLAYER")
 			throw "Menu could not be displayed: a non-Player entity was passed; only VSLib.Player entities are supported.";
-		
+
 		if (_numop <= 0)
 			printf("Warning: Menu will not display-- there are no menu options to display!");
-		
+
 		CloseMenu(); // close old menu and hide it
-		
+
 		_player = player;
-		
+
 		if (_width !=0 && _height !=0) // retain menu sizes when reattaching #shotgunefx
 		{
 			AttachTo(attachTo,false);
@@ -1148,25 +1148,25 @@ class ::VSLib.HUD.Menu extends ::VSLib.HUD.Item
 			if (resize)
 				ChangeHUDNative(50, 40, 150, 300, 640, 480);
 		}
-		
+
 		ResizeHeightByLines();
 		SetTextPosition(TextAlign.Left);
 		CenterVertical();
-		
+
 		_selectBtn = BUTTON_ATTACK;
 		_switchBtn = BUTTON_SHOVE;
-		
+
 		if (!_sticky || _curSel == 0)
 			_curSel++;
-		
+
 		_autoDetach = autoDetach;
-		
+
 		if (!_manual) // #shotgunefx - don't add timer if this will be driven manually, only used by subclasses
 			_optimer = ::VSLib.Timers.AddTimer(0.2, 1, @(hudobj) hudobj.Tick(), this);
-		
+
 		Show(); // show the menu
 	}
-	
+
 	/**
 	 * Resizes this HUD item's height depending on the line height.
 	 */
@@ -1174,10 +1174,10 @@ class ::VSLib.HUD.Menu extends ::VSLib.HUD.Item
 	{
 		local lines = split(GetString(), "\n").len() + 1;
 		local baseh = _vguiBaseRes.height.tofloat();
-		
+
 		SetHeight( ((22 * lines)/(480/baseh))/baseh );
 	}
-	
+
 	/**
 	 * Overrides the buttons used to detect HUD changes.
 	 * You can pass in BUTTON_ATTACK and BUTTON_SHOVE for example.
@@ -1186,13 +1186,13 @@ class ::VSLib.HUD.Menu extends ::VSLib.HUD.Item
 	{
 		_selectBtn = selectBtn;
 		_switchBtn = switchBtn;
-		
+
 		if (scrollBackBtn) /*shotgunefx*/
 		{
 			_scrollbackbtn = scrollBackBtn
 		}
 	}
-	
+
 	/**
 	 * Gathers input data and acts on it.
 	 */
@@ -1207,11 +1207,11 @@ class ::VSLib.HUD.Menu extends ::VSLib.HUD.Item
 		else if (_player.IsPressingButton(_selectBtn))
 		{
 			Utils.PlaySoundToAll("Menu.Select");
-			
+
 			local t = { p = _player, idx = _curSel, val = _options[_curSel].text, callb = _options[_curSel].callback };
 			::VSLib.Timers.AddTimer(0.1, 0, @(tbl) tbl.callb(tbl.p, tbl.idx, tbl.val), t);
 			CloseMenu();
-			
+
 			if (_autoDetach)
 				Detach();
 		}
@@ -1222,12 +1222,12 @@ class ::VSLib.HUD.Menu extends ::VSLib.HUD.Item
 				_curSel = _numop;
 		}
 	}
-	
-	
+
+
 	///////////////////////////////////////////////////////////////////
 	// Member variables
 	///////////////////////////////////////////////////////////////////
-	
+
 	_oformat = null; // Option string format
 	_hpre = null; // Selection identifier pre
 	_hpost = null; // Selection identifier post
@@ -1254,7 +1254,7 @@ class ::VSLib.HUD.MenuScrollable extends ::VSLib.HUD.Menu
 	///////////////////////////////////////////////////////////////////
 	// Meta stuff
 	///////////////////////////////////////////////////////////////////
-	
+
 	constructor(formatStr = "[ {name} ]\n{title}\n{options}", title = "Menu", optionFormatStr = "{num}. {option}", highlightStrPre = "[ ", highlightStrPost = "  ]", displayNum = 4, scrollUpStr = "/\\", scrollDownStr = "\\/")
 	{
 		SetFormatString(formatStr);
@@ -1273,44 +1273,44 @@ class ::VSLib.HUD.MenuScrollable extends ::VSLib.HUD.Menu
 		_scrollupstr = scrollUpStr;
 		_scrolldownstr = scrollDownStr;
 	}
-	
-	
+
+
 	function GetString()
 	{
 		if (_player == null || _numop <= 0)
 			return "";
-		
+
 		// Build the options list,
 		local optionsList = _displaystart > 1 ? _scrollupstr+" (" : "("; // can we scroll up?
-		
+
 		local pos_str = ""
 		local length = _displaystart + _displaynum  -1;
 		if (length <= _options.len() ) // Can we scroll down?
 			pos_str = _scrolldownstr;
 		else
 			length = _options.len()+1;
-		
+
 		// add num display
 		optionsList += _displaystart+" - "+(length-1)+") of "+_options.len()+"\n";
-		
+
 		for(local idx = _displaystart; idx < length; idx++)
 		{
 			local row = _options[idx];
 			local disp = "";
 			if (idx == _curSel)
 				disp += _hpre;
-			
+
 			disp += _oformat;
 			disp = ::VSLib.Utils.StringReplace(disp, "{num}", idx.tostring());
 			disp = ::VSLib.Utils.StringReplace(disp, "{option}", row.text);
 			disp = ParseString(disp);
 			if (idx == _curSel)
 				disp += _hpost;
-			
+
 			optionsList += disp + "\n";
 		}
 		optionsList += pos_str;
-		
+
 		// Build return string
 		/* Can't call base.GetString here, as {options} will already be consumed */
 		if (_modded || _dynrefcount > 0)
@@ -1319,7 +1319,7 @@ class ::VSLib.HUD.MenuScrollable extends ::VSLib.HUD.Menu
 			_cachestr = _formatstr;
 			_cachestr = ParseString(_cachestr);
 		}
-		
+
 		local temp =  _cachestr;
 		temp = ::VSLib.Utils.StringReplace(temp, "{name}", _player.GetName());
 		temp = ::VSLib.Utils.StringReplace(temp, "{title}", _title);
@@ -1333,15 +1333,15 @@ class ::VSLib.HUD.MenuScrollable extends ::VSLib.HUD.Menu
 	{
 		_displaynum = displaycount+1;
 	}
-	
-	
+
+
 	/**
 	 * Scroll menu down
 	 */
 	function Scroll()
 	{
 		Utils.PlaySoundToAll("Menu.Scroll");
-		
+
 		if ((++_curSel) > _numop)
 		{
 			if (_scrollbackbtn)
@@ -1364,7 +1364,7 @@ class ::VSLib.HUD.MenuScrollable extends ::VSLib.HUD.Menu
 			}
 		}
 	}
-	
+
 	/**
 	 * Scroll menu up
 	 */
@@ -1373,11 +1373,11 @@ class ::VSLib.HUD.MenuScrollable extends ::VSLib.HUD.Menu
 		Utils.PlaySoundToAll("Menu.Scroll");
 		if ((--_curSel) <= 0)
 			_curSel = 1;
-		
+
 		if (_curSel < _displaystart )
 			_displaystart = _curSel;
 	}
-	
+
 	/**
 	 * Gathers input data and acts on it.
 	 */
@@ -1390,11 +1390,11 @@ class ::VSLib.HUD.MenuScrollable extends ::VSLib.HUD.Menu
 		else if (_player.IsPressingButton(_selectBtn))
 		{
 			Utils.PlaySoundToAll("Menu.Select");
-			
+
 			local t = { p = _player, idx = _curSel, val = _options[_curSel].text, callb = _options[_curSel].callback };
 			::VSLib.Timers.AddTimer(0.1, 0, @(tbl) tbl.callb(tbl.p, tbl.idx, tbl.val), t);
 			CloseMenu();
-			
+
 			if (_autoDetach)
 				Detach();
 		}
@@ -1402,8 +1402,8 @@ class ::VSLib.HUD.MenuScrollable extends ::VSLib.HUD.Menu
 		{
 			ScrollBack();
 		}
-	}    
-	
+	}
+
 	///////////////////////////////////////////////////////////////////
 	// Member variables
 	///////////////////////////////////////////////////////////////////
@@ -1411,10 +1411,10 @@ class ::VSLib.HUD.MenuScrollable extends ::VSLib.HUD.Menu
 	_displaynum = 4;
 	_scrollupstr = "";
 	_scrolldownstr = "";
-}    
+}
 
 /**
- * A manually advanced menu system to be driven externally ie: game_ui. 
+ * A manually advanced menu system to be driven externally ie: game_ui.
  * @authors shotgunefx
  */
 class ::VSLib.HUD.MenuScrollableManual extends ::VSLib.HUD.MenuScrollable
@@ -1438,12 +1438,12 @@ class ::VSLib.HUD.MenuScrollableManual extends ::VSLib.HUD.MenuScrollable
 		_scrolldownstr = scrollDownStr;
 		_manual = true
 	}
-	
-	
+
+
 	/**
 	 * Select menu item
 	 */
-	
+
 	function Select()
 	{
 			Utils.PlaySoundToAll("Menu.Select");
@@ -1456,7 +1456,7 @@ class ::VSLib.HUD.MenuScrollableManual extends ::VSLib.HUD.MenuScrollable
 
 	/**
 	 * Scroll menu down
-	
+
 	function Scroll()
 	{
 		Utils.PlaySoundToAll("Menu.Scroll");
@@ -1483,24 +1483,24 @@ class ::VSLib.HUD.Clock extends ::VSLib.HUD.Item
 	///////////////////////////////////////////////////////////////////
 	// Meta functions
 	///////////////////////////////////////////////////////////////////
-	
+
 	constructor(formatStr = "{hour}:{min}:{sec} {am_pm}", is12HourFormat = true, isLocalTime = true)
 	{
 		SetFormatString(formatStr);
-		
+
 		if (isLocalTime)
 			_tformat = "l";
 		else
 			_tformat = "u";
-		
+
 		_12hr = is12HourFormat;
 	}
-	
-	
+
+
 	///////////////////////////////////////////////////////////////////
 	// Member functions
 	///////////////////////////////////////////////////////////////////
-	
+
 	/**
 	 * Sets the 12 hr format
 	 */
@@ -1508,7 +1508,7 @@ class ::VSLib.HUD.Clock extends ::VSLib.HUD.Item
 	{
 		_12hr = is12HourFormat;
 	}
-	
+
 	/**
 	 * Gets if the clock follows a 12 hr format
 	 */
@@ -1516,7 +1516,7 @@ class ::VSLib.HUD.Clock extends ::VSLib.HUD.Item
 	{
 		return _12hr;
 	}
-	
+
 	/**
 	 * Sets local or UTC time. Set true for local time, false for UTC
 	 */
@@ -1527,7 +1527,7 @@ class ::VSLib.HUD.Clock extends ::VSLib.HUD.Item
 		else
 			_tformat = "u";
 	}
-	
+
 	/**
 	 * Gets the current time format ("l" for local time, "u" for UTC time)
 	 */
@@ -1535,14 +1535,14 @@ class ::VSLib.HUD.Clock extends ::VSLib.HUD.Item
 	{
 		return _tformat;
 	}
-	
+
 	/**
 	 * Returns the formatted text
 	 */
 	function GetString()
 	{
 		local d = date(time(), _tformat);
-		
+
 		if (_12hr)
 		{
 			if (d.hour >= 12)
@@ -1552,26 +1552,26 @@ class ::VSLib.HUD.Clock extends ::VSLib.HUD.Item
 			}
 			else
 				d.suffix <- "AM";
-				
+
 			if (d.hour == 0)
 				d.hour = 12;
 		}
 		else
 			d.suffix <- "";
-		
+
 		local temp = base.GetString();
 		temp = ::VSLib.Utils.StringReplace(temp, "{am_pm}", d.suffix);
 		foreach (idx, val in d)
 			temp = ::VSLib.Utils.StringReplace(temp, "{" + idx + "}", val);
-		
+
 		return temp;
 	}
-	
-	
+
+
 	///////////////////////////////////////////////////////////////////
 	// Vars
 	///////////////////////////////////////////////////////////////////
-	
+
 	_tformat = null;
 	_12hr = false;
 }
@@ -1604,7 +1604,7 @@ function VSLib::HUD::Remove(hudtype)
 				row._vslib_item._isbound = false;
 				row._vslib_item._hudmode = -1;
 			}
-			
+
 			delete ::VSLib.HUD._hud.Fields[idx];
 		}
 	}
@@ -1631,7 +1631,7 @@ function VSLib::HUD::GetLayout()
 
 
 // Load the HUD table
-HUDSetLayout( ::VSLib.HUD._hud );
+// HUDSetLayout( ::VSLib.HUD._hud );
 
 
 // Add a weak reference to the global table.
